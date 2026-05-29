@@ -14,7 +14,7 @@ COPY packages/shared/src packages/shared/src
 COPY apps/web/src apps/web/src
 COPY apps/web/public apps/web/public
 
-ARG NEXT_PUBLIC_WS_URL=https://TU_DOMINIO.com/ws
+ARG NEXT_PUBLIC_WS_URL=http://localhost:3001/ws
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 RUN pnpm --filter @freestyle/web build
 
