@@ -9,7 +9,7 @@ import { ScoreBoard } from "@/components/ScoreBoard";
 import { Toaster, useClipboard } from "@/lib/utils";
 import type { Battle, UserRole, RoundPhase, Word, RoundVote } from "@freestyle/shared";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
 type CountdownNum = 3 | 2 | 1 | "go" | null;
 

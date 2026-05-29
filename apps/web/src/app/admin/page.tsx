@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Battle } from "@freestyle/shared";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
 export default function AdminPage() {
   const [battles, setBattles] = useState<Battle[]>([]);

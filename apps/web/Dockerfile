@@ -4,8 +4,7 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
-ARG NEXT_PUBLIC_WS_URL=http://localhost:3001/ws
-ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+ENV NEXT_PUBLIC_WS_URL=
 
 # Copy workspace config + all package.json files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./

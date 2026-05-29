@@ -6,7 +6,7 @@ import { BattleModeSelector } from "@/components/BattleModeSelector";
 import { Toaster, useClipboard, showToast } from "@/lib/utils";
 import type { BattleMode, UserRole } from "@freestyle/shared";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
 type Step = "menu" | "create" | "created" | "join";
 
