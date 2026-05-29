@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BattleModeSelector } from "@/components/BattleModeSelector";
 import { Toaster, useClipboard, showToast } from "@/lib/utils";
-import type { BattleMode, UserRole } from "@freestyle/shared";
+import type { UserRole } from "@freestyle/shared";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -19,7 +19,6 @@ export default function HomePage() {
   const [createdId, setCreatedId] = useState("");
   const [role, setRole] = useState<UserRole>("participant");
   const [alias, setAlias] = useState("");
-  const [mode, setMode] = useState<BattleMode>("clasico");
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
@@ -29,7 +28,7 @@ export default function HomePage() {
       const res = await fetch(`${WS_URL}/api/battles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: { mode } }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error("Error del servidor");
       const battle = await res.json();
@@ -96,7 +95,7 @@ export default function HomePage() {
           </div>
           <div className="mb-8">
             <label className="flex items-center gap-2 text-sm text-gray-400 mb-3"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">2</span>Modo de batalla</label>
-            <BattleModeSelector value={mode} onChange={setMode} />
+            <BattleModeSelector />
           </div>
           <div className="mb-8">
             <label className="flex items-center gap-2 text-sm text-gray-400 mb-2"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">3</span>También quieres participar como</label>

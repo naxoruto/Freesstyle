@@ -1,38 +1,49 @@
 "use client";
 
-import type { BattleMode } from "@freestyle/shared";
+/**
+ * BattleModeSelector — Modo único: Clásico con Rúbrica.
+ *
+ * A diferencia de solo ver un video en YouTube, Freestyle Arena ofrece:
+ *  🔴 Jueceo en tiempo real con rúbrica (Flow, Lírica, Ingenio, Presencia, Técnica)
+ *  🎲 Palabras aleatorias generadas por el sistema
+ *  ⏱️ Cronómetro y fases automatizadas
+ *  📊 Resultados transparentes voto por voto
+ */
 
-const MODES: { mode: BattleMode; name: string; icon: string; desc: string }[] = [
-  { mode: "clasico", name: "Clásico", icon: "🎤", desc: "1 palabra cada 45s, alternando turnos" },
-  { mode: "contrarreloj", name: "Contrarreloj", icon: "⏱️", desc: "Palabra nueva sin pausa" },
-  { mode: "tematico", name: "Temático", icon: "🎯", desc: "Todas las palabras de una categoría" },
-  { mode: "muerte-subita", name: "Muerte Súbita", icon: "💀", desc: "Sin límite, pierde el que falla" },
-  { mode: "por-equipos", name: "Por Equipos", icon: "👥", desc: "2vs2 o más, rounds por equipo" },
-];
+const MODE_INFO = {
+  mode: "clasico" as const,
+  name: "Clásico",
+  icon: "🎤",
+  desc: "1vs1 · 3 rondas · 45s por turno · Jueceo con rúbrica",
+  highlights: [
+    { icon: "📋", label: "Rúbrica de 5 criterios", detail: "Flow, Lírica, Ingenio, Presencia, Técnica" },
+    { icon: "🎲", label: "Palabras aleatorias", detail: "8 categorías, 3 niveles de dificultad" },
+    { icon: "⏱️", label: "Cronómetro en vivo", detail: "45s por turno con cuenta regresiva" },
+    { icon: "⚖️", label: "Votación en tiempo real", detail: "Los jueces deciden ronda por ronda" },
+  ],
+};
 
-interface BattleModeSelectorProps {
-  value: BattleMode;
-  onChange: (mode: BattleMode) => void;
-}
-
-export function BattleModeSelector({ value, onChange }: BattleModeSelectorProps) {
+export function BattleModeSelector() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {MODES.map(({ mode, name, icon, desc }) => (
-        <button
-          key={mode}
-          onClick={() => onChange(mode)}
-          className={`p-4 rounded-xl border-2 text-left transition-all ${
-            value === mode
-              ? "border-red-500 bg-red-500/10"
-              : "border-gray-800 bg-arena-800/30 hover:border-gray-600"
-          }`}
-        >
-          <span className="text-2xl block mb-1">{icon}</span>
-          <span className="font-bold text-white text-sm">{name}</span>
-          <p className="text-xs text-gray-500 mt-1">{desc}</p>
-        </button>
-      ))}
+    <div className="p-5 rounded-2xl border-2 border-red-500/30 bg-red-500/5">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-3xl">{MODE_INFO.icon}</span>
+        <div>
+          <span className="font-battle text-xl text-white">{MODE_INFO.name}</span>
+          <p className="text-sm text-gray-400">{MODE_INFO.desc}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {MODE_INFO.highlights.map((h) => (
+          <div key={h.label} className="flex items-start gap-2 p-2 rounded-lg bg-arena-900/40">
+            <span className="text-lg">{h.icon}</span>
+            <div>
+              <p className="text-xs font-bold text-gray-300">{h.label}</p>
+              <p className="text-xs text-gray-500">{h.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

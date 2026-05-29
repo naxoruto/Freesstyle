@@ -16,7 +16,7 @@ export interface Word {
   id: string; text: string; category: WordCategory; difficulty: WordDifficulty;
 }
 
-export type BattleMode = "clasico" | "contrarreloj" | "tematico" | "muerte-subita" | "por-equipos";
+export type BattleMode = "clasico";
 
 export interface BattleModeConfig {
   mode: BattleMode; rounds: number; timePerTurn: number; category?: WordCategory; difficulty: WordDifficulty;
@@ -31,7 +31,7 @@ export interface Participant {
 
 export interface Battle {
   id: string; mode: BattleModeConfig; status: BattleStatus; participants: Participant[];
-  judges: string[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
+  judges: { id: string; alias: string }[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
   currentWord?: Word; timeRemaining: number; createdAt: string;
 }
 
@@ -43,12 +43,21 @@ export interface RoundVote {
   judgeId: string; judgeName: string; winnerId: string; round: number;
 }
 
+/** Rúbrica de un juez para AMBOS MCs en una ronda */
+export interface JudgeRubricVote {
+  judgeId: string; judgeName: string; round: number;
+  mc1Scores: ScoreRubric;
+  mc2Scores: ScoreRubric;
+  mc1Id: string;
+  mc2Id: string;
+}
+
 export type ServerEvent =
   | { type: "battle:state"; battle: Battle }
   | { type: "battle:round_start"; round: number; word: Word; totalRounds: number }
   | { type: "battle:phase"; phase: RoundPhase; participantId?: string; timeRemaining?: number }
   | { type: "battle:timer"; timeRemaining: number }
-  | { type: "battle:round_result"; round: number; winnerId: string; votes: RoundVote[] }
+  | { type: "battle:round_result"; round: number; winnerId: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> }
   | { type: "battle:winner"; winnerId: string; finalScores: Record<string, number> }
   | { type: "battle:error"; message: string }
   | { type: "room:joined"; userId: string; role: UserRole }
@@ -59,5 +68,5 @@ export type ClientEvent =
   | { type: "battle:leave" }
   | { type: "battle:start" }
   | { type: "battle:next_phase" }
-  | { type: "judge:vote_round"; battleId: string; round: number; winnerId: string }
+  | { type: "judge:vote_rubric"; battleId: string; round: number; mc1Id: string; mc2Id: string; mc1Scores: ScoreRubric; mc2Scores: ScoreRubric }
   | { type: "battle:set_mode"; mode: BattleModeConfig };

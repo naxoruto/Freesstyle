@@ -24,12 +24,6 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// --- REST: Lista de batallas activas ---
-app.get("/api/battles", (_req, res) => {
-  const battles = battleManager.listBattles();
-  res.json(battles);
-});
-
 // --- REST: Crear batalla ---
 app.post("/api/battles", (req, res) => {
   const { mode } = req.body;
@@ -58,6 +52,22 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string) {
     timeRemaining: phase.timeRemaining,
     phaseToken: phase.phaseToken,
   });
+
+  // Emit round_result with rubric data when available
+  if (phase.phase === "round_result" && phase.rubricVotes && phase.scores) {
+    // Find winner from scores
+    let winnerId = "";
+    let maxScore = 0;
+    for (const [pid, total] of Object.entries(phase.scores)) {
+      if (total > maxScore) { maxScore = total; winnerId = pid; }
+    }
+    io.to(battleId).emit("battle:round_result", {
+      round: phase.battle.currentRound,
+      winnerId,
+      rubricVotes: phase.rubricVotes,
+      scores: phase.scores,
+    });
+  }
 
   // --- Server-side timer scheduling ---
   // Countdown phases: wait 4 seconds (3-2-1-GO) then advance to mc turn
@@ -143,18 +153,20 @@ io.on("connection", (socket) => {
         break;
       }
 
-      case "judge:vote_round": {
+      case "judge:vote_rubric": {
         const socketUser = battleManager.getSocketUser(socket.id);
         if (!socketUser) { socket.emit("battle:error", { message: "Usuario no encontrado" }); return; }
-        const result = battleManager.submitVote(event.battleId, socketUser.userId, event.round, event.winnerId);
+        const ev = event as Extract<ClientEvent, { type: "judge:vote_rubric" }>;
+        const result = battleManager.submitRubricVote(ev.battleId, socketUser.userId, ev.round, ev.mc1Id, ev.mc2Id, ev.mc1Scores, ev.mc2Scores);
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
 
-        // Emitir estado de votos
-        io.to(event.battleId).emit("battle:state", battleManager.listBattles().find(b => b.id === event.battleId.toLowerCase())!);
+        // Emitir estado actualizado
+        const updatedBattle = battleManager.listBattles().find(b => b.id === ev.battleId.toLowerCase());
+        if (updatedBattle) io.to(ev.battleId).emit("battle:state", updatedBattle);
 
         if (result.allVoted && result.winnerId) {
           // Auto-avanzar a round_result
-          advanceAndBroadcast(event.battleId);
+          advanceAndBroadcast(ev.battleId);
         }
         break;
       }

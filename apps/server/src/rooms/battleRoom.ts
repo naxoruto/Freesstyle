@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import type { Battle, BattleModeConfig, Participant, User, RoundVote, Word, RoundPhase } from "@freestyle/shared";
+import type { Battle, BattleModeConfig, Participant, User, JudgeRubricVote, Word, RoundPhase } from "@freestyle/shared";
 import { generateWord } from "../words/wordGenerator";
 import { getDefaultModeConfig } from "../modes/modes";
 
@@ -8,7 +8,7 @@ interface SocketUser { socketId: string; userId: string; name: string; alias: st
 export class BattleRoomManager {
   private battles = new Map<string, Battle>();
   private sockets = new Map<string, SocketUser>();
-  private votes = new Map<string, RoundVote[]>(); // key: battleId:round
+  private rubricVotes = new Map<string, JudgeRubricVote[]>(); // key: battleId:round
   private phaseTimers = new Map<string, NodeJS.Timeout>();
   // Track a unique token per phase transition to prevent duplicate advances
   private phaseTokens = new Map<string, string>();
@@ -40,7 +40,7 @@ export class BattleRoomManager {
     this.sockets.set(socketId, { socketId, userId: user.id, name: user.name, alias: user.alias, role: user.role });
 
     if (user.role === "judge") {
-      if (!battle.judges.includes(user.id)) battle.judges.push(user.id);
+      if (!battle.judges.find(j => j.id === user.id)) battle.judges.push({ id: user.id, alias: user.alias });
     }
     if (user.role === "participant") {
       const exists = battle.participants.find(p => p.userId === user.id);
@@ -60,8 +60,8 @@ export class BattleRoomManager {
         battle.participants = battle.participants.filter(p => p.userId !== user.userId);
         return battle;
       }
-      if (battle.judges.includes(user.userId)) {
-        battle.judges = battle.judges.filter(j => j !== user.userId);
+      if (battle.judges.some(j => j.id === user.userId)) {
+        battle.judges = battle.judges.filter(j => j.id !== user.userId);
         return battle;
       }
     }
@@ -118,7 +118,7 @@ export class BattleRoomManager {
   // Avanzar a la siguiente fase de la ronda
   // `expectedToken` is used for idempotency: if provided and it doesn't match
   // the current phase token, the call is a duplicate and is rejected.
-  nextPhase(battleId: string, expectedToken?: string): { battle: Battle; word?: Word; phase: RoundPhase; participantId?: string; timeRemaining?: number; phaseToken: string } | { error: string } {
+  nextPhase(battleId: string, expectedToken?: string): { battle: Battle; word?: Word; phase: RoundPhase; participantId?: string; timeRemaining?: number; phaseToken: string; rubricVotes?: JudgeRubricVote[]; scores?: Record<string, number> } | { error: string } {
     const battle = this.battles.get(battleId.toLowerCase());
     if (!battle || battle.status !== "in_progress") return { error: "Batalla no encontrada" };
 
@@ -170,28 +170,31 @@ export class BattleRoomManager {
         return { battle, phase: "voting", phaseToken: newToken };
       }
       case "voting": {
-        // Ya se votó, verificar si todos los jueces votaron
+        // Ya se votó, verificar si todos los jueces votaron con rúbrica
         const voteKey = `${battle.id}:${battle.currentRound}`;
-        const roundVotes = this.votes.get(voteKey) || [];
+        const roundVotes = this.rubricVotes.get(voteKey) || [];
         const allJudged = battle.judges.length === 0 || roundVotes.length >= battle.judges.length;
 
         if (allJudged && roundVotes.length > 0) {
-          // Determinar ganador de la ronda
-          const voteCounts: Record<string, number> = {};
+          // Determinar ganador por puntaje total de rúbrica
+          const scores: Record<string, number> = {};
           for (const v of roundVotes) {
-            voteCounts[v.winnerId] = (voteCounts[v.winnerId] || 0) + 1;
+            const mc1Total = v.mc1Scores.flow + v.mc1Scores.lirica + v.mc1Scores.ingenio + v.mc1Scores.presencia + v.mc1Scores.tecnica;
+            const mc2Total = v.mc2Scores.flow + v.mc2Scores.lirica + v.mc2Scores.ingenio + v.mc2Scores.presencia + v.mc2Scores.tecnica;
+            scores[v.mc1Id] = (scores[v.mc1Id] || 0) + mc1Total;
+            scores[v.mc2Id] = (scores[v.mc2Id] || 0) + mc2Total;
           }
           let winnerId = "";
-          let maxVotes = 0;
-          for (const [pid, count] of Object.entries(voteCounts)) {
-            if (count > maxVotes) { maxVotes = count; winnerId = pid; }
+          let maxScore = 0;
+          for (const [pid, total] of Object.entries(scores)) {
+            if (total > maxScore) { maxScore = total; winnerId = pid; }
           }
           // Actualizar rounds ganados
           const winner = battle.participants.find(p => p.userId === winnerId);
           if (winner) winner.roundsWon++;
 
           battle.roundPhase = "round_result";
-          return { battle, phase: "round_result", phaseToken: newToken };
+          return { battle, phase: "round_result", phaseToken: newToken, rubricVotes: roundVotes, scores };
         }
         return { error: "Esperando votos de los jueces..." };
       }
@@ -210,30 +213,43 @@ export class BattleRoomManager {
     }
   }
 
-  submitVote(battleId: string, judgeId: string, round: number, winnerId: string): { votes: RoundVote[]; allVoted: boolean; winnerId?: string } | { error: string } {
+  submitRubricVote(battleId: string, judgeId: string, round: number, mc1Id: string, mc2Id: string, mc1Scores: { flow: number; lirica: number; ingenio: number; presencia: number; tecnica: number }, mc2Scores: { flow: number; lirica: number; ingenio: number; presencia: number; tecnica: number }): { rubricVotes: JudgeRubricVote[]; allVoted: boolean; winnerId?: string; scores?: Record<string, number> } | { error: string } {
     const battle = this.battles.get(battleId.toLowerCase());
     if (!battle) return { error: "Batalla no encontrada" };
-    if (!battle.judges.includes(judgeId)) return { error: "No eres juez" };
+    if (!battle.judges.find(j => j.id === judgeId)) return { error: "No eres juez" };
 
     const voteKey = `${battleId}:${round}`;
-    const existing = this.votes.get(voteKey) || [];
+    const existing = this.rubricVotes.get(voteKey) || [];
     const idx = existing.findIndex(v => v.judgeId === judgeId);
     const judgeUser = this.findUserById(judgeId);
-    const vote: RoundVote = { judgeId, judgeName: judgeUser?.alias || judgeId.slice(0, 8), winnerId, round };
+    const vote: JudgeRubricVote = {
+      judgeId, judgeName: judgeUser?.alias || judgeId.slice(0, 8), round,
+      mc1Id, mc2Id, mc1Scores, mc2Scores,
+    };
     if (idx >= 0) existing[idx] = vote;
     else existing.push(vote);
-    this.votes.set(voteKey, existing);
+    this.rubricVotes.set(voteKey, existing);
 
-    const allVoted = battle.judges.every(jid => existing.some(v => v.judgeId === jid));
+    const allVoted = battle.judges.every(j => existing.some(v => v.judgeId === j.id));
     let winnerIdResult: string | undefined;
+    let scoresResult: Record<string, number> | undefined;
+
     if (allVoted) {
-      const counts: Record<string, number> = {};
-      for (const v of existing) counts[v.winnerId] = (counts[v.winnerId] || 0) + 1;
+      const scores: Record<string, number> = {};
+      for (const v of existing) {
+        const mc1Total = v.mc1Scores.flow + v.mc1Scores.lirica + v.mc1Scores.ingenio + v.mc1Scores.presencia + v.mc1Scores.tecnica;
+        const mc2Total = v.mc2Scores.flow + v.mc2Scores.lirica + v.mc2Scores.ingenio + v.mc2Scores.presencia + v.mc2Scores.tecnica;
+        scores[v.mc1Id] = (scores[v.mc1Id] || 0) + mc1Total;
+        scores[v.mc2Id] = (scores[v.mc2Id] || 0) + mc2Total;
+      }
       let max = 0;
-      for (const [pid, c] of Object.entries(counts)) { if (c > max) { max = c; winnerIdResult = pid; } }
+      for (const [pid, total] of Object.entries(scores)) {
+        if (total > max) { max = total; winnerIdResult = pid; }
+      }
+      scoresResult = scores;
     }
 
-    return { votes: existing, allVoted, winnerId: winnerIdResult };
+    return { rubricVotes: existing, allVoted, winnerId: winnerIdResult, scores: scoresResult };
   }
 
   setMode(socketId: string, mode: BattleModeConfig): Battle | null {
@@ -249,7 +265,7 @@ export class BattleRoomManager {
     const user = this.sockets.get(socketId);
     if (!user) return null;
     for (const battle of this.battles.values()) {
-      if (battle.participants.some(p => p.userId === user.userId) || battle.judges.includes(user.userId))
+      if (battle.participants.some(p => p.userId === user.userId) || battle.judges.some(j => j.id === user.userId))
         return battle;
     }
     return null;
