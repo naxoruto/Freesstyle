@@ -4,7 +4,9 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
-ENV NEXT_PUBLIC_WS_URL=
+# Accept build arg for WS URL (Next.js bakes NEXT_PUBLIC_* at build time)
+ARG NEXT_PUBLIC_WS_URL=""
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 # Copy workspace config + all package.json files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
@@ -19,26 +21,19 @@ COPY packages/shared/src ./packages/shared/src
 COPY apps/web/src ./apps/web/src
 COPY apps/web/public ./apps/web/public
 
-# Build Next.js
+# Build Next.js (standalone output)
 RUN pnpm --filter @freestyle/web build
 
 # ---- Production Stage ----
 FROM node:20-alpine
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
-
-# Copy only production-needed files
-COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/shared/src ./packages/shared/src
-COPY --from=builder /app/apps/web/package.json ./apps/web/
-COPY --from=builder /app/apps/web/next.config.js ./apps/web/
+# Copy the standalone server (includes everything needed to run)
+COPY --from=builder /app/apps/web/.next/standalone ./
+# Copy static assets that standalone doesn't include
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
-
-# Install production deps only
-RUN pnpm install --frozen-lockfile --prod
 
 EXPOSE 3000
-CMD ["sh", "-c", "cd apps/web && npx next start ."]
+# Standalone server is at apps/web/server.js
+CMD ["node", "apps/web/server.js"]

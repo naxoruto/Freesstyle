@@ -38,24 +38,52 @@ cd "$APP_DIR"
 echo "🔧 Configuring nginx for IP: $PUBLIC_IP"
 sed -i "s/server_name .*/server_name $PUBLIC_IP;/" nginx.conf
 
-# ---- 4. Create .env if missing ----
-if [ ! -f .env ]; then
-    DB_PASS=$(openssl rand -hex 16)
-    echo "DB_PASSWORD=$DB_PASS" > .env
-    echo "✅ Created .env with random DB password"
+# ---- 4. Create/update .env with correct WS_URL ----
+WS_URL="http://$PUBLIC_IP"
+
+if [ -f .env ]; then
+    # Preserve existing DB_PASSWORD
+    DB_PASS=$(grep DB_PASSWORD .env | cut -d= -f2 || true)
 fi
+
+if [ -z "$DB_PASS" ]; then
+    DB_PASS=$(openssl rand -hex 16)
+fi
+
+cat > .env <<EOF
+DB_PASSWORD=$DB_PASS
+WS_URL=$WS_URL
+EOF
+
+echo "✅ .env configured: WS_URL=$WS_URL"
 
 # ---- 5. Build containers ONE AT A TIME (1GB RAM can't do parallel) ----
 echo "🐳 Building server (1/2)..."
-docker compose -f docker-compose.prod.yml build --no-cache server --build-arg NEXT_PUBLIC_WS_URL="http://$PUBLIC_IP/ws"
+docker compose -f docker-compose.prod.yml build --no-cache server
 
 echo "🐳 Building web (2/2)..."
-docker compose -f docker-compose.prod.yml build --no-cache web --build-arg NEXT_PUBLIC_WS_URL="http://$PUBLIC_IP/ws"
+docker compose -f docker-compose.prod.yml build --no-cache web
 
 echo "🚀 Starting all services..."
 docker compose -f docker-compose.prod.yml up -d
 
+# Wait a moment and check container health
+echo "⏳ Checking container health..."
+sleep 5
+
+echo ""
+echo "📋 Container status:"
+docker compose -f docker-compose.prod.yml ps
+
+echo ""
+echo "📋 Last 10 lines of web logs:"
+docker logs freestyle-web --tail 10 2>&1 || true
+
+echo ""
+echo "📋 Last 10 lines of server logs:"
+docker logs freestyle-server --tail 10 2>&1 || true
+
 echo ""
 echo "✅ Deploy complete!"
 echo "   🌐 App: http://$PUBLIC_IP"
-echo "   🔌 WebSocket: http://$PUBLIC_IP/ws"
+echo "   🔌 WebSocket: http://$PUBLIC_IP/socket.io/"

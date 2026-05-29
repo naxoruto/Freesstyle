@@ -42,10 +42,13 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_WS_URL: ""
     container_name: freestyle-web
     restart: always
     environment:
-      NEXT_PUBLIC_WS_URL: ${WS_URL:-https://TU_DOMINIO.com/ws}
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
     networks:
       - freestyle
 
