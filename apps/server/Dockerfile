@@ -36,4 +36,4 @@ COPY --from=builder /app/apps/server/dist ./apps/server/dist
 RUN pnpm install --frozen-lockfile --prod
 
 EXPOSE 3001
-CMD ["node", "apps/server/dist/index.js"]
+CMD ["sh", "-c", "cd apps/server && node dist/index.js"]

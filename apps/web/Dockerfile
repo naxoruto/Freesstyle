@@ -42,4 +42,4 @@ COPY --from=builder /app/apps/web/.next ./apps/web/.next
 RUN pnpm install --frozen-lockfile --prod
 
 EXPOSE 3000
-CMD ["npx", "next", "start", "apps/web"]
+CMD ["sh", "-c", "cd apps/web && npx next start ."]
