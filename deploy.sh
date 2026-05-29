@@ -22,7 +22,7 @@ fi
 # ---- 2. Clone repo ----
 if [ ! -d "$APP_DIR" ]; then
     echo "📥 Cloning repository..."
-    git clone https://github.com/TU_USUARIO/freestyle-platform.git "$APP_DIR"
+    git clone https://github.com/axxeler8/freestyle.git "$APP_DIR"
 else
     echo "📥 Pulling latest changes..."
     cd "$APP_DIR"
