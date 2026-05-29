@@ -45,9 +45,14 @@ if [ ! -f .env ]; then
     echo "✅ Created .env with random DB password"
 fi
 
-# ---- 5. Build and start ----
-echo "🐳 Building containers..."
-WS_URL="http://$PUBLIC_IP/ws" docker compose -f docker-compose.prod.yml build --build-arg NEXT_PUBLIC_WS_URL="http://$PUBLIC_IP/ws"
+# ---- 5. Build containers ONE AT A TIME (1GB RAM can't do parallel) ----
+echo "🐳 Building server (1/2)..."
+docker compose -f docker-compose.prod.yml build --no-cache server --build-arg NEXT_PUBLIC_WS_URL="http://$PUBLIC_IP/ws"
+
+echo "🐳 Building web (2/2)..."
+docker compose -f docker-compose.prod.yml build --no-cache web --build-arg NEXT_PUBLIC_WS_URL="http://$PUBLIC_IP/ws"
+
+echo "🚀 Starting all services..."
 docker compose -f docker-compose.prod.yml up -d
 
 echo ""
