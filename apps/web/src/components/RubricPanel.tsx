@@ -14,60 +14,50 @@ interface RubricPanelProps {
   compact?: boolean;
 }
 
-const CRITERIA: { key: keyof ScoreRubric; label: string; emoji: string; description: string }[] = [
-  { key: "flow", label: "Flow / Métrica", emoji: "🌊", description: "Ritmo, cadencia y compás" },
-  { key: "lirica", label: "Lírica / Contenido", emoji: "📝", description: "Calidad de las rimas y mensaje" },
-  { key: "ingenio", label: "Ingenio / Creatividad", emoji: "💡", description: "Originalidad e improvisación" },
-  { key: "presencia", label: "Puesta en Escena", emoji: "🎭", description: "Actitud, presencia y energía" },
-  { key: "tecnica", label: "Técnica Vocal", emoji: "🗣️", description: "Respiración, vocalización, claridad" },
+const CRITERIA: { key: keyof ScoreRubric; label: string; short: string }[] = [
+  { key: "flow",      label: "Flow / Métrica",      short: "Flow"     },
+  { key: "lirica",    label: "Lírica / Contenido",   short: "Lírica"   },
+  { key: "ingenio",   label: "Ingenio",              short: "Ingenio"  },
+  { key: "presencia", label: "Puesta en Escena",     short: "Escena"   },
+  { key: "tecnica",   label: "Técnica Vocal",        short: "Técnica"  },
 ];
 
 export function RubricPanel({ participantName, onSubmit, submitted, externalScores, onScoresChange, submitLabel, hideSubmit, compact }: RubricPanelProps) {
   const [internalScores, setInternalScores] = useState<ScoreRubric>({
-    flow: 5,
-    lirica: 5,
-    ingenio: 5,
-    presencia: 5,
-    tecnica: 5,
+    flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5,
   });
 
   const scores = externalScores ?? internalScores;
 
   const updateScore = (key: keyof ScoreRubric, value: number) => {
-    const newScores = { ...scores, [key]: value };
-    if (onScoresChange) {
-      onScoresChange(newScores);
-    } else {
-      setInternalScores(newScores);
-    }
+    const next = { ...scores, [key]: value };
+    onScoresChange ? onScoresChange(next) : setInternalScores(next);
   };
-
-  const average = Math.round(
-    (Object.values(scores).reduce((a, b) => a + b, 0) / Object.keys(scores).length) * 10
-  ) / 10;
 
   const totalScore = scores.flow + scores.lirica + scores.ingenio + scores.presencia + scores.tecnica;
 
   return (
-    <div className={`rounded-2xl border border-gray-800 bg-arena-800/30 ${compact ? "p-3" : "p-6"}`}>
-      <div className="flex items-center justify-between mb-1">
-        <h3 className={`font-battle text-white ${compact ? "text-sm" : ""}`}>📋 Rúbrica</h3>
+    <div className={`border border-white/8 ${compact ? "p-3" : "p-5"}`} style={{ background: "rgba(255,255,255,0.02)" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/30">Rúbrica</p>
         {participantName && (
-          <p className={`text-yellow-400 font-bold ${compact ? "text-xs" : "text-sm"}`}>
+          <p className="font-battle font-black italic uppercase text-sm" style={{ color: "#e30613" }}>
             {participantName}
           </p>
         )}
       </div>
 
-      <div className={`${compact ? "space-y-2" : "space-y-5"}`}>
-        {CRITERIA.map(({ key, label, emoji, description }) => (
+      {/* Criteria */}
+      <div className={compact ? "space-y-3" : "space-y-4"}>
+        {CRITERIA.map(({ key, label, short }) => (
           <div key={key}>
-            <div className="flex justify-between mb-1">
-              <span className={`text-gray-300 ${compact ? "text-xs" : "text-sm"}`}>
-                {emoji} {compact ? key : label}
+            <div className="flex justify-between mb-1.5">
+              <span className="text-xs font-medium text-white/50 uppercase tracking-wider">
+                {compact ? short : label}
               </span>
-              <span className={`font-mono font-bold text-red-400 ${compact ? "text-xs" : "text-sm"}`}>
-                {scores[key]}/10
+              <span className="text-xs font-black font-battle italic" style={{ color: "#e30613" }}>
+                {scores[key]}<span className="text-white/20">/10</span>
               </span>
             </div>
             <input
@@ -76,34 +66,34 @@ export function RubricPanel({ participantName, onSubmit, submitted, externalScor
               max="10"
               value={scores[key]}
               onChange={(e) => updateScore(key, Number(e.target.value))}
-              className="w-full h-2 bg-arena-800 rounded-lg appearance-none cursor-pointer
-                         accent-red-500 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5"
+              className="w-full h-1 rounded-none appearance-none cursor-pointer"
+              style={{ accentColor: "#e30613", background: "rgba(255,255,255,0.08)" }}
             />
-            {!compact && <p className="text-xs text-gray-600 mt-0.5">{description}</p>}
           </div>
         ))}
       </div>
 
-      {/* Total + promedio */}
-      <div className={`mt-4 p-3 rounded-xl bg-arena-900/50 text-center ${compact ? "p-2" : "p-4"}`}>
-        <span className={`text-gray-500 ${compact ? "text-xs" : "text-sm"}`}>Total: </span>
-        <span className={`font-battle text-yellow-400 ${compact ? "text-lg" : "text-2xl"}`}>{totalScore}</span>
-        <span className={`text-gray-500 ${compact ? "text-xs" : "text-sm"}`}> / 50</span>
-        <span className={`text-gray-600 mx-1 ${compact ? "text-xs" : "text-sm"}`}>·</span>
-        <span className={`text-gray-500 ${compact ? "text-xs" : "text-sm"}`}>Prom: </span>
-        <span className={`font-battle text-yellow-400 ${compact ? "text-sm" : "text-lg"}`}>{average}</span>
+      {/* Total */}
+      <div className="mt-4 pt-4 border-t border-white/5 flex items-baseline justify-between">
+        <span className="text-xs text-white/30 tracking-widest uppercase">Total</span>
+        <div>
+          <span className="font-battle font-black italic text-2xl" style={{ color: "#e30613" }}>{totalScore}</span>
+          <span className="text-xs text-white/20 ml-1">/ 50</span>
+        </div>
       </div>
 
-      {/* Botón enviar — solo visible si no está oculto */}
       {!hideSubmit && (
         <button
           onClick={() => onSubmit(scores)}
           disabled={!participantName || submitted}
-          className="w-full mt-3 px-4 py-3 bg-yellow-600 hover:bg-yellow-500 
-                     disabled:bg-gray-700 disabled:text-gray-500
-                     rounded-lg font-bold text-white transition text-sm"
+          className="w-full mt-3 py-3 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
+          style={{
+            background: submitted ? "rgba(255,255,255,0.05)" : "#e30613",
+            color: submitted ? "rgba(255,255,255,0.3)" : "white",
+            cursor: submitted ? "default" : "pointer",
+          }}
         >
-          {submitted ? "✅ Puntuación enviada" : submitLabel || "📤 Enviar Puntuación"}
+          {submitted ? "Puntuación enviada" : submitLabel || "Enviar Puntuación"}
         </button>
       )}
     </div>

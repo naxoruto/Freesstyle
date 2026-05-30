@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BattleModeSelector } from "@/components/BattleModeSelector";
 import { Toaster, useClipboard, showToast } from "@/lib/utils";
-import type { UserRole } from "@freestyle/shared";
+import type { UserRole, BattleModeConfig } from "@freestyle/shared";
+import HeroSection from "@/components/HeroSection";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -20,6 +20,7 @@ export default function HomePage() {
   const [role, setRole] = useState<UserRole>("participant");
   const [alias, setAlias] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modeConfig] = useState<Partial<BattleModeConfig>>({ mode: "clasico", rounds: 3, timePerTurn: 45 });
 
   const handleCreate = async () => {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
@@ -28,7 +29,7 @@ export default function HomePage() {
       const res = await fetch(`${WS_URL}/api/battles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode: modeConfig }),
       });
       if (!res.ok) throw new Error("Error del servidor");
       const battle = await res.json();
@@ -58,31 +59,10 @@ export default function HomePage() {
       <Toaster />
 
       {step === "menu" && (
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-          <div className="text-center mb-16 animate-fade-in">
-            <div className="text-7xl mb-6">🎤</div>
-            <h1 className="text-7xl md:text-8xl font-battle text-red-500 mb-4 tracking-widest leading-none">
-              FREESTYLE<br />ARENA
-            </h1>
-            <p className="text-gray-500 text-lg max-w-md mx-auto">
-              La plataforma definitiva para batallas de rap improvisado
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg animate-slide-up">
-            <button onClick={() => setStep("create")}
-              className="group p-6 rounded-2xl border-2 border-red-500/20 bg-arena-800/30 hover:border-red-500 hover:bg-red-500/5 transition-all text-left">
-              <span className="text-3xl block mb-3">🎤</span>
-              <span className="text-lg font-bold text-white group-hover:text-red-400 transition">Crear Batalla</span>
-              <p className="text-sm text-gray-500 mt-1">Organiza una nueva sala</p>
-            </button>
-            <button onClick={() => setStep("join")}
-              className="group p-6 rounded-2xl border-2 border-red-500/20 bg-arena-800/30 hover:border-red-500 hover:bg-red-500/5 transition-all text-left">
-              <span className="text-3xl block mb-3">🎧</span>
-              <span className="text-lg font-bold text-white group-hover:text-red-400 transition">Unirse</span>
-              <p className="text-sm text-gray-500 mt-1">Entrar con código de sala</p>
-            </button>
-          </div>
-        </div>
+        <HeroSection
+          onJoin={() => setStep("join")}
+          onCreate={() => setStep("create")}
+        />
       )}
 
       {step === "create" && (
@@ -94,11 +74,7 @@ export default function HomePage() {
             <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: MC Lírico, Dtoke, Aczino..." className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" autoFocus />
           </div>
           <div className="mb-8">
-            <label className="flex items-center gap-2 text-sm text-gray-400 mb-3"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">2</span>Modo de batalla</label>
-            <BattleModeSelector />
-          </div>
-          <div className="mb-8">
-            <label className="flex items-center gap-2 text-sm text-gray-400 mb-2"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">3</span>También quieres participar como</label>
+            <label className="flex items-center gap-2 text-sm text-gray-400 mb-2"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">2</span>También quieres participar como</label>
             <p className="text-xs text-gray-600 mb-3">Eres el admin de la sala. Opcionalmente puedes también ser MC o juez.</p>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setRole("participant")} className={`p-4 rounded-xl border-2 text-center transition ${role === "participant" ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">🎤</span><span className="font-bold text-white text-sm">MC (participante)</span></button>

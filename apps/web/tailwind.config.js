@@ -18,7 +18,7 @@ module.exports = {
         neon: "#39ff14",
       },
       fontFamily: {
-        battle: ["var(--font-battle)", "Impact", "sans-serif"],
+        battle: ["Barlow Condensed", "var(--font-battle)", "Impact", "sans-serif"],
       },
       animation: {
         "pulse-glow": "pulseGlow 2s ease-in-out infinite",
