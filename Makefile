@@ -115,7 +115,7 @@ deploy: ## Push to GitHub + update droplet (git pull + rebuild)
 	git push origin main
 	@echo "$(GREEN)▶ Updating droplet ($(DROPLET_USER)@$(DROPLET_IP))...$(NC)"
 	ssh $(DROPLET_USER)@$(DROPLET_IP) \
-		'cd $(DROPLET_DIR) && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'
+		'cd $(DROPLET_DIR) && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build && docker restart freestyle-nginx'
 	@echo "$(GREEN)✔ Deploy complete!$(NC)"
 	@echo "$(CYAN)🌐 http://$(DROPLET_IP)$(NC)"
 
