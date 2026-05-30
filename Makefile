@@ -3,6 +3,11 @@
 # ─── Default target ───────────────────────────────────────────
 .DEFAULT_GOAL := help
 
+# ─── Droplet config (for deploy) ─────────────────────────────
+DROPLET_USER := root
+DROPLET_IP   := 159.203.188.143
+DROPLET_DIR  := /app/freestyle
+
 # ─── Colors for output ────────────────────────────────────────
 GREEN  := \033[0;32m
 YELLOW := \033[1;33m
@@ -58,9 +63,9 @@ shell-redis: ## Open redis-cli in the dev Redis container
 	docker exec -it freestyle-redis redis-cli
 
 # ─── Production environment ───────────────────────────────────
-up-prod: ## Start full production stack
-	@echo "$(GREEN)▶ Starting production stack...$(NC)"
-	docker compose -f docker-compose.prod.yml up -d
+up-prod: ## Start full production stack (rebuilds images)
+	@echo "$(GREEN)▶ Building and starting production stack...$(NC)"
+	docker compose -f docker-compose.prod.yml up -d --build
 	@echo "$(GREEN)✔ Production stack ready.$(NC)"
 	@make status-prod
 
@@ -103,6 +108,16 @@ clean: down down-prod ## Stop all containers and remove volumes (⚠️ destroys
 	@echo "$(YELLOW)⚠ Removing volumes...$(NC)"
 	docker volume rm freestyle-platform_pgdata 2>/dev/null || true
 	@echo "$(YELLOW)✔ Cleanup complete.$(NC)"
+
+# ─── Deploy to Droplet ────────────────────────────────────────
+deploy: ## Push to GitHub + update droplet (git pull + rebuild)
+	@echo "$(GREEN)▶ Pushing to GitHub...$(NC)"
+	git push origin main
+	@echo "$(GREEN)▶ Updating droplet ($(DROPLET_USER)@$(DROPLET_IP))...$(NC)"
+	ssh $(DROPLET_USER)@$(DROPLET_IP) \
+		'cd $(DROPLET_DIR) && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'
+	@echo "$(GREEN)✔ Deploy complete!$(NC)"
+	@echo "$(CYAN)🌐 http://$(DROPLET_IP)$(NC)"
 
 prune: ## Remove all unused Docker data (images, containers, volumes, networks)
 	@echo "$(YELLOW)⚠ This will remove all unused Docker data!$(NC)"
