@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a1a",
+  themeColor: "#050509",
 };
 
 export default function RootLayout({
@@ -18,16 +18,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="min-h-screen bg-arena-950">
-        <header className="border-b border-red-900/30 bg-arena-900/50 backdrop-blur">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2">
-              <span className="text-2xl">🎤</span>
-              <span className="text-xl font-battle text-red-500 tracking-wider">
-                FREESTYLE ARENA
-              </span>
+      <body className="min-h-screen" style={{ background: "#050509" }}>
+        <div className="broadcast-bar" />
+        <header className="border-b border-white/5 bg-black/40 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+            <a href="/" className="font-battle font-black italic text-xl tracking-wide text-white uppercase">
+              Freestyle<span style={{ color: "#e30613" }}> Arena</span>
             </a>
-            <nav className="flex items-center gap-4 text-sm text-gray-400">
+            <nav className="flex items-center gap-6 text-sm text-white/30">
               <a href="/" className="hover:text-white transition">Inicio</a>
             </nav>
           </div>

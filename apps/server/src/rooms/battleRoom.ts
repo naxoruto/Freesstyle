@@ -76,7 +76,18 @@ export class BattleRoomManager {
     battle.status = "in_progress";
     battle.currentRound = 1;
     battle.roundPhase = "countdown";
-    // Generate a phase token so we can track idempotency
+
+    // Reorder participants so the chosen first MC is at index 0
+    const firstId = battle.mode.firstTurnParticipantId;
+    if (firstId && battle.participants[1]?.userId === firstId) {
+      [battle.participants[0], battle.participants[1]] = [battle.participants[1], battle.participants[0]];
+    } else if (!firstId) {
+      // Random: 50% chance to swap
+      if (Math.random() < 0.5) {
+        [battle.participants[0], battle.participants[1]] = [battle.participants[1], battle.participants[0]];
+      }
+    }
+
     this.phaseTokens.set(battle.id, uuid().slice(0, 8));
     return { battle };
   }
@@ -142,12 +153,15 @@ export class BattleRoomManager {
 
     switch (battle.roundPhase) {
       case "countdown": {
-        // Empezar turno MC1
         battle.roundPhase = "mc1_turn";
-        const word = generateWord(battle.mode.category, battle.mode.difficulty);
-        battle.currentWord = word;
         battle.currentTurn = mc1.userId;
         battle.timeRemaining = battle.mode.timePerTurn;
+        if (battle.mode.mode === "libre") {
+          battle.currentWord = undefined;
+          return { battle, phase: "mc1_turn", participantId: mc1.userId, timeRemaining: battle.mode.timePerTurn, phaseToken: newToken };
+        }
+        const word = generateWord(battle.mode.category, battle.mode.difficulty);
+        battle.currentWord = word;
         return { battle, word, phase: "mc1_turn", participantId: mc1.userId, timeRemaining: battle.mode.timePerTurn, phaseToken: newToken };
       }
       case "mc1_turn": {

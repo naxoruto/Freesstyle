@@ -12,26 +12,37 @@ export function Timer({ seconds, total, isMyTurn }: TimerProps) {
   const isCritical = seconds <= 5 && seconds > 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">⏱️ Tiempo</span>
-        <span className={`font-mono font-bold ${
-          isCritical ? "text-red-400 animate-pulse" :
-          isLow ? "text-yellow-400" : "text-white"
-        }`}>
-          {seconds}s / {total}s
-        </span>
+    <div className="flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
+      {/* Big number */}
+      <div
+        className={`font-battle font-black tabular-nums leading-none transition-colors ${
+          isCritical ? "animate-shake" : ""
+        }`}
+        style={{
+          fontSize: 80,
+          color: isCritical ? "#e30613" : isLow ? "#f59e0b" : "white",
+        }}
+      >
+        {seconds}
       </div>
-      <div className="h-3 bg-arena-800 rounded-full overflow-hidden">
+
+      {/* Thin progress bar */}
+      <div className="w-full h-1 bg-white/5">
         <div
-          className={`h-full rounded-full transition-all duration-1000 ${
-            isCritical ? "bg-red-500" :
-            isLow ? "bg-yellow-500" :
-            "bg-green-500"
-          }`}
-          style={{ width: `${percentage}%` }}
+          className="h-full transition-all duration-1000"
+          style={{
+            width: `${percentage}%`,
+            background: isCritical ? "#e30613" : isLow ? "#f59e0b" : "#e30613",
+          }}
         />
       </div>
+
+      <p
+        className="text-xs font-semibold tracking-[0.3em] uppercase"
+        style={{ color: "rgba(255,255,255,0.2)" }}
+      >
+        {seconds}s / {total}s
+      </p>
     </div>
   );
 }

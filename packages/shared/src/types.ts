@@ -16,10 +16,11 @@ export interface Word {
   id: string; text: string; category: WordCategory; difficulty: WordDifficulty;
 }
 
-export type BattleMode = "clasico";
+export type BattleMode = "clasico" | "libre";
 
 export interface BattleModeConfig {
   mode: BattleMode; rounds: number; timePerTurn: number; category?: WordCategory; difficulty: WordDifficulty;
+  firstTurnParticipantId?: string; // undefined = random
 }
 
 export type RoundPhase = "countdown" | "mc1_turn" | "pause" | "mc2_turn" | "voting" | "round_result";

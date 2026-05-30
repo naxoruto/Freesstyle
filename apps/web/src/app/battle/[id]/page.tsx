@@ -7,8 +7,9 @@ import { WordDisplay } from "@/components/WordDisplay";
 import { Timer } from "@/components/Timer";
 import { ScoreBoard } from "@/components/ScoreBoard";
 import { RubricPanel } from "@/components/RubricPanel";
+import { BattleModeSelector } from "@/components/BattleModeSelector";
 import { Toaster } from "@/lib/utils";
-import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric } from "@freestyle/shared";
+import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig } from "@freestyle/shared";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -34,6 +35,8 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const [connecting, setConnecting] = useState(true);
   const [roundResult, setRoundResult] = useState<{ winnerId: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> } | null>(null);
   const [judgeVoted, setJudgeVoted] = useState(false);
+  const [lobbyConfig, setLobbyConfig] = useState<Partial<BattleModeConfig>>({});
+  const [firstTurnId, setFirstTurnId] = useState<string | "random">("random");
   // Rubric scoring state for judges — persist across phases (FMS-style live scoring)
   const [mc1Scores, setMc1Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
   const [mc2Scores, setMc2Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
@@ -72,6 +75,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       battleRef.current = data;
       setBattle(data);
       setPhase(data.roundPhase);
+      if (data.status === "lobby") setLobbyConfig(data.mode);
 
       // FIX Bug 1: Use ref instead of stale closure for comparison
       if (data.status === "in_progress" && data.roundPhase === "countdown" && prevBattle?.status !== "in_progress") {
@@ -141,6 +145,22 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     return () => clearInterval(interval);
   }, [timer, countdown]);
 
+  const handleConfigChange = (config: Partial<BattleModeConfig>) => {
+    const merged = { ...(battle?.mode ?? {}), ...config };
+    setLobbyConfig(merged);
+    socket?.emit("battle:set_mode", { type: "battle:set_mode", mode: merged });
+  };
+
+  const handleFirstTurnChange = (id: string | "random") => {
+    setFirstTurnId(id);
+    const merged = {
+      ...(battle?.mode ?? {}),
+      ...lobbyConfig,
+      firstTurnParticipantId: id === "random" ? undefined : id,
+    };
+    socket?.emit("battle:set_mode", { type: "battle:set_mode", mode: merged });
+  };
+
   const handleStart = () => socket?.emit("battle:start", { type: "battle:start" });
   const handleVote = (winnerId: string) => {
     if (!battle || !mc1 || !mc2) return;
@@ -161,7 +181,15 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   };
 
   if (connecting) {
-    return <div className="min-h-[calc(100vh-57px)] flex items-center justify-center"><div className="text-center"><div className="text-5xl mb-4 animate-bounce">🎤</div><p className="text-gray-400 text-lg">Conectando al servidor...</p></div></div>;
+    return (
+      <div className="min-h-[calc(100vh-57px)] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-white/20 animate-pulse">
+            Conectando al servidor...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -172,33 +200,94 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
       {/* LOBBY */}
       {isLobby && (
-        <div className="text-center py-8 space-y-6">
-          {/* Participantes */}
-          {participants.length > 0 && (
-            <ScoreBoard participants={participants} currentTurn="" userId={userId} />
-          )}
-
-          {/* Jueces */}
-          {battle && battle.judges.length > 0 && (
-            <div className="max-w-md mx-auto p-4 rounded-2xl border border-gray-800 bg-arena-800/30">
-              <h3 className="font-battle text-sm text-white mb-2">⚖️ Jueces</h3>
-              <div className="flex flex-wrap justify-center gap-2">
-                {battle.judges.map((judge) => (
-                  <span key={judge.id} className="px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400">
-                    {judge.alias}
-                  </span>
-                ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
+          {/* Columna izquierda: participantes y jueces */}
+          <div className="space-y-4">
+            {participants.length > 0 && (
+              <ScoreBoard participants={participants} currentTurn="" userId={userId} />
+            )}
+            {battle && battle.judges.length > 0 && (
+              <div className="border border-white/5 px-4 py-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/25 mb-3">Jueces</p>
+                <div className="flex flex-wrap gap-2">
+                  {battle.judges.map((judge) => (
+                    <span key={judge.id} className="px-3 py-1 border border-white/10 text-xs text-white/50 font-medium">
+                      {judge.alias}
+                    </span>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Quién parte (solo cuando hay 2+ participantes) */}
+            {isAdmin && participants.length >= 2 && (
+              <div className="p-4 rounded-2xl border border-gray-800 bg-arena-800/30">
+                <h3 className="font-battle text-sm text-white mb-3">🎯 ¿Quién parte primero?</h3>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleFirstTurnChange("random")}
+                    className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition text-left ${
+                      firstTurnId === "random"
+                        ? "border-red-500 bg-red-500/10 text-white"
+                        : "border-gray-800 hover:border-gray-600 text-gray-400"
+                    }`}
+                  >
+                    🎲 Aleatorio
+                  </button>
+                  {participants.map((p) => (
+                    <button
+                      key={p.userId}
+                      onClick={() => handleFirstTurnChange(p.userId)}
+                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition text-left ${
+                        firstTurnId === p.userId
+                          ? "border-red-500 bg-red-500/10 text-white"
+                          : "border-gray-800 hover:border-gray-600 text-gray-400"
+                      }`}
+                    >
+                      🎤 {p.alias}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isAdmin ? (
+              <button
+                onClick={handleStart}
+                disabled={participants.length < 2}
+                className="w-full py-3.5 font-battle font-black italic uppercase tracking-wider transition-all"
+                style={{
+                  background: participants.length < 2 ? "rgba(255,255,255,0.05)" : "#e30613",
+                  color: participants.length < 2 ? "rgba(255,255,255,0.2)" : "white",
+                  cursor: participants.length < 2 ? "default" : "pointer",
+                }}
+              >
+                Iniciar Batalla
+              </button>
+            ) : (
+              <p className="text-center text-xs font-semibold tracking-[0.25em] uppercase text-white/20">
+                Esperando al admin...
+              </p>
+            )}
+          </div>
+
+          {/* Columna derecha: config de modo (solo admin) */}
+          {isAdmin && (
+            <div className="p-5 border border-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
+              <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/25 mb-4">Configuración</p>
+              <BattleModeSelector
+                value={lobbyConfig}
+                onChange={handleConfigChange}
+              />
             </div>
           )}
-
-          {isAdmin ? (
-            <button onClick={handleStart} disabled={participants.length < 2}
-              className="px-8 py-3 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl font-bold text-white transition">
-              🚀 Iniciar Batalla
-            </button>
-          ) : (
-            <p className="text-gray-500 text-sm">Esperando a que el admin inicie la batalla...</p>
+          {!isAdmin && (
+            <div className="p-5 border border-white/5 text-sm text-white/30 space-y-1.5" style={{ background: "rgba(255,255,255,0.02)", fontFamily: "monospace", fontSize: 12 }}>
+              <p>modo · {battle?.mode.mode}</p>
+              <p>rondas · {battle?.mode.rounds}</p>
+              <p>tiempo · {battle?.mode.timePerTurn}s por MC</p>
+              {battle?.mode.category && <p>categoría · {battle.mode.category}</p>}
+            </div>
           )}
         </div>
       )}
@@ -208,39 +297,53 @@ export default function BattlePage({ params }: { params: { id: string } }) {
         <div className="space-y-4">
           {/* COUNTDOWN OVERLAY */}
           {countdown !== null && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-              <div className="text-center animate-bounce-in">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+              <div className="text-center">
                 {countdown === "go" ? (
-                  <div className="text-8xl font-battle text-red-500 animate-pulse text-glow">¡TIEMPO!</div>
+                  <div
+                    className="font-battle font-black italic uppercase animate-fade-in"
+                    style={{
+                      fontSize: "clamp(64px,14vw,120px)",
+                      color: "#e30613",
+                      textShadow: "0 0 40px rgba(227,6,19,0.8), 0 0 80px rgba(227,6,19,0.4)",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    ¡YA!
+                  </div>
                 ) : (
-                  <div className="text-[12rem] font-battle text-white leading-none animate-bounce">{countdown}</div>
+                  <div
+                    className="font-battle font-black italic animate-fade-in"
+                    style={{
+                      fontSize: "clamp(120px,22vw,220px)",
+                      color: "white",
+                      lineHeight: 0.9,
+                      textShadow: "3px 0 0 rgba(227,6,19,0.3), -1px 0 0 rgba(227,6,19,0.15)",
+                    }}
+                  >
+                    {countdown}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* ROUND INFO */}
-          <div className="text-center text-sm text-gray-500">
-            Ronda {battle?.currentRound} de {battle?.mode.rounds}
-            {currentWord && <span className="ml-2 text-gray-600">· Categoría: {currentWord.category}</span>}
-          </div>
-
-          {/* Phase indicator */}
-          <div className="text-center">
-            {phase === "mc1_turn" && mc1 && (
-              <p className="text-sm text-gray-400">🎤 Rapeando: <span className="text-white font-bold text-lg">{mc1.alias}</span></p>
-            )}
-            {phase === "pause" && (
-              <p className="text-sm text-yellow-400">⏸️ Preparando siguiente MC...</p>
-            )}
-            {phase === "mc2_turn" && mc2 && (
-              <p className="text-sm text-gray-400">🎤 Rapeando: <span className="text-white font-bold text-lg">{mc2.alias}</span></p>
+          {/* ROUND INFO + LIVE badge */}
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs font-semibold tracking-[0.3em] uppercase text-white/25">
+              Ronda {battle?.currentRound} / {battle?.mode.rounds}
+            </p>
+            {(phase === "mc1_turn" || phase === "mc2_turn") && (
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" style={{ background: "#e30613" }} />
+                <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: "#e30613" }}>En vivo</span>
+              </div>
             )}
             {phase === "voting" && (
-              <p className="text-lg font-battle text-yellow-400">⚖️ ¡Los jueces están votando!</p>
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-yellow-400">Votando...</p>
             )}
-            {phase === "round_result" && (
-              <p className="text-lg font-battle text-green-400">✅ Ronda completada</p>
+            {phase === "pause" && (
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-white/30">Preparando...</p>
             )}
           </div>
 
@@ -262,9 +365,9 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                 <div className="space-y-3 animate-slide-up">
                   {/* LIVE indicator during turns */}
                   {(phase === "mc1_turn" || phase === "mc2_turn") && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 w-fit">
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-xs text-red-400 font-bold uppercase tracking-wider">Puntuando en vivo</span>
+                    <div className="flex items-center gap-2 w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#e30613" }} />
+                      <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: "#e30613" }}>Puntuando en vivo</span>
                     </div>
                   )}
 
@@ -298,9 +401,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                   {phase === "voting" && (
                     <button
                       onClick={() => handleVote(mc2.userId)}
-                      className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 rounded-xl font-bold text-white transition flex items-center justify-center gap-2"
+                      className="w-full py-3 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
+                      style={{ background: "#e30613", color: "white" }}
                     >
-                      📤 Enviar Puntuaciones
+                      Enviar Puntuaciones
                     </button>
                   )}
                 </div>
@@ -308,62 +412,64 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
               {/* Judge already voted */}
               {isJudge && judgeVoted && phase === "voting" && (
-                <div className="p-4 rounded-2xl border-2 border-green-500/30 bg-green-500/5 text-center">
-                  <span className="text-2xl block mb-1">✅</span>
-                  <p className="text-sm text-green-400 font-bold">Puntuaciones enviadas</p>
-                  <p className="text-xs text-gray-500 mt-1">Esperando a los demás jueces...</p>
+                <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
+                  <p className="text-xs font-semibold tracking-[0.25em] uppercase text-green-400">Puntuaciones enviadas</p>
+                  <p className="text-xs text-white/20 mt-1">Esperando a los demás jueces...</p>
                 </div>
               )}
 
-              {/* ROUND RESULT with rubric breakdown */}
+              {/* ROUND RESULT */}
               {phase === "round_result" && (
-                <div className="p-4 rounded-2xl border-2 border-green-500/30 bg-green-500/5 text-center animate-bounce-in space-y-3">
-                  <h3 className="font-battle text-green-400">🏆 Ronda {battle?.currentRound}</h3>
+                <div className="border border-white/8 animate-fade-in" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <div className="px-4 py-3 border-b border-white/5">
+                    <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/30">
+                      Ronda {battle?.currentRound} · Resultado
+                    </p>
+                  </div>
 
                   {roundResult && (
-                    <div className="space-y-2">
+                    <div className="divide-y divide-white/5">
                       {participants.map(p => {
                         const isWinner = p.userId === roundResult.winnerId;
                         const score = roundResult.scores[p.userId] || 0;
                         return (
-                          <div key={p.userId} className={`p-3 rounded-xl ${isWinner ? "bg-yellow-500/10 border border-yellow-500/30" : "bg-arena-900/50"}`}>
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-white">{p.alias}</span>
-                              <span className={`text-xl font-battle ${isWinner ? "text-yellow-400" : "text-gray-400"}`}>
-                                {score} pts
-                              </span>
+                          <div
+                            key={p.userId}
+                            className="flex items-center justify-between px-4 py-3"
+                            style={{ background: isWinner ? "rgba(245,158,11,0.06)" : "transparent" }}
+                          >
+                            <div>
+                              <p className="font-battle font-black italic uppercase text-sm" style={{ color: isWinner ? "#f59e0b" : "rgba(255,255,255,0.5)" }}>
+                                {p.alias}
+                              </p>
+                              {isWinner && <p className="text-xs text-yellow-500/60 tracking-wider uppercase mt-0.5">Ganador</p>}
                             </div>
-                            {isWinner && <span className="text-xs text-yellow-500">👑 Ganador de la ronda</span>}
+                            <span className="font-battle font-black italic text-xl" style={{ color: isWinner ? "#f59e0b" : "rgba(255,255,255,0.3)" }}>
+                              {score}
+                            </span>
                           </div>
                         );
                       })}
                     </div>
                   )}
 
-                  {/* Rubric detail per judge */}
                   {roundResult?.rubricVotes && roundResult.rubricVotes.length > 0 && (
-                    <details className="text-left mt-3">
-                      <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-300">📋 Ver desglose por juez</summary>
-                      <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                    <details className="border-t border-white/5">
+                      <summary className="px-4 py-2 text-xs text-white/20 cursor-pointer hover:text-white/40 tracking-widest uppercase">
+                        Desglose por juez
+                      </summary>
+                      <div className="divide-y divide-white/5 max-h-48 overflow-y-auto">
                         {roundResult.rubricVotes.map((v, i) => {
                           const mc1Total = v.mc1Scores.flow + v.mc1Scores.lirica + v.mc1Scores.ingenio + v.mc1Scores.presencia + v.mc1Scores.tecnica;
                           const mc2Total = v.mc2Scores.flow + v.mc2Scores.lirica + v.mc2Scores.ingenio + v.mc2Scores.presencia + v.mc2Scores.tecnica;
                           const mc1Name = participants.find(p => p.userId === v.mc1Id)?.alias || "MC1";
                           const mc2Name = participants.find(p => p.userId === v.mc2Id)?.alias || "MC2";
                           return (
-                            <div key={i} className="p-2 rounded-lg bg-arena-900/50 text-xs">
-                              <p className="text-gray-400 font-bold mb-1">⚖️ {v.judgeName}</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <span className="text-gray-500">{mc1Name}: </span>
-                                  <span className="text-white font-mono">{mc1Total} pts</span>
-                                  <span className="text-gray-600 ml-1">(F:{v.mc1Scores.flow} L:{v.mc1Scores.lirica} I:{v.mc1Scores.ingenio} P:{v.mc1Scores.presencia} T:{v.mc1Scores.tecnica})</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">{mc2Name}: </span>
-                                  <span className="text-white font-mono">{mc2Total} pts</span>
-                                  <span className="text-gray-600 ml-1">(F:{v.mc2Scores.flow} L:{v.mc2Scores.lirica} I:{v.mc2Scores.ingenio} P:{v.mc2Scores.presencia} T:{v.mc2Scores.tecnica})</span>
-                                </div>
+                            <div key={i} className="px-4 py-2 text-xs">
+                              <p className="text-white/30 font-semibold tracking-wider uppercase mb-1">{v.judgeName}</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="text-white/40">{mc1Name}: <span className="text-white font-mono">{mc1Total}</span></div>
+                                <div className="text-white/40">{mc2Name}: <span className="text-white font-mono">{mc2Total}</span></div>
                               </div>
                             </div>
                           );
@@ -372,29 +478,24 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                     </details>
                   )}
 
-                  <div className="flex justify-center gap-4 mt-2">
-                    {participants.map(p => (
-                      <div key={p.userId} className="text-center">
-                        <span className="text-xs text-gray-500 block">Rondas ganadas</span>
-                        <span className="text-lg font-battle text-white">{p.roundsWon}</span>
-                      </div>
-                    ))}
-                  </div>
-
                   {isAdmin && battle && battle.currentRound < battle.mode.rounds && (
-                    <button onClick={handleNextRound}
-                      className="w-full py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-white text-sm transition">
-                      ▶️ Siguiente Ronda
-                    </button>
+                    <div className="p-3 border-t border-white/5">
+                      <button
+                        onClick={handleNextRound}
+                        className="w-full py-2.5 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
+                        style={{ background: "#e30613", color: "white" }}
+                      >
+                        Siguiente Ronda
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
 
               {/* Battle info */}
-              <div className="p-3 rounded-xl bg-arena-900/50 text-xs text-gray-500 space-y-1">
-                <p>Modo: <span className="text-white">{battle?.mode.mode}</span></p>
-                <p>Tiempo por MC: <span className="text-white">{battle?.mode.timePerTurn}s</span></p>
-                <p>Fase: <span className="text-white">{phase}</span></p>
+              <div className="px-3 py-2 border border-white/5 text-xs text-white/20 space-y-1" style={{ fontFamily: "monospace" }}>
+                <p>modo · {battle?.mode.mode}</p>
+                <p>tiempo · {battle?.mode.timePerTurn}s por MC</p>
               </div>
             </div>
           </div>
@@ -403,19 +504,34 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
       {/* FINISHED */}
       {battle?.status === "finished" && (
-        <div className="text-center py-16 space-y-6 animate-bounce-in">
-          <div className="text-6xl">🏆</div>
-          <h3 className="text-3xl font-battle text-yellow-400">¡Batalla Finalizada!</h3>
-          <div className="flex justify-center gap-8">
+        <div className="text-center py-20 space-y-8 animate-fade-in">
+          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-white/20">Batalla finalizada</p>
+          <div className="flex justify-center gap-16">
             {participants.map(p => (
               <div key={p.userId} className="text-center">
-                <span className="font-bold text-white text-xl block">{p.alias}</span>
-                <span className="text-4xl font-battle text-yellow-400 block">{p.roundsWon}</span>
-                <span className="text-xs text-gray-500">rondas ganadas</span>
+                <span
+                  className="font-battle font-black italic uppercase block"
+                  style={{ fontSize: 48, color: "rgba(255,255,255,0.8)", lineHeight: 1 }}
+                >
+                  {p.alias}
+                </span>
+                <span
+                  className="font-battle font-black italic block mt-2"
+                  style={{ fontSize: 80, color: "#f59e0b", lineHeight: 1 }}
+                >
+                  {p.roundsWon}
+                </span>
+                <span className="text-xs text-white/20 tracking-widest uppercase">rondas</span>
               </div>
             ))}
           </div>
-          <a href="/" className="inline-block px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-white transition">🎤 Nueva Batalla</a>
+          <a
+            href="/"
+            className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
+            style={{ background: "#e30613", color: "white" }}
+          >
+            Nueva Batalla
+          </a>
         </div>
       )}
     </div>
