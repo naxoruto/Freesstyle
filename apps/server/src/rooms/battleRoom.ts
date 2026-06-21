@@ -21,6 +21,9 @@ export class BattleRoomManager {
       status: "lobby",
       participants: [],
       judges: [],
+      hosts: [],
+      hostId: "",
+      spectators: [],
       currentRound: 0,
       roundPhase: "countdown",
       currentTurn: "",
@@ -37,16 +40,30 @@ export class BattleRoomManager {
     const battle = this.battles.get(normalizedId);
     if (!battle) return null;
 
-    this.sockets.set(socketId, { socketId, userId: user.id, name: user.name, alias: user.alias, role: user.role });
+    if (!this.sockets.has(socketId)) {
+      this.sockets.set(socketId, { socketId, userId: user.id, name: user.name, alias: user.alias, role: user.role });
+    }
 
+    if (user.role === "admin") {
+      if (!battle.hosts.find(h => h.id === user.id)) battle.hosts.push({ id: user.id, alias: user.alias });
+      if (!battle.hostId) battle.hostId = user.id;
+    }
+    if (user.role === "host") {
+      if (!battle.hosts.find(h => h.id === user.id)) battle.hosts.push({ id: user.id, alias: user.alias });
+      if (!battle.hostId) battle.hostId = user.id;
+    }
     if (user.role === "judge") {
       if (!battle.judges.find(j => j.id === user.id)) battle.judges.push({ id: user.id, alias: user.alias });
+      // FRE-7: si ya es host, mantener ambos roles (no remover de hosts[])
     }
     if (user.role === "participant") {
       const exists = battle.participants.find(p => p.userId === user.id);
       if (!exists) {
         battle.participants.push({ userId: user.id, name: user.name, alias: user.alias, isActive: false, currentScore: 0, roundsWon: 0 });
       }
+    }
+    if (user.role === "spectator") {
+      if (!battle.spectators.find(s => s.id === user.id)) battle.spectators.push({ id: user.id, alias: user.alias });
     }
     return battle;
   }
@@ -55,22 +72,54 @@ export class BattleRoomManager {
     const user = this.sockets.get(socketId);
     if (!user) return null;
     this.sockets.delete(socketId);
+
+    let affectedBattle: Battle | null = null;
+
     for (const battle of this.battles.values()) {
-      if (battle.participants.some(p => p.userId === user.userId)) {
-        battle.participants = battle.participants.filter(p => p.userId !== user.userId);
-        return battle;
+      // FRE-9: Manejo de desconexión de host
+      if (battle.hostId === user.userId) {
+        battle.hosts = battle.hosts.filter(h => h.id !== user.userId);
+        const nextHost = battle.hosts[0];
+        if (nextHost) {
+          battle.hostId = nextHost.id;
+          console.log(`🔄 Host desconectado, nuevo host: ${nextHost.alias}`);
+        } else {
+          battle.hostId = "";
+          console.log(`⚠️ Host desconectado, sin hosts restantes`);
+        }
+        affectedBattle = battle;
+      } else if (battle.hosts.some(h => h.id === user.userId)) {
+        battle.hosts = battle.hosts.filter(h => h.id !== user.userId);
+        affectedBattle = battle;
       }
+
+      // FRE-9: Manejo de desconexión de juez
       if (battle.judges.some(j => j.id === user.userId)) {
         battle.judges = battle.judges.filter(j => j.id !== user.userId);
-        return battle;
+        if (!affectedBattle) affectedBattle = battle;
+      }
+
+      if (battle.participants.some(p => p.userId === user.userId)) {
+        battle.participants = battle.participants.filter(p => p.userId !== user.userId);
+        if (!affectedBattle) affectedBattle = battle;
+      }
+
+      if (battle.spectators.some(s => s.id === user.userId)) {
+        battle.spectators = battle.spectators.filter(s => s.id !== user.userId);
+        if (!affectedBattle) affectedBattle = battle;
       }
     }
-    return null;
+
+    return affectedBattle;
   }
 
   startBattle(socketId: string): { battle: Battle } | { error: string } {
     const battle = this.findBattleBySocket(socketId);
     if (!battle) return { error: "No estás en ninguna batalla" };
+
+    // FRE-5: solo admin o host pueden iniciar
+    if (!this.isHostOrAdmin(socketId, battle)) return { error: "Sin permisos para iniciar la batalla" };
+
     if (battle.participants.length < 2) return { error: "Se necesitan al menos 2 participantes" };
 
     battle.status = "in_progress";
@@ -269,8 +318,54 @@ export class BattleRoomManager {
   setMode(socketId: string, mode: BattleModeConfig): Battle | null {
     const battle = this.findBattleBySocket(socketId);
     if (!battle || battle.status !== "lobby") return null;
+
+    // FRE-5: solo admin o host pueden cambiar configuración
+    if (!this.isHostOrAdmin(socketId, battle)) return null;
+
     battle.mode = { ...getDefaultModeConfig(mode.mode), ...mode };
     return battle;
+  }
+
+  // FRE-6: Transferir rol de host
+  transferHost(socketId: string, targetUserId: string): { battle: Battle } | { error: string } {
+    const battle = this.findBattleBySocket(socketId);
+    if (!battle) return { error: "Batalla no encontrada" };
+    if (battle.status !== "lobby") return { error: "Solo se puede transferir host en lobby" };
+
+    const requester = this.sockets.get(socketId);
+    if (!requester || requester.role !== "admin") return { error: "Solo el admin puede transferir host" };
+
+    const targetSocketId = this.findSocketByUserId(targetUserId);
+    if (!targetSocketId) return { error: "Usuario destino no está conectado" };
+    const target = this.sockets.get(targetSocketId);
+    if (!target) return { error: "Usuario destino no encontrado en sala" };
+
+    // Remover hostId anterior de hosts[] si era un host explícito (no admin)
+    const prevHostId = battle.hostId;
+    if (prevHostId && prevHostId !== requester.userId) {
+      battle.hosts = battle.hosts.filter(h => h.id !== prevHostId);
+    }
+
+    // Agregar nuevo host
+    if (!battle.hosts.find(h => h.id === target.userId)) {
+      battle.hosts.push({ id: target.userId, alias: target.alias });
+    }
+    battle.hostId = targetUserId;
+
+    console.log(`👑 Host transferido a ${target.alias}`);
+    return { battle };
+  }
+
+  // FRE-5: Verificar si el socket pertenece a admin o está en la lista de hosts
+  isHostOrAdmin(socketId: string, battle: Battle): boolean {
+    const user = this.sockets.get(socketId);
+    if (!user) return false;
+    return user.role === "admin" || battle.hosts.some(h => h.id === user.userId);
+  }
+
+  isAdmin(socketId: string): boolean {
+    const user = this.sockets.get(socketId);
+    return user?.role === "admin" || false;
   }
 
   listBattles(): Battle[] { return Array.from(this.battles.values()); }
@@ -279,7 +374,12 @@ export class BattleRoomManager {
     const user = this.sockets.get(socketId);
     if (!user) return null;
     for (const battle of this.battles.values()) {
-      if (battle.participants.some(p => p.userId === user.userId) || battle.judges.some(j => j.id === user.userId))
+      if (
+        battle.participants.some(p => p.userId === user.userId) ||
+        battle.judges.some(j => j.id === user.userId) ||
+        battle.hosts.some(h => h.id === user.userId) ||
+        battle.spectators.some(s => s.id === user.userId)
+      )
         return battle;
     }
     return null;
@@ -291,6 +391,11 @@ export class BattleRoomManager {
 
   private findUserById(userId: string): SocketUser | undefined {
     for (const u of this.sockets.values()) { if (u.userId === userId) return u; }
+    return undefined;
+  }
+
+  private findSocketByUserId(userId: string): string | undefined {
+    for (const [socketId, u] of this.sockets) { if (u.userId === userId) return socketId; }
     return undefined;
   }
 }

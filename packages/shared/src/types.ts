@@ -3,7 +3,7 @@
 // MC1 → MC2 → Jueces votan → Siguiente ronda
 // ============================================================
 
-export type UserRole = "participant" | "judge" | "admin";
+export type UserRole = "participant" | "judge" | "admin" | "host" | "spectator";
 
 export interface User {
   id: string; name: string; alias: string; role: UserRole; avatarUrl?: string;
@@ -21,6 +21,7 @@ export type BattleMode = "clasico" | "libre";
 export interface BattleModeConfig {
   mode: BattleMode; rounds: number; timePerTurn: number; category?: WordCategory; difficulty: WordDifficulty;
   firstTurnParticipantId?: string; // undefined = random
+  showVotesToSpectators?: boolean; // default true — controla si spectators ven rúbricas detalladas
 }
 
 export type RoundPhase = "countdown" | "mc1_turn" | "pause" | "mc2_turn" | "voting" | "round_result";
@@ -32,7 +33,8 @@ export interface Participant {
 
 export interface Battle {
   id: string; mode: BattleModeConfig; status: BattleStatus; participants: Participant[];
-  judges: { id: string; alias: string }[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
+  judges: { id: string; alias: string }[]; hosts: { id: string; alias: string }[]; hostId: string;
+  spectators: { id: string; alias: string }[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
   currentWord?: Word; timeRemaining: number; createdAt: string;
 }
 
@@ -62,7 +64,8 @@ export type ServerEvent =
   | { type: "battle:winner"; winnerId: string; finalScores: Record<string, number> }
   | { type: "battle:error"; message: string }
   | { type: "room:joined"; userId: string; role: UserRole }
-  | { type: "room:left"; userId: string };
+  | { type: "room:left"; userId: string }
+  | { type: "room:role_changed"; userId: string; oldRole?: UserRole; newRole: UserRole };
 
 export type ClientEvent =
   | { type: "battle:join"; battleId: string; user: Pick<User, "id" | "name" | "alias" | "role"> }
@@ -70,4 +73,5 @@ export type ClientEvent =
   | { type: "battle:start" }
   | { type: "battle:next_phase" }
   | { type: "judge:vote_rubric"; battleId: string; round: number; mc1Id: string; mc2Id: string; mc1Scores: ScoreRubric; mc2Scores: ScoreRubric }
-  | { type: "battle:set_mode"; mode: BattleModeConfig };
+  | { type: "battle:set_mode"; mode: BattleModeConfig }
+  | { type: "room:transfer_host"; battleId: string; targetUserId: string };

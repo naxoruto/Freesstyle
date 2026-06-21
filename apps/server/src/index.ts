@@ -32,7 +32,7 @@ app.post("/api/battles", (req, res) => {
 });
 
 // --- Helper: advance phase and broadcast, with server-side timer scheduling ---
-function advanceAndBroadcast(battleId: string, expectedToken?: string) {
+async function advanceAndBroadcast(battleId: string, expectedToken?: string) {
   const phase = battleManager.nextPhase(battleId, expectedToken);
   if ("error" in phase) return;
 
@@ -53,20 +53,37 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string) {
     phaseToken: phase.phaseToken,
   });
 
-  // Emit round_result with rubric data when available
+  // FRE-8: Emit round_result with spectator-aware visibility
   if (phase.phase === "round_result" && phase.rubricVotes && phase.scores) {
-    // Find winner from scores
     let winnerId = "";
     let maxScore = 0;
     for (const [pid, total] of Object.entries(phase.scores)) {
       if (total > maxScore) { maxScore = total; winnerId = pid; }
     }
-    io.to(battleId).emit("battle:round_result", {
+
+    const fullPayload = {
       round: phase.battle.currentRound,
       winnerId,
       rubricVotes: phase.rubricVotes,
       scores: phase.scores,
-    });
+    };
+    const reducedPayload = {
+      round: phase.battle.currentRound,
+      winnerId,
+      rubricVotes: [] as typeof phase.rubricVotes,
+      scores: phase.scores,
+    };
+
+    const showVotes = phase.battle.mode.showVotesToSpectators !== false;
+    const roomSockets = await io.in(battleId).fetchSockets();
+    for (const s of roomSockets) {
+      const su = battleManager.getSocketUser(s.id);
+      if (su?.role === "spectator" && !showVotes) {
+        s.emit("battle:round_result", reducedPayload);
+      } else {
+        s.emit("battle:round_result", fullPayload);
+      }
+    }
   }
 
   // --- Server-side timer scheduling ---
@@ -147,9 +164,32 @@ io.on("connection", (socket) => {
         const battle = battleManager.findBattleBySocket(socket.id);
         if (!battle) { console.log(`⚠️ next_phase: batalla no encontrada para socket ${socket.id}`); return; }
 
-        // Use the token from the client event if available, otherwise proceed without
+        // FRE-5: solo admin o host pueden avanzar fase
+        if (!battleManager.isHostOrAdmin(socket.id, battle)) {
+          socket.emit("battle:error", { message: "Sin permisos para avanzar fase" });
+          return;
+        }
+
         const expectedToken = (event as any).phaseToken as string | undefined;
         advanceAndBroadcast(battle.id, expectedToken);
+        break;
+      }
+
+      case "room:transfer_host": {
+        // FRE-6: Transferir rol de host
+        const ev = event as Extract<ClientEvent, { type: "room:transfer_host" }>;
+        const result = battleManager.transferHost(socket.id, ev.targetUserId);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        io.to(ev.battleId).emit("battle:state", result.battle);
+        break;
+      }
+
+      case "battle:set_mode": {
+        const ev = event as Extract<ClientEvent, { type: "battle:set_mode" }>;
+        // FRE-5: set_mode ya tiene validación en battleRoom.setMode (isHostOrAdmin)
+        const updatedBattle = battleManager.setMode(socket.id, ev.mode);
+        if (updatedBattle) { io.to(updatedBattle.id).emit("battle:state", updatedBattle); }
+        else { socket.emit("battle:error", { message: "No se puede cambiar modo (solo admin/host en lobby)" }); }
         break;
       }
 
@@ -160,12 +200,10 @@ io.on("connection", (socket) => {
         const result = battleManager.submitRubricVote(ev.battleId, socketUser.userId, ev.round, ev.mc1Id, ev.mc2Id, ev.mc1Scores, ev.mc2Scores);
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
 
-        // Emitir estado actualizado
         const updatedBattle = battleManager.listBattles().find(b => b.id === ev.battleId.toLowerCase());
         if (updatedBattle) io.to(ev.battleId).emit("battle:state", updatedBattle);
 
         if (result.allVoted && result.winnerId) {
-          // Auto-avanzar a round_result
           advanceAndBroadcast(ev.battleId);
         }
         break;

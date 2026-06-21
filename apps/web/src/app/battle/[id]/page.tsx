@@ -8,6 +8,7 @@ import { Timer } from "@/components/Timer";
 import { ScoreBoard } from "@/components/ScoreBoard";
 import { RubricPanel } from "@/components/RubricPanel";
 import { BattleModeSelector } from "@/components/BattleModeSelector";
+import { showToast } from "@/lib/utils";
 import { Toaster } from "@/lib/utils";
 import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig } from "@freestyle/shared";
 
@@ -107,6 +108,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
     s.on("battle:round_result", (data: { round: number; winnerId: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> }) => {
       setRoundResult({ winnerId: data.winnerId, rubricVotes: data.rubricVotes, scores: data.scores });
+    });
+
+    s.on("battle:error", (data: { message: string }) => {
+      showToast(data.message, "error");
     });
 
     setSocket(s);

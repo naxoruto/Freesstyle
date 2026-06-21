@@ -63,11 +63,11 @@ shell-redis: ## Open redis-cli in the dev Redis container
 	docker exec -it freestyle-redis redis-cli
 
 # ─── Production environment ───────────────────────────────────
-up-prod: ## Start full production stack (rebuilds images)
+up-prod: ## Start full production stack (rebuilds images, shows logs)
 	@echo "$(GREEN)▶ Building and starting production stack...$(NC)"
 	docker compose -f docker-compose.prod.yml up -d --build
-	@echo "$(GREEN)✔ Production stack ready.$(NC)"
-	@make status-prod
+	@echo "$(GREEN)✔ Production stack ready. Mostrando logs...$(NC)"
+	docker compose -f docker-compose.prod.yml logs -f
 
 down-prod: ## Stop and remove production containers
 	@echo "$(YELLOW)■ Stopping production stack...$(NC)"
