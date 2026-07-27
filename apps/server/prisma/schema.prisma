@@ -276,6 +276,23 @@ model ImportRecord {
   @@map("import_records")
 }
 
+model ExternalProfileCandidate {
+  id              String   @id @default(cuid())
+  source          String
+  alias           String
+  normalizedAlias String   @map("normalized_alias")
+  profileUrl      String   @map("profile_url")
+  countryCode     String?  @map("country_code")
+  suggestedAlias  String?  @map("suggested_alias")
+  status          String   @default("OPEN")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([source, normalizedAlias])
+  @@index([status])
+  @@map("external_profile_candidates")
+}
+
 model DailyChallenge {
   id          String          @id @default(cuid())
   game        ChallengeGame

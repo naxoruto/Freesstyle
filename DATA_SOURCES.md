@@ -148,6 +148,12 @@ defecto ejecuta 10 bloques de 100 con una pausa de un segundo. Se configura con
 `FREESTYLE_STATS_BATTLE_BATCHES`, `FREESTYLE_STATS_BATTLE_LIMIT` y
 `FREESTYLE_STATS_BATTLE_DELAY_MS`.
 
+`catalog:reconcile:freestyle-stats:auto` procesa por lotes los participantes
+no emparejados. Crea candidatos con pais detectable y registra sugerencias de
+AKA solo cuando la similitud es segura; se configura con
+`FREESTYLE_STATS_RECONCILE_BATCHES`, `FREESTYLE_STATS_RECONCILE_LIMIT` y
+`FREESTYLE_STATS_RECONCILE_DELAY_MS`.
+
 `catalog:import` es idempotente: actualiza las fuentes y evita duplicar sus
 relaciones. Tambien rechaza anos de nacimiento que impliquen menos de 12 anos o
 sean anteriores a 1950. `catalog:report` muestra cobertura, candidatos e
