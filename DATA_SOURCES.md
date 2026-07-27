@@ -142,6 +142,12 @@ incremental y procesa 100 batallas nuevas por ejecucion. Puede ajustarse con
 `FREESTYLE_STATS_BATTLE_LIMIT`; solo persiste enfrentamientos cuyos dos
 competidores ya existan en el catalogo.
 
+`catalog:import:freestyle-stats:battles:auto` automatiza varios bloques y
+guarda cada URL ya analizada, incluso si no corresponde a un perfil local. Por
+defecto ejecuta 10 bloques de 100 con una pausa de un segundo. Se configura con
+`FREESTYLE_STATS_BATTLE_BATCHES`, `FREESTYLE_STATS_BATTLE_LIMIT` y
+`FREESTYLE_STATS_BATTLE_DELAY_MS`.
+
 `catalog:import` es idempotente: actualiza las fuentes y evita duplicar sus
 relaciones. Tambien rechaza anos de nacimiento que impliquen menos de 12 anos o
 sean anteriores a 1950. `catalog:report` muestra cobertura, candidatos e

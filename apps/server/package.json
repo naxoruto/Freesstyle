@@ -15,6 +15,7 @@
     "catalog:import": "tsx src/importers/importCatalog.ts",
     "catalog:import:freestyle-stats": "tsx src/importers/importFreestyleStats.ts",
     "catalog:import:freestyle-stats:battles": "tsx src/importers/importFreestyleStatsBattles.ts",
+    "catalog:import:freestyle-stats:battles:auto": "tsx src/importers/importFreestyleStatsBattleBatches.ts",
     "catalog:promote": "tsx src/importers/promoteCatalog.ts",
     "catalog:bootstrap": "tsx src/importers/bootstrapCatalog.ts",
     "catalog:discover": "tsx src/importers/discoverFandom.ts",

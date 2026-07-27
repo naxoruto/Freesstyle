@@ -265,6 +265,17 @@ model DataReviewIssue {
   @@map("data_review_issues")
 }
 
+model ImportRecord {
+  key       String   @id
+  source    String
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([source])
+  @@map("import_records")
+}
+
 model DailyChallenge {
   id          String          @id @default(cuid())
   game        ChallengeGame

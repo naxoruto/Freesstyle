@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { normalizeAlias } from "../catalog/normalizeAlias";
 
 const BASE_URL = "https://freestylestats.com";
+const IMPORT_SOURCE = "freestyle-stats-battle";
 
 interface ParsedBattle {
   competitor1: string;
@@ -60,23 +61,35 @@ export async function importFreestyleStatsBattles(prisma: PrismaClient, limit = 
     for (const alias of profile.aliases) localByAlias.set(alias.normalizedAlias, profile.id);
   }
   const urls = await battleUrls();
-  const existingIds = new Set((await prisma.battle.findMany({ where: { externalId: { not: null } }, select: { externalId: true } })).map((battle) => battle.externalId));
+  const [records, existingBattles] = await Promise.all([
+    prisma.importRecord.findMany({ where: { source: IMPORT_SOURCE }, select: { key: true } }),
+    prisma.battle.findMany({ where: { externalId: { not: null } }, select: { externalId: true } }),
+  ]);
+  const seenKeys = new Set(records.map((record) => record.key));
+  for (const battle of existingBattles) {
+    if (battle.externalId) seenKeys.add(`${IMPORT_SOURCE}:${battle.externalId}`);
+  }
   let scanned = 0;
   let imported = 0;
   let unmatched = 0;
 
   for (const battle of urls) {
     if (scanned >= limit) break;
-    if (existingIds.has(battle.externalId)) continue;
+    const importKey = `${IMPORT_SOURCE}:${battle.externalId}`;
+    if (seenKeys.has(importKey)) continue;
     scanned += 1;
     const response = await fetch(battle.url, { headers: { "User-Agent": "FreestyleArenaCatalog/1.0" } });
     if (!response.ok) continue;
     const parsed = parseFreestyleStatsBattle(await response.text());
-    if (!parsed) continue;
+    if (!parsed) {
+      await prisma.importRecord.create({ data: { key: importKey, source: IMPORT_SOURCE, status: "UNPARSABLE" } });
+      continue;
+    }
     const competitor1Id = localByAlias.get(normalizeAlias(parsed.competitor1));
     const competitor2Id = localByAlias.get(normalizeAlias(parsed.competitor2));
     if (!competitor1Id || !competitor2Id || competitor1Id === competitor2Id) {
       unmatched += 1;
+      await prisma.importRecord.create({ data: { key: importKey, source: IMPORT_SOURCE, status: "UNMATCHED" } });
       continue;
     }
     const competitionData = canonicalCompetition(parsed.competition);
@@ -88,7 +101,8 @@ export async function importFreestyleStatsBattles(prisma: PrismaClient, limit = 
     await prisma.battle.create({
       data: { externalId: battle.externalId, competitor1Id, competitor2Id, winnerId, competitionId: competition.id, stage: `${parsed.season} · ${parsed.stage}`, sourceId: source.id },
     });
+    await prisma.importRecord.create({ data: { key: importKey, source: IMPORT_SOURCE, status: "IMPORTED" } });
     imported += 1;
   }
-  return { available: urls.length, scanned, imported, unmatched };
+  return { available: urls.length, scanned, imported, unmatched, remaining: urls.length - seenKeys.size - scanned };
 }
