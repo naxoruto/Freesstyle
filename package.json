@@ -9,6 +9,9 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "test": "turbo test",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"
   },

@@ -4,13 +4,29 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p prisma/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "catalog:import": "tsx src/importers/importCatalog.ts",
+    "catalog:import:freestyle-stats": "tsx src/importers/importFreestyleStats.ts",
+    "catalog:discover": "tsx src/importers/discoverFandom.ts",
+    "catalog:import:dem": "tsx src/importers/demBattles.ts",
+    "catalog:import:plazas": "tsx src/importers/importPlazaCircuits.ts",
+    "catalog:validate": "tsx src/importers/validateCatalog.ts",
+    "catalog:report": "tsx src/importers/reportCatalog.ts",
+    "catalog:evaluate:fandom": "tsx src/importers/evaluateFandomCatalog.ts",
+    "catalog:review:candidates": "tsx src/importers/reviewCandidates.ts"
   },
   "dependencies": {
     "@freestyle/shared": "workspace:*",
+    "@prisma/client": "6",
     "cors": "^2.8.5",
+    "dotenv": "16",
     "express": "^4.21.0",
     "ioredis": "^5.4.1",
     "socket.io": "^4.8.0",
@@ -21,7 +37,9 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.7.0",
     "@types/uuid": "^10.0.0",
+    "prisma": "6",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10"
   }
 }

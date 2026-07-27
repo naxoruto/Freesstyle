@@ -7,6 +7,7 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # Accept build arg for WS URL (Next.js bakes NEXT_PUBLIC_* at build time)
 ARG NEXT_PUBLIC_WS_URL=""
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_OUTPUT_STANDALONE=1
 
 # Copy workspace config + all package.json files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./

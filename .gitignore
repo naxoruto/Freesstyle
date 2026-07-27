@@ -7,3 +7,5 @@ apps/*/.env
 apps/*/.env.local
 *.log
 gstack
+.turbo
+*.tsbuildinfo
