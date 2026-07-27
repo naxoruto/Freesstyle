@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChallengeGame {
+  FREESTYLER
+  GRID
+  DRAFT
+}
+
+enum ChallengeStatus {
+  DRAFT
+  VALIDATED
+  PUBLISHED
+}
+
+enum ReviewStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum CatalogStatus {
+  CANDIDATE
+  PUBLISHED
+  REJECTED
+}
+
+model Country {
+  id          String       @id @default(cuid())
+  code        String       @unique @db.VarChar(2)
+  name        String       @unique
+  flagEmoji   String?      @map("flag_emoji")
+  freestylers Freestyler[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("countries")
+}
+
+model Freestyler {
+  id                   String             @id @default(cuid())
+  slug                 String             @unique
+  alias                String
+  normalizedAlias      String             @unique @map("normalized_alias")
+  realName             String?            @map("real_name")
+  countryId            String             @map("country_id")
+  country              Country            @relation(fields: [countryId], references: [id])
+  birthDate            DateTime?          @map("birth_date") @db.Date
+  birthYear            Int?               @map("birth_year")
+  debutYear            Int?               @map("debut_year")
+  fmsParticipant       Boolean?           @map("fms_participant")
+  redBullInternational Boolean?           @map("red_bull_international")
+  catalogStatus        CatalogStatus      @default(CANDIDATE) @map("catalog_status")
+  active               Boolean            @default(true)
+  instagramUrl         String?            @map("instagram_url")
+  youtubeUrl           String?            @map("youtube_url")
+  verifiedAt           DateTime?          @map("verified_at")
+  participations       Participation[]
+  titles               Title[]
+  battlesAsCompetitor1 Battle[]           @relation("BattleCompetitor1")
+  battlesAsCompetitor2 Battle[]           @relation("BattleCompetitor2")
+  battlesWon           Battle[]           @relation("BattleWinner")
+  sources              FreestylerSource[]
+  reviewIssues         DataReviewIssue[]
+  styles               FreestylerStyle[]
+  aliases              FreestylerAlias[]
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  @@index([alias])
+  @@index([countryId])
+  @@index([catalogStatus])
+  @@map("freestylers")
+}
+
+model FreestylerAlias {
+  id              String      @id @default(cuid())
+  freestylerId    String      @map("freestyler_id")
+  freestyler      Freestyler  @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  alias           String
+  normalizedAlias String      @map("normalized_alias")
+  sourceId        String?     @map("source_id")
+  source          DataSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@unique([freestylerId, normalizedAlias])
+  @@index([normalizedAlias])
+  @@index([sourceId])
+  @@map("freestyler_aliases")
+}
+
+model Competition {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  name           String
+  organizer      String?
+  international  Boolean         @default(false)
+  seasons        Season[]
+  participations Participation[]
+  titles         Title[]
+  battles        Battle[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@map("competitions")
+}
+
+model Season {
+  id             String          @id @default(cuid())
+  competitionId  String          @map("competition_id")
+  competition    Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  name           String
+  startYear      Int             @map("start_year")
+  endYear        Int?            @map("end_year")
+  participations Participation[]
+  titles         Title[]
+  battles        Battle[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@unique([competitionId, name])
+  @@index([startYear])
+  @@map("seasons")
+}
+
+model Participation {
+  id            String      @id @default(cuid())
+  freestylerId  String      @map("freestyler_id")
+  freestyler    Freestyler  @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  competitionId String      @map("competition_id")
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  seasonId      String?     @map("season_id")
+  season        Season?     @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  finalPosition Int?        @map("final_position")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([freestylerId, competitionId, seasonId])
+  @@index([competitionId])
+  @@index([seasonId])
+  @@map("participations")
+}
+
+model Title {
+  id            String      @id @default(cuid())
+  freestylerId  String      @map("freestyler_id")
+  freestyler    Freestyler  @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  competitionId String      @map("competition_id")
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  seasonId      String?     @map("season_id")
+  season        Season?     @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  label         String?
+  wonAt         DateTime?   @map("won_at") @db.Date
+  sourceId      String?     @map("source_id")
+  source        DataSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([freestylerId, competitionId, seasonId, label])
+  @@index([competitionId])
+  @@index([sourceId])
+  @@map("titles")
+}
+
+model Battle {
+  id            String      @id @default(cuid())
+  competitor1Id String      @map("competitor_1_id")
+  competitor1   Freestyler  @relation("BattleCompetitor1", fields: [competitor1Id], references: [id])
+  competitor2Id String      @map("competitor_2_id")
+  competitor2   Freestyler  @relation("BattleCompetitor2", fields: [competitor2Id], references: [id])
+  winnerId      String?     @map("winner_id")
+  winner        Freestyler? @relation("BattleWinner", fields: [winnerId], references: [id])
+  competitionId String      @map("competition_id")
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  seasonId      String?     @map("season_id")
+  season        Season?     @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  stage         String?
+  battleDate    DateTime?   @map("battle_date") @db.Date
+  hadReplica    Boolean     @default(false) @map("had_replica")
+  videoUrl      String?     @map("video_url")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([competitor1Id])
+  @@index([competitor2Id])
+  @@index([winnerId])
+  @@index([competitionId, seasonId])
+  @@map("battles")
+}
+
+model DataSource {
+  id          String             @id @default(cuid())
+  name        String
+  url         String             @unique
+  accessedAt  DateTime           @map("accessed_at")
+  freestylers FreestylerSource[]
+  titles      Title[]
+  styles      FreestylerStyle[]
+  aliases     FreestylerAlias[]
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  @@map("data_sources")
+}
+
+model FreestylerSource {
+  freestylerId String     @map("freestyler_id")
+  freestyler   Freestyler @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  sourceId     String     @map("source_id")
+  source       DataSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@id([freestylerId, sourceId])
+  @@map("freestyler_sources")
+}
+
+model StyleTag {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  name        String
+  description String?
+  freestylers FreestylerStyle[]
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@map("style_tags")
+}
+
+model FreestylerStyle {
+  freestylerId String     @map("freestyler_id")
+  freestyler   Freestyler @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  styleTagId   String     @map("style_tag_id")
+  styleTag     StyleTag   @relation(fields: [styleTagId], references: [id], onDelete: Cascade)
+  rank         Int
+  sourceId     String     @map("source_id")
+  source       DataSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@id([freestylerId, styleTagId])
+  @@unique([freestylerId, rank])
+  @@index([styleTagId])
+  @@index([sourceId])
+  @@map("freestyler_styles")
+}
+
+model DataReviewIssue {
+  id           String       @id @default(cuid())
+  freestylerId String       @map("freestyler_id")
+  freestyler   Freestyler   @relation(fields: [freestylerId], references: [id], onDelete: Cascade)
+  key          String
+  summary      String
+  details      Json?
+  status       ReviewStatus @default(OPEN)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@unique([freestylerId, key])
+  @@index([status])
+  @@map("data_review_issues")
+}
+
+model DailyChallenge {
+  id          String          @id @default(cuid())
+  game        ChallengeGame
+  dateKey     String          @map("date_key") @db.VarChar(10)
+  status      ChallengeStatus @default(DRAFT)
+  payload     Json
+  validatedAt DateTime?       @map("validated_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  attempts    GameAttempt[]
+
+  @@unique([game, dateKey])
+  @@index([status, dateKey])
+  @@map("daily_challenges")
+}
+
+model GameAttempt {
+  id           String         @id @default(cuid())
+  challengeId  String         @map("challenge_id")
+  challenge    DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  sessionHash  String         @map("session_hash")
+  completed    Boolean        @default(false)
+  won          Boolean?
+  attemptCount Int            @default(0) @map("attempt_count")
+  result       Json?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  @@unique([challengeId, sessionHash])
+  @@index([challengeId, completed])
+  @@map("game_attempts")
+}
