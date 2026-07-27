@@ -37,6 +37,8 @@ const freestylerSummary = {
       },
       titles: true,
       participations: true,
+      battlesAsCompetitor1: true,
+      battlesAsCompetitor2: true,
     },
   },
 } satisfies Prisma.FreestylerSelect;
@@ -67,7 +69,7 @@ export async function searchFreestylers(query: unknown, requestedLimit: unknown)
     eligibleForDaily: Boolean(
       freestyler.birthYear &&
       freestyler._count.sources >= 2 &&
-      (freestyler.fmsParticipant !== null || freestyler.redBullInternational !== null || freestyler._count.titles > 0 || freestyler._count.participations > 0),
+      (freestyler.fmsParticipant === true || freestyler.redBullInternational === true || freestyler._count.titles > 0 || freestyler._count.participations > 0 || freestyler._count.battlesAsCompetitor1 > 0 || freestyler._count.battlesAsCompetitor2 > 0),
     ),
   }));
 }

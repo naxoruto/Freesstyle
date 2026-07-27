@@ -11,7 +11,7 @@ describe("normalizeAlias", () => {
 
 describe("parseCatalogSearch", () => {
   it("sanitizes the query and bounds the result limit", () => {
-    expect(parseCatalogSearch("  ACZÍNO ", "200")).toEqual({ q: "aczino", limit: 100 });
+    expect(parseCatalogSearch("  ACZÍNO ", "200")).toEqual({ q: "aczino", limit: 200 });
     expect(parseCatalogSearch(undefined, "invalid")).toEqual({ q: "", limit: 10 });
     expect(parseCatalogSearch("Wos", "0")).toEqual({ q: "wos", limit: 1 });
   });

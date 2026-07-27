@@ -1,20 +1,17 @@
 import { prisma } from "../db/prisma";
+import { dailyEligibleWhere } from "../games/freestylerDaily";
 
 async function main() {
-  const [total, published, candidates, withBirthYear, fmsConfirmed, dailyEligible, demEvidence, quintoEvidence, openIssues, candidatesReadyForReview] = await Promise.all([
+  const [total, published, candidates, withBirthYear, fmsConfirmed, publishedWithBirthYear, withCompetitiveEvidence, dailyEligible, demEvidence, quintoEvidence, openIssues, candidatesReadyForReview] = await Promise.all([
     prisma.freestyler.count(),
     prisma.freestyler.count({ where: { catalogStatus: "PUBLISHED" } }),
     prisma.freestyler.count({ where: { catalogStatus: "CANDIDATE" } }),
     prisma.freestyler.count({ where: { birthYear: { not: null } } }),
     prisma.freestyler.count({ where: { fmsParticipant: true } }),
+    prisma.freestyler.count({ where: { catalogStatus: "PUBLISHED", birthYear: { not: null } } }),
+    prisma.freestyler.count({ where: dailyEligibleWhere }),
     prisma.freestyler.findMany({
-      where: {
-        catalogStatus: "PUBLISHED",
-        birthYear: { not: null },
-        fmsParticipant: { not: null },
-        redBullInternational: { not: null },
-        styles: { some: {} },
-      },
+      where: dailyEligibleWhere,
       select: { _count: { select: { sources: true } } },
     }),
     prisma.freestyler.count({
@@ -59,7 +56,10 @@ async function main() {
     candidates,
     withBirthYear,
     fmsConfirmed,
+    publishedWithBirthYear,
+    withCompetitiveEvidence,
     dailyEligible: dailyEligible.filter((profile) => profile._count.sources >= 2).length,
+    missingCompetitiveEvidence: publishedWithBirthYear - withCompetitiveEvidence,
     demEvidence,
     quintoEvidence,
     openIssues,

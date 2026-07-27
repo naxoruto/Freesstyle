@@ -24,10 +24,18 @@ const eligibleGameProfileSelect = {
   _count: { select: { sources: true } },
 } satisfies Prisma.FreestylerSelect;
 
-const eligibleProfileWhere = {
+export const dailyEligibleWhere = {
   catalogStatus: "PUBLISHED",
   birthYear: { not: null },
   sources: { some: {} },
+  OR: [
+    { fmsParticipant: true },
+    { redBullInternational: true },
+    { titles: { some: {} } },
+    { participations: { some: {} } },
+    { battlesAsCompetitor1: { some: {} } },
+    { battlesAsCompetitor2: { some: {} } },
+  ],
 } satisfies Prisma.FreestylerWhereInput;
 
 type GameProfile = Prisma.FreestylerGetPayload<{ select: typeof gameProfileSelect }>;
@@ -142,7 +150,7 @@ function validateSessionId(sessionId: unknown): string {
 
 async function eligibleProfiles(prisma: PrismaClient) {
   const profiles = await prisma.freestyler.findMany({
-    where: eligibleProfileWhere,
+    where: dailyEligibleWhere,
     select: eligibleGameProfileSelect,
     orderBy: { slug: "asc" },
   });
@@ -222,7 +230,7 @@ export async function submitFreestylerDailyGuess(
   const hash = sessionHash(validSession);
   const [guess, answer, existingAttempt] = await Promise.all([
     prisma.freestyler.findFirst({
-      where: { id: guessedFreestylerId, ...eligibleProfileWhere },
+      where: { id: guessedFreestylerId, ...dailyEligibleWhere },
       select: eligibleGameProfileSelect,
     }),
     prisma.freestyler.findUnique({ where: { id: payload.answerFreestylerId }, select: gameProfileSelect }),
