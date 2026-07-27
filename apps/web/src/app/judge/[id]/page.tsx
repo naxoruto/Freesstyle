@@ -10,7 +10,7 @@ export default function JudgePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     router.replace(`/battle/${params.id}?role=judge&alias=${encodeURIComponent(alias)}`);
-  }, []);
+  }, [alias, params.id, router]);
 
   return (
     <div className="min-h-[calc(100vh-57px)] flex items-center justify-center">

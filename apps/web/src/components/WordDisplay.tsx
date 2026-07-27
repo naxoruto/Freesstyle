@@ -19,12 +19,14 @@ export function WordDisplay({ word, category, isActive }: WordDisplayProps) {
 
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
-      <p
-        className="text-xs font-semibold tracking-[0.4em] uppercase mb-3"
-        style={{ color: "rgba(255,255,255,0.25)" }}
-      >
-        Categoría · {category}
-      </p>
+      {category && (
+        <p
+          className="text-xs font-semibold tracking-[0.4em] uppercase mb-3"
+          style={{ color: "rgba(255,255,255,0.25)" }}
+        >
+          Categoría · {category}
+        </p>
+      )}
       <h2
         className={`font-battle font-black italic uppercase leading-none transition-all duration-300 ${
           isActive ? "text-glow" : "opacity-60"

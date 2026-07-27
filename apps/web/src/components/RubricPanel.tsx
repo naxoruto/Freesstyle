@@ -31,7 +31,8 @@ export function RubricPanel({ participantName, onSubmit, submitted, externalScor
 
   const updateScore = (key: keyof ScoreRubric, value: number) => {
     const next = { ...scores, [key]: value };
-    onScoresChange ? onScoresChange(next) : setInternalScores(next);
+    if (onScoresChange) onScoresChange(next);
+    else setInternalScores(next);
   };
 
   const totalScore = scores.flow + scores.lirica + scores.ingenio + scores.presencia + scores.tecnica;

@@ -7,9 +7,10 @@ import { WordDisplay } from "@/components/WordDisplay";
 import { Timer } from "@/components/Timer";
 import { ScoreBoard } from "@/components/ScoreBoard";
 import { RubricPanel } from "@/components/RubricPanel";
-import { BattleModeSelector } from "@/components/BattleModeSelector";
-import { Toaster } from "@/lib/utils";
-import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig } from "@freestyle/shared";
+import { BattleLobby } from "@/components/BattleLobby";
+import { BattlePosterDialog } from "@/components/BattlePosterDialog";
+import { showToast, Toaster } from "@/lib/utils";
+import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig, ReplicaConfig } from "@freestyle/shared";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -20,9 +21,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const role = (searchParams.get("role") as UserRole) || "participant";
   const alsoAs = searchParams.get("alsoAs") as UserRole | null;
   const alias = searchParams.get("alias") || "Anónimo";
+  const adminToken = searchParams.get("adminToken") || undefined;
+  const requestedUserId = searchParams.get("userId");
 
   // FIX Bug 2: Stable userId that doesn't change between renders
-  const userId = useMemo(() => `${role}-${alias}-${Date.now()}`, []);
+  const [userId] = useState(() => requestedUserId || `${role}-${alias}-${Date.now()}`);
+  const secondaryUserId = useMemo(() => (alsoAs ? `${alsoAs}-${alias}-secondary` : ""), [alsoAs, alias]);
+  const scoreboardUserId = role === "admin" && alsoAs === "participant" ? secondaryUserId : userId;
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [battle, setBattle] = useState<Battle | null>(null);
@@ -31,12 +36,14 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const [activeMcId, setActiveMcId] = useState<string>("");
   const [timer, setTimer] = useState(0);
   const [countdown, setCountdown] = useState<CountdownNum>(null);
-  const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
-  const [roundResult, setRoundResult] = useState<{ winnerId: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> } | null>(null);
+  const [roundResult, setRoundResult] = useState<{ winnerId?: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> } | null>(null);
   const [judgeVoted, setJudgeVoted] = useState(false);
+  const [entryVoteSubmitted, setEntryVoteSubmitted] = useState(false);
+  const [patronExtras, setPatronExtras] = useState({ mc1: 0, mc2: 0 });
   const [lobbyConfig, setLobbyConfig] = useState<Partial<BattleModeConfig>>({});
   const [firstTurnId, setFirstTurnId] = useState<string | "random">("random");
+  const [replicaConfig, setReplicaConfig] = useState<ReplicaConfig | null>(null);
   // Rubric scoring state for judges — persist across phases (FMS-style live scoring)
   const [mc1Scores, setMc1Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
   const [mc2Scores, setMc2Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
@@ -47,35 +54,52 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const phaseTokenRef = useRef<string | undefined>(undefined);
 
   const isJudge = role === "judge" || (role === "admin" && alsoAs === "judge");
+  const isSpectator = role === "spectator";
   const isAdmin = role === "admin";
   const isLobby = battle?.status === "lobby";
-  const isInProgress = battle?.status === "in_progress";
+  const isInProgress = battle?.status === "in_progress" || battle?.status === "replica";
   const participants = battle?.participants || [];
   const mc1 = participants[0];
   const mc2 = participants[1];
+  const showScores = true;
+  const isHost = Boolean(battle?.hostId && [userId, secondaryUserId].includes(battle.hostId));
+  const canControl = isAdmin || isHost;
+  const hostCandidates = [
+    ...participants.map(({ userId: id, alias: candidateAlias }) => ({ id, alias: candidateAlias })),
+    ...(battle?.judges ?? []),
+    ...(battle?.spectators ?? []),
+  ].filter((candidate, index, all) => all.findIndex(item => item.id === candidate.id) === index);
+  const pendingEntryKey = battle?.pendingEntry ? `${battle.currentRound}:${battle.pendingEntry.mcId}:${battle.pendingEntry.entryIndex}` : "";
+  const roleLabel = isAdmin ? "Admin" : isJudge ? "Juez" : isSpectator ? "Público" : "MC";
+
+  useEffect(() => setEntryVoteSubmitted(false), [pendingEntryKey]);
 
   useEffect(() => {
     const s = io(WS_URL, { transports: ["websocket", "polling"], reconnectionAttempts: 10, reconnectionDelay: 1000 });
 
     s.on("connect", () => {
-      setConnected(true); setConnecting(false);
-      s.emit("battle:join", { battleId: params.id, user: { id: userId, name: alias, alias, role } });
+      setConnecting(false);
+      s.emit("battle:join", { battleId: params.id, user: { id: userId, name: alias, alias, role }, adminToken });
       // FIX Bug 3: Admin who also participates uses a stable derived ID
       if (role === "admin" && alsoAs && alsoAs !== "admin") {
-        const secondaryId = `${alsoAs}-${alias}-secondary`;
-        s.emit("battle:join", { battleId: params.id, user: { id: secondaryId, name: alias, alias, role: alsoAs } });
+        s.emit("battle:join", { battleId: params.id, user: { id: secondaryUserId, name: alias, alias, role: alsoAs } });
       }
     });
 
-    s.on("disconnect", () => { setConnected(false); setConnecting(false); });
+    s.on("disconnect", () => setConnecting(false));
     s.on("connect_error", () => setConnecting(false));
+    s.on("battle:error", (data: { message: string }) => showToast(data.message, "error"));
 
     s.on("battle:state", (data: Battle) => {
       const prevBattle = battleRef.current;
       battleRef.current = data;
       setBattle(data);
       setPhase(data.roundPhase);
-      if (data.status === "lobby") setLobbyConfig(data.mode);
+      if (data.status === "lobby") {
+        setLobbyConfig(data.mode);
+        setReplicaConfig(data.replicaConfig ?? null);
+        setFirstTurnId(data.mode.firstTurnParticipantId ?? "random");
+      }
 
       // FIX Bug 1: Use ref instead of stale closure for comparison
       if (data.status === "in_progress" && data.roundPhase === "countdown" && prevBattle?.status !== "in_progress") {
@@ -98,6 +122,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       if (data.timeRemaining !== undefined) setTimer(data.timeRemaining);
       if (data.phaseToken) phaseTokenRef.current = data.phaseToken;
 
+      if (data.phase === "countdown") {
+        setJudgeVoted(false);
+        setCurrentWord(null);
+        setMc1Scores({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
+        setMc2Scores({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
+      }
+
       // Start visual countdown for pauses and new rounds
       // FIX Bug 7: Only start if we're not already counting down
       if (data.phase === "pause" || data.phase === "countdown") {
@@ -105,13 +136,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       }
     });
 
-    s.on("battle:round_result", (data: { round: number; winnerId: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> }) => {
+    s.on("battle:round_result", (data: { round: number; winnerId?: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> }) => {
       setRoundResult({ winnerId: data.winnerId, rubricVotes: data.rubricVotes, scores: data.scores });
     });
 
     setSocket(s);
     return () => { s.disconnect(); };
-  }, [params.id]);
+  }, [params.id, role, alsoAs, alias, adminToken, userId, secondaryUserId]);
 
   // Countdown visual effect (purely visual — server drives the transitions)
   useEffect(() => {
@@ -162,7 +193,29 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   };
 
   const handleStart = () => socket?.emit("battle:start", { type: "battle:start" });
-  const handleVote = (winnerId: string) => {
+  const handleHostChange = (targetUserId: string) => socket?.emit("battle:set_host", { type: "battle:set_host", targetUserId });
+  const handleCompleteEntry = () => socket?.emit("battle:complete_entry", { type: "battle:complete_entry" });
+  const handleEntryVote = (points: number) => {
+    socket?.emit("judge:vote_entry", { type: "judge:vote_entry", battleId: params.id, points });
+    setEntryVoteSubmitted(true);
+  };
+  const handleReplicaToggle = () => {
+    if (!battle) return;
+    const config: ReplicaConfig = replicaConfig ?? {
+      enabled: true,
+      maxReplicas: 1,
+      tieRange: 0,
+      mode: { ...battle.mode, rounds: 1 },
+    };
+    const next = { ...config, enabled: !replicaConfig?.enabled };
+    setReplicaConfig(next);
+    socket?.emit("battle:set_replica", { type: "battle:set_replica", config: next });
+  };
+  const handlePatronExtraVote = () => {
+    socket?.emit("judge:vote_patron_extra", { type: "judge:vote_patron_extra", battleId: params.id, mc1Extra: patronExtras.mc1, mc2Extra: patronExtras.mc2 });
+    setJudgeVoted(true);
+  };
+  const handleVote = () => {
     if (!battle || !mc1 || !mc2) return;
     socket?.emit("judge:vote_rubric", {
       type: "judge:vote_rubric",
@@ -199,97 +252,24 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       {/* HEADER — mínimo, solo conexión */}
 
       {/* LOBBY */}
-      {isLobby && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
-          {/* Columna izquierda: participantes y jueces */}
-          <div className="space-y-4">
-            {participants.length > 0 && (
-              <ScoreBoard participants={participants} currentTurn="" userId={userId} />
-            )}
-            {battle && battle.judges.length > 0 && (
-              <div className="border border-white/5 px-4 py-3" style={{ background: "rgba(255,255,255,0.02)" }}>
-                <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/25 mb-3">Jueces</p>
-                <div className="flex flex-wrap gap-2">
-                  {battle.judges.map((judge) => (
-                    <span key={judge.id} className="px-3 py-1 border border-white/10 text-xs text-white/50 font-medium">
-                      {judge.alias}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Quién parte (solo cuando hay 2+ participantes) */}
-            {isAdmin && participants.length >= 2 && (
-              <div className="p-4 rounded-2xl border border-gray-800 bg-arena-800/30">
-                <h3 className="font-battle text-sm text-white mb-3">🎯 ¿Quién parte primero?</h3>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleFirstTurnChange("random")}
-                    className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition text-left ${
-                      firstTurnId === "random"
-                        ? "border-red-500 bg-red-500/10 text-white"
-                        : "border-gray-800 hover:border-gray-600 text-gray-400"
-                    }`}
-                  >
-                    🎲 Aleatorio
-                  </button>
-                  {participants.map((p) => (
-                    <button
-                      key={p.userId}
-                      onClick={() => handleFirstTurnChange(p.userId)}
-                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition text-left ${
-                        firstTurnId === p.userId
-                          ? "border-red-500 bg-red-500/10 text-white"
-                          : "border-gray-800 hover:border-gray-600 text-gray-400"
-                      }`}
-                    >
-                      🎤 {p.alias}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {isAdmin ? (
-              <button
-                onClick={handleStart}
-                disabled={participants.length < 2}
-                className="w-full py-3.5 font-battle font-black italic uppercase tracking-wider transition-all"
-                style={{
-                  background: participants.length < 2 ? "rgba(255,255,255,0.05)" : "#e30613",
-                  color: participants.length < 2 ? "rgba(255,255,255,0.2)" : "white",
-                  cursor: participants.length < 2 ? "default" : "pointer",
-                }}
-              >
-                Iniciar Batalla
-              </button>
-            ) : (
-              <p className="text-center text-xs font-semibold tracking-[0.25em] uppercase text-white/20">
-                Esperando al admin...
-              </p>
-            )}
-          </div>
-
-          {/* Columna derecha: config de modo (solo admin) */}
-          {isAdmin && (
-            <div className="p-5 border border-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/25 mb-4">Configuración</p>
-              <BattleModeSelector
-                value={lobbyConfig}
-                onChange={handleConfigChange}
-              />
-            </div>
-          )}
-          {!isAdmin && (
-            <div className="p-5 border border-white/5 text-sm text-white/30 space-y-1.5" style={{ background: "rgba(255,255,255,0.02)", fontFamily: "monospace", fontSize: 12 }}>
-              <p>modo · {battle?.mode.mode}</p>
-              <p>rondas · {battle?.mode.rounds}</p>
-              <p>tiempo · {battle?.mode.timePerTurn}s por MC</p>
-              {battle?.mode.category && <p>categoría · {battle.mode.category}</p>}
-            </div>
-          )}
-        </div>
+      {isLobby && battle && (
+        <BattleLobby
+          battle={battle}
+          roomId={params.id}
+          roleLabel={roleLabel}
+          isAdmin={isAdmin}
+          canControl={canControl}
+          currentUserId={scoreboardUserId}
+          hostCandidates={hostCandidates}
+          firstTurnId={firstTurnId}
+          lobbyConfig={lobbyConfig}
+          replicaConfig={replicaConfig}
+          onConfigChange={handleConfigChange}
+          onFirstTurnChange={handleFirstTurnChange}
+          onHostChange={handleHostChange}
+          onReplicaToggle={handleReplicaToggle}
+          onStart={handleStart}
+        />
       )}
 
       {/* IN PROGRESS */}
@@ -331,7 +311,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           {/* ROUND INFO + LIVE badge */}
           <div className="flex items-center justify-between px-1">
             <p className="text-xs font-semibold tracking-[0.3em] uppercase text-white/25">
-              Ronda {battle?.currentRound} / {battle?.mode.rounds}
+              {battle?.status === "replica" ? `Réplica ${battle.replicaCount} · ` : ""}Ronda {battle?.currentRound} / {battle?.mode.rounds}
             </p>
             {(phase === "mc1_turn" || phase === "mc2_turn") && (
               <div className="flex items-center gap-2">
@@ -348,20 +328,27 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           </div>
 
           {/* Word + Timer */}
-          <WordDisplay word={currentWord?.text || null} category={currentWord?.category || ""} isActive={phase === "mc1_turn" || phase === "mc2_turn"} />
-          {battle && battle.mode.timePerTurn > 0 && (phase === "mc1_turn" || phase === "mc2_turn") && (
-            <Timer seconds={timer} total={battle.mode.timePerTurn} isMyTurn={false} />
+          <WordDisplay word={battle?.mode.mode === "libre" ? "Tema libre" : currentWord?.text || null} category={currentWord?.category || ""} isActive={phase === "mc1_turn" || phase === "mc2_turn"} />
+          {battle && battle.mode.timerMode === "countdown" && battle.mode.timePerTurn > 0 && (phase === "mc1_turn" || phase === "mc2_turn") && (
+            <Timer seconds={timer} total={battle.mode.timePerTurn} />
+          )}
+          {battle && battle.mode.timerMode === "manual" && (phase === "mc1_turn" || phase === "mc2_turn") && (
+            <div className="mx-auto max-w-sm border border-white/10 p-4 text-center">
+              <p className="text-xs uppercase tracking-[0.25em] text-white/30">Entradas restantes</p>
+              <p className="font-battle text-5xl font-black text-red-500">{battle.entriesRemaining[activeMcId] ?? battle.mode.entriesPerParticipant}</p>
+              {canControl && <button onClick={handleCompleteEntry} className="mt-3 w-full bg-red-600 py-3 font-battle font-black uppercase">Entrada completada</button>}
+            </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <ScoreBoard participants={participants} currentTurn={activeMcId} userId={userId} />
+              <ScoreBoard participants={participants} currentTurn={activeMcId} userId={scoreboardUserId} showScores={showScores} />
             </div>
 
             {/* SIDEBAR */}
             <div className="space-y-4">
               {/* JUDGE LIVE SCORING — como en FMS: puntúas mientras rapean */}
-              {isJudge && !judgeVoted && (phase === "mc1_turn" || phase === "mc2_turn" || phase === "voting") && mc1 && mc2 && (
+              {isJudge && battle?.mode.votingSystem === "rubrica" && !judgeVoted && (phase === "mc1_turn" || phase === "mc2_turn" || phase === "voting") && mc1 && mc2 && (
                 <div className="space-y-3 animate-slide-up">
                   {/* LIVE indicator during turns */}
                   {(phase === "mc1_turn" || phase === "mc2_turn") && (
@@ -400,13 +387,38 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                   {/* Submit button — only in voting phase */}
                   {phase === "voting" && (
                     <button
-                      onClick={() => handleVote(mc2.userId)}
+                      onClick={handleVote}
                       className="w-full py-3 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
                       style={{ background: "#e30613", color: "white" }}
                     >
                       Enviar Puntuaciones
                     </button>
                   )}
+                </div>
+              )}
+
+              {isJudge && battle?.mode.votingSystem === "patron" && phase === "entry_voting" && battle.pendingEntry && (
+                <div className="border border-white/10 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/30">Puntúa esta entrada</p>
+                  <p className="my-3 font-battle text-xl font-black">{participants.find(participant => participant.userId === battle.pendingEntry?.mcId)?.alias}</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[0, 1, 2, 3, 4].map(points => (
+                      <button key={points} disabled={entryVoteSubmitted} onClick={() => handleEntryVote(points)} className="border border-red-500/40 py-3 font-battle text-xl disabled:opacity-30">{points}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isJudge && battle?.mode.votingSystem === "patron" && phase === "voting" && !judgeVoted && mc1 && mc2 && (
+                <div className="border border-white/10 p-4 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/30">Puntos extra finales</p>
+                  {([["mc1", mc1], ["mc2", mc2]] as const).map(([key, participant]) => (
+                    <label key={key} className="flex items-center justify-between text-sm">
+                      <span>{participant.alias}</span>
+                      <input type="number" min={0} max={4} value={patronExtras[key]} onChange={event => setPatronExtras(current => ({ ...current, [key]: Math.max(0, Math.min(4, Number(event.target.value))) }))} className="w-16 bg-black border border-white/10 p-2 text-center" />
+                    </label>
+                  ))}
+                  <button onClick={handlePatronExtraVote} className="w-full bg-red-600 py-3 font-battle font-black uppercase">Enviar extras</button>
                 </div>
               )}
 
@@ -419,7 +431,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
               )}
 
               {/* ROUND RESULT */}
-              {phase === "round_result" && (
+              {phase === "round_result" && showScores && (
                 <div className="border border-white/8 animate-fade-in" style={{ background: "rgba(255,255,255,0.02)" }}>
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-xs font-semibold tracking-[0.25em] uppercase text-white/30">
@@ -443,6 +455,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                                 {p.alias}
                               </p>
                               {isWinner && <p className="text-xs text-yellow-500/60 tracking-wider uppercase mt-0.5">Ganador</p>}
+                              {!roundResult.winnerId && <p className="text-xs text-white/30 tracking-wider uppercase mt-0.5">Empate</p>}
                             </div>
                             <span className="font-battle font-black italic text-xl" style={{ color: isWinner ? "#f59e0b" : "rgba(255,255,255,0.3)" }}>
                               {score}
@@ -478,7 +491,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                     </details>
                   )}
 
-                  {isAdmin && battle && battle.currentRound < battle.mode.rounds && (
+                  {canControl && battle && battle.currentRound < battle.mode.rounds && (
                     <div className="p-3 border-t border-white/5">
                       <button
                         onClick={handleNextRound}
@@ -515,13 +528,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                 >
                   {p.alias}
                 </span>
-                <span
+                {showScores && <span
                   className="font-battle font-black italic block mt-2"
                   style={{ fontSize: 80, color: "#f59e0b", lineHeight: 1 }}
                 >
                   {p.roundsWon}
-                </span>
-                <span className="text-xs text-white/20 tracking-widest uppercase">rondas</span>
+                </span>}
+                {showScores && <span className="text-xs text-white/20 tracking-widest uppercase">rondas</span>}
               </div>
             ))}
           </div>
@@ -532,6 +545,12 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           >
             Nueva Batalla
           </a>
+          <BattlePosterDialog
+            battle={battle}
+            variant="post"
+            triggerLabel="Previsualizar resultado"
+            triggerClassName="ml-3 border border-white/20 px-8 py-3 font-battle font-black italic uppercase tracking-wider text-white transition hover:border-white/50"
+          />
         </div>
       )}
     </div>

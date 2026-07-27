@@ -3,10 +3,9 @@
 interface TimerProps {
   seconds: number;
   total: number;
-  isMyTurn: boolean;
 }
 
-export function Timer({ seconds, total, isMyTurn }: TimerProps) {
+export function Timer({ seconds, total }: TimerProps) {
   const percentage = total > 0 ? (seconds / total) * 100 : 100;
   const isLow = seconds <= 10 && seconds > 0;
   const isCritical = seconds <= 5 && seconds > 0;

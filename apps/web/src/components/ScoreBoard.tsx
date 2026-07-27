@@ -6,9 +6,10 @@ interface ScoreBoardProps {
   participants: Participant[];
   currentTurn: string;
   userId: string;
+  showScores?: boolean;
 }
 
-export function ScoreBoard({ participants, currentTurn, userId }: ScoreBoardProps) {
+export function ScoreBoard({ participants, currentTurn, userId, showScores = true }: ScoreBoardProps) {
   if (participants.length === 0) {
     return (
       <div className="p-8 border border-white/5 text-center">
@@ -48,13 +49,13 @@ export function ScoreBoard({ participants, currentTurn, userId }: ScoreBoardProp
               ● Rapeando ahora
             </p>
           )}
-          <div
+          {showScores && <div
             className="mt-3 font-battle font-black italic"
             style={{ fontSize: 40, color: "#e30613", lineHeight: 1 }}
           >
             {mc1.roundsWon}
-          </div>
-          <p className="text-xs text-white/20 tracking-widest uppercase">rondas</p>
+          </div>}
+          {showScores && <p className="text-xs text-white/20 tracking-widest uppercase">rondas</p>}
         </div>
 
         {/* VS */}
@@ -93,13 +94,13 @@ export function ScoreBoard({ participants, currentTurn, userId }: ScoreBoardProp
               Rapeando ahora ●
             </p>
           )}
-          <div
+          {showScores && <div
             className="mt-3 font-battle font-black italic"
             style={{ fontSize: 40, color: "#e30613", lineHeight: 1 }}
           >
             {mc2.roundsWon}
-          </div>
-          <p className="text-xs text-white/20 tracking-widest uppercase">rondas</p>
+          </div>}
+          {showScores && <p className="text-xs text-white/20 tracking-widest uppercase">rondas</p>}
         </div>
       </div>
     );
@@ -128,7 +129,7 @@ export function ScoreBoard({ participants, currentTurn, userId }: ScoreBoardProp
                 <p className="font-semibold text-white">
                   {p.alias} {isMe && <span className="text-xs text-white/30">(tú)</span>}
                 </p>
-                <p className="text-xs text-white/30 mt-0.5">{p.roundsWon} rondas ganadas</p>
+                {showScores && <p className="text-xs text-white/30 mt-0.5">{p.roundsWon} rondas ganadas</p>}
               </div>
               {isActive && (
                 <span className="text-xs font-bold tracking-widest uppercase animate-pulse" style={{ color: "#e30613" }}>

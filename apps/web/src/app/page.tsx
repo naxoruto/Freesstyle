@@ -17,10 +17,11 @@ export default function HomePage() {
   const [step, setStep] = useState<Step>("menu");
   const [battleId, setBattleId] = useState("");
   const [createdId, setCreatedId] = useState("");
+  const [adminToken, setAdminToken] = useState("");
   const [role, setRole] = useState<UserRole>("participant");
   const [alias, setAlias] = useState("");
   const [loading, setLoading] = useState(false);
-  const [modeConfig] = useState<Partial<BattleModeConfig>>({ mode: "clasico", rounds: 3, timePerTurn: 45 });
+  const [modeConfig] = useState<Partial<BattleModeConfig>>({ mode: "clasico", rounds: 3, timePerTurn: 60, showScoresToSpectators: true, turnStructure: "one_way" });
 
   const handleCreate = async () => {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
@@ -34,6 +35,7 @@ export default function HomePage() {
       if (!res.ok) throw new Error("Error del servidor");
       const battle = await res.json();
       setCreatedId(battle.id);
+      setAdminToken(battle.adminToken);
       setStep("created");
       showToast("¡Batalla creada!", "success");
     } catch {
@@ -51,7 +53,7 @@ export default function HomePage() {
   const enterCreated = () => {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
     // El creador SIEMPRE es admin. El rol extra (participante/juez) va como alsoAs
-    router.push(`/battle/${createdId}?role=admin&alsoAs=${role}&alias=${encodeURIComponent(alias)}`);
+    router.push(`/battle/${createdId}?role=admin&alsoAs=${role}&alias=${encodeURIComponent(alias)}&adminToken=${encodeURIComponent(adminToken)}`);
   };
 
   return (
@@ -76,9 +78,10 @@ export default function HomePage() {
           <div className="mb-8">
             <label className="flex items-center gap-2 text-sm text-gray-400 mb-2"><span className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-bold">2</span>También quieres participar como</label>
             <p className="text-xs text-gray-600 mb-3">Eres el admin de la sala. Opcionalmente puedes también ser MC o juez.</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button onClick={() => setRole("participant")} className={`p-4 rounded-xl border-2 text-center transition ${role === "participant" ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">🎤</span><span className="font-bold text-white text-sm">MC (participante)</span></button>
               <button onClick={() => setRole("judge")} className={`p-4 rounded-xl border-2 text-center transition ${role === "judge" ? "border-yellow-500 bg-yellow-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">⚖️</span><span className="font-bold text-white text-sm">Juez</span></button>
+              <button onClick={() => setRole("spectator")} className={`p-4 rounded-xl border-2 text-center transition ${role === "spectator" ? "border-blue-500 bg-blue-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">👁️</span><span className="font-bold text-white text-sm">Público</span></button>
             </div>
           </div>
           <button onClick={handleCreate} disabled={loading || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">
@@ -121,9 +124,10 @@ export default function HomePage() {
           </div>
           <div className="mb-8">
             <label className="block text-sm text-gray-400 mb-2">Entrar como</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button onClick={() => setRole("participant")} className={`p-4 rounded-xl border-2 text-center transition ${role === "participant" ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">🎤</span><span className="font-bold text-white text-sm">Participante</span></button>
               <button onClick={() => setRole("judge")} className={`p-4 rounded-xl border-2 text-center transition ${role === "judge" ? "border-yellow-500 bg-yellow-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">⚖️</span><span className="font-bold text-white text-sm">Juez</span></button>
+              <button onClick={() => setRole("spectator")} className={`p-4 rounded-xl border-2 text-center transition ${role === "spectator" ? "border-blue-500 bg-blue-500/10" : "border-gray-800 hover:border-gray-600"}`}><span className="text-2xl block mb-1">👁️</span><span className="font-bold text-white text-sm">Público</span></button>
             </div>
           </div>
           <button onClick={handleJoinBattle} disabled={!battleId.trim() || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">🎧 Unirse a la Batalla</button>
