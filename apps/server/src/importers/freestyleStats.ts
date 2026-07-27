@@ -8,6 +8,7 @@ interface StatsProfile {
   realName?: string;
   birthYear?: number;
   competitionCandidates: string[];
+  titleCandidates: Array<{ competitionSlug: string; competitionName: string }>;
 }
 
 export function freestyleStatsSlug(alias: string): string {
@@ -33,11 +34,16 @@ export function parseFreestyleStatsProfile(html: string): StatsProfile {
     .map((match) => cleanHtml(match[1]))
     .filter((name) => name.length > 1 && name.length <= 120)
     .filter((name, index, all) => all.indexOf(name) === index);
+  const titleCandidates = [...html.matchAll(/href="\/competition\/([^"/?#]+)[^"?]*"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,3000}?Medalla de oro/gi)]
+    .map((match) => ({ competitionSlug: match[1], competitionName: cleanHtml(match[2]) }))
+    .filter((item) => item.competitionName.length > 1 && item.competitionName.length <= 120)
+    .filter((item, index, all) => all.findIndex((other) => other.competitionSlug === item.competitionSlug) === index);
 
   return {
     realName: realName && realName.length <= 120 ? realName : undefined,
     birthYear: birthYear ? Number(birthYear) : undefined,
     competitionCandidates,
+    titleCandidates,
   };
 }
 
@@ -93,6 +99,13 @@ export async function importFreestyleStatsProfiles(prisma: PrismaClient): Promis
         where: { freestylerId_key: { freestylerId: profile.id, key: "freestyle-stats-competition-candidates" } },
         update: { summary: "Participaciones y títulos de Freestyle Stats pendientes de contraste", details: { candidates: parsed.competitionCandidates, source: profileUrl }, status: "OPEN" },
         create: { freestylerId: profile.id, key: "freestyle-stats-competition-candidates", summary: "Participaciones y títulos de Freestyle Stats pendientes de contraste", details: { candidates: parsed.competitionCandidates, source: profileUrl } },
+      });
+    }
+    if (parsed.titleCandidates.length) {
+      await prisma.dataReviewIssue.upsert({
+        where: { freestylerId_key: { freestylerId: profile.id, key: "freestyle-stats-title-candidates" } },
+        update: { summary: "Podios de oro de Freestyle Stats pendientes de contraste", details: { candidates: parsed.titleCandidates, source: profileUrl }, status: "OPEN" },
+        create: { freestylerId: profile.id, key: "freestyle-stats-title-candidates", summary: "Podios de oro de Freestyle Stats pendientes de contraste", details: { candidates: parsed.titleCandidates, source: profileUrl } },
       });
     }
     result.updated += 1;

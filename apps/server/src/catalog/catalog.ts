@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma";
 import { normalizeAlias } from "./normalizeAlias";
 
 const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 300;
 
 const freestylerSummary = {
   id: true,

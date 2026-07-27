@@ -113,6 +113,8 @@ alterar los datos historicos de competiciones o titulos.
 pnpm --filter @freestyle/server catalog:discover
 pnpm --filter @freestyle/server catalog:import
 pnpm --filter @freestyle/server catalog:import:freestyle-stats
+pnpm --filter @freestyle/server catalog:promote
+pnpm --filter @freestyle/server catalog:bootstrap
 pnpm --filter @freestyle/server catalog:import:dem
 pnpm --filter @freestyle/server catalog:import:plazas
 pnpm --filter @freestyle/server catalog:validate

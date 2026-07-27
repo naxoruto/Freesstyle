@@ -63,7 +63,7 @@ export default function CatalogClient() {
 
     async function loadCatalog() {
       try {
-        const response = await fetch("/api/catalog/freestylers?limit=100");
+        const response = await fetch("/api/catalog/freestylers?limit=300");
         if (!response.ok) throw new Error("No se pudo consultar el catálogo");
         const body = (await response.json()) as { data: CatalogFreestyler[] };
         if (!cancelled) setFreestylers(body.data);
@@ -89,7 +89,7 @@ export default function CatalogClient() {
   });
   const birthCoverage = freestylers.filter((freestyler) => freestyler.birthYear).length;
   const eligibleProfiles = freestylers.filter((freestyler) => freestyler.eligibleForDaily).length;
-  const openIssues = freestylers.reduce((total, freestyler) => total + freestyler._count.reviewIssues, 0);
+  const sourceCoverage = freestylers.reduce((total, freestyler) => total + freestyler._count.sources, 0);
 
   async function openProfile(slug: string) {
     setProfileLoading(true);
@@ -119,10 +119,10 @@ export default function CatalogClient() {
           </p>
         </div>
         <dl className="catalog-stats" aria-label="Estado del catálogo">
-          <div><dt>Perfiles</dt><dd>{freestylers.length || "—"}</dd></div>
+          <div><dt>Publicados</dt><dd>{freestylers.length || "—"}</dd></div>
           <div><dt>Con nacimiento</dt><dd>{birthCoverage || "—"}</dd></div>
           <div><dt>Listos para jugar</dt><dd>{eligibleProfiles || "—"}</dd></div>
-          <div><dt>Incidencias</dt><dd>{openIssues || "—"}</dd></div>
+          <div><dt>Fuentes</dt><dd>{sourceCoverage || "—"}</dd></div>
         </dl>
       </section>
 
