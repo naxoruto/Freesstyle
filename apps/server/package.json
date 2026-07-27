@@ -14,6 +14,7 @@
     "db:seed": "prisma db seed",
     "catalog:import": "tsx src/importers/importCatalog.ts",
     "catalog:import:freestyle-stats": "tsx src/importers/importFreestyleStats.ts",
+    "catalog:import:freestyle-stats:battles": "tsx src/importers/importFreestyleStatsBattles.ts",
     "catalog:promote": "tsx src/importers/promoteCatalog.ts",
     "catalog:bootstrap": "tsx src/importers/bootstrapCatalog.ts",
     "catalog:discover": "tsx src/importers/discoverFandom.ts",

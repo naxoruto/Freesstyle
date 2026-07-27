@@ -113,6 +113,7 @@ alterar los datos historicos de competiciones o titulos.
 pnpm --filter @freestyle/server catalog:discover
 pnpm --filter @freestyle/server catalog:import
 pnpm --filter @freestyle/server catalog:import:freestyle-stats
+pnpm --filter @freestyle/server catalog:import:freestyle-stats:battles
 pnpm --filter @freestyle/server catalog:promote
 pnpm --filter @freestyle/server catalog:bootstrap
 pnpm --filter @freestyle/server catalog:import:dem
@@ -135,6 +136,11 @@ comparables, mientras que otros juegos pueden usar perfiles incompletos.
 Freestyle Stats se usa como fuente secundaria para identidad, nacimiento y
 evidencia de participaciones o titulos. Sus datos se conservan como candidatos
 hasta contrastarlos con FMS, Red Bull u otra fuente primaria.
+
+`catalog:import:freestyle-stats:battles` recorre el sitemap publico de forma
+incremental y procesa 100 batallas nuevas por ejecucion. Puede ajustarse con
+`FREESTYLE_STATS_BATTLE_LIMIT`; solo persiste enfrentamientos cuyos dos
+competidores ya existan en el catalogo.
 
 `catalog:import` es idempotente: actualiza las fuentes y evita duplicar sus
 relaciones. Tambien rechaza anos de nacimiento que impliquen menos de 12 anos o

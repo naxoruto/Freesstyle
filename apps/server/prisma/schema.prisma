@@ -168,6 +168,7 @@ model Title {
 
 model Battle {
   id            String      @id @default(cuid())
+  externalId    String?     @unique @map("external_id")
   competitor1Id String      @map("competitor_1_id")
   competitor1   Freestyler  @relation("BattleCompetitor1", fields: [competitor1Id], references: [id])
   competitor2Id String      @map("competitor_2_id")
@@ -182,6 +183,8 @@ model Battle {
   battleDate    DateTime?   @map("battle_date") @db.Date
   hadReplica    Boolean     @default(false) @map("had_replica")
   videoUrl      String?     @map("video_url")
+  sourceId      String?     @map("source_id")
+  source        DataSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -201,6 +204,7 @@ model DataSource {
   titles      Title[]
   styles      FreestylerStyle[]
   aliases     FreestylerAlias[]
+  battles     Battle[]
   createdAt   DateTime           @default(now()) @map("created_at")
   updatedAt   DateTime           @updatedAt @map("updated_at")
 
