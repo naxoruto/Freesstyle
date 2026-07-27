@@ -15,12 +15,22 @@ export const MODE_DEFAULTS: Record<BattleMode, BattleModeConfig> = {
     rounds: 3,
     timePerTurn: 45,
     difficulty: "medio",
+    showScoresToSpectators: true,
+    timerMode: "countdown",
+    entriesPerParticipant: 4,
+    votingSystem: "rubrica",
+    turnStructure: "one_way",
   },
   libre: {
     mode: "libre",
     rounds: 3,
     timePerTurn: 60,
     difficulty: "medio",
+    showScoresToSpectators: true,
+    timerMode: "countdown",
+    entriesPerParticipant: 4,
+    votingSystem: "rubrica",
+    turnStructure: "one_way",
   },
 };
 
