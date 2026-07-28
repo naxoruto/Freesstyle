@@ -64,7 +64,9 @@ export default function CatalogClient() {
 
     async function loadCatalog() {
       try {
-        const response = await fetch("/api/catalog/freestylers?limit=2000");
+        const params = new URLSearchParams({ limit: "2000" });
+        if (query.trim()) params.set("q", query.trim());
+        const response = await fetch(`/api/catalog/freestylers?${params.toString()}`);
         if (!response.ok) throw new Error("No se pudo consultar el catálogo");
         const body = (await response.json()) as { data: CatalogFreestyler[] };
         if (!cancelled) setFreestylers(body.data);
@@ -77,16 +79,14 @@ export default function CatalogClient() {
 
     loadCatalog();
     return () => { cancelled = true; };
-  }, []);
+  }, [query]);
 
   const countries = Array.from(
     new Map(freestylers.map((freestyler) => [freestyler.country.code, freestyler.country])).values(),
   );
-  const normalizedQuery = normalize(query.trim());
   const visibleFreestylers = freestylers.filter((freestyler) => {
     const matchesCountry = country === "ALL" || freestyler.country.code === country;
-    const matchesQuery = !normalizedQuery || normalize(`${freestyler.alias} ${freestyler.realName ?? ""}`).includes(normalizedQuery);
-    return matchesCountry && matchesQuery;
+    return matchesCountry;
   });
   const birthCoverage = freestylers.filter((freestyler) => freestyler.birthYear).length;
   const eligibleProfiles = freestylers.filter((freestyler) => freestyler.eligibleForDaily).length;
