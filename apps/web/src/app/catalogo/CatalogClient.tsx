@@ -43,13 +43,6 @@ interface CatalogProfile {
   sources: Array<{ source: { name: string; url: string } }>;
 }
 
-function normalize(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
 export default function CatalogClient() {
   const [freestylers, setFreestylers] = useState<CatalogFreestyler[]>([]);
   const [query, setQuery] = useState("");
@@ -84,6 +77,7 @@ export default function CatalogClient() {
   const countries = Array.from(
     new Map(freestylers.map((freestyler) => [freestyler.country.code, freestyler.country])).values(),
   );
+
   const visibleFreestylers = freestylers.filter((freestyler) => {
     const matchesCountry = country === "ALL" || freestyler.country.code === country;
     return matchesCountry;
