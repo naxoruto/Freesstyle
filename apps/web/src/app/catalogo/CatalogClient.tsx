@@ -12,6 +12,7 @@ interface CatalogFreestyler {
   debutYear: number | null;
   fmsParticipant: boolean | null;
   redBullInternational: boolean | null;
+  catalogStatus: "PUBLISHED" | "CANDIDATE" | "REJECTED";
   eligibleForDaily: boolean;
   styles: Array<{ rank: number; styleTag: { slug: string; name: string } }>;
   country: {
@@ -63,7 +64,7 @@ export default function CatalogClient() {
 
     async function loadCatalog() {
       try {
-        const response = await fetch("/api/catalog/freestylers?limit=300");
+        const response = await fetch("/api/catalog/freestylers?limit=2000");
         if (!response.ok) throw new Error("No se pudo consultar el catálogo");
         const body = (await response.json()) as { data: CatalogFreestyler[] };
         if (!cancelled) setFreestylers(body.data);
@@ -119,7 +120,7 @@ export default function CatalogClient() {
           </p>
         </div>
         <dl className="catalog-stats" aria-label="Estado del catálogo">
-          <div><dt>Publicados</dt><dd>{freestylers.length || "—"}</dd></div>
+          <div><dt>Total</dt><dd>{freestylers.length || "—"}</dd></div>
           <div><dt>Con nacimiento</dt><dd>{birthCoverage || "—"}</dd></div>
           <div><dt>Listos para jugar</dt><dd>{eligibleProfiles || "—"}</dd></div>
           <div><dt>Fuentes</dt><dd>{sourceCoverage || "—"}</dd></div>
@@ -175,9 +176,9 @@ export default function CatalogClient() {
                   <div className="catalog-card-country">
                     <span>{freestyler.country.flagEmoji}</span>
                     {freestyler.country.name}
-                    <b className={freestyler.eligibleForDaily ? "is-ready" : "needs-data"}>
-                      {freestyler.eligibleForDaily ? "Listo" : "Incompleto"}
-                    </b>
+                  <b className={freestyler.catalogStatus === "PUBLISHED" ? "is-ready" : "needs-data"}>
+                    {freestyler.catalogStatus === "PUBLISHED" ? "Verificado" : "Pendiente"}
+                  </b>
                   </div>
                   <h2>{freestyler.alias}</h2>
                   <p className="catalog-real-name">{freestyler.realName || "Nombre civil por verificar"}</p>

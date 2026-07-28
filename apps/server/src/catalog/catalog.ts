@@ -3,7 +3,7 @@ import { prisma } from "../db/prisma";
 import { normalizeAlias } from "./normalizeAlias";
 
 const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 300;
+const MAX_LIMIT = 2000;
 
 const freestylerSummary = {
   id: true,
@@ -15,6 +15,7 @@ const freestylerSummary = {
   debutYear: true,
   fmsParticipant: true,
   redBullInternational: true,
+  catalogStatus: true,
   styles: {
     select: {
       rank: true,
@@ -56,7 +57,7 @@ export async function searchFreestylers(query: unknown, requestedLimit: unknown)
 
   const freestylers = await prisma.freestyler.findMany({
     where: {
-      catalogStatus: "PUBLISHED",
+      catalogStatus: { not: "REJECTED" },
       ...(q ? { normalizedAlias: { contains: q } } : {}),
     },
     select: freestylerSummary,
@@ -76,7 +77,7 @@ export async function searchFreestylers(query: unknown, requestedLimit: unknown)
 
 export async function getFreestylerProfile(slug: string) {
   return prisma.freestyler.findFirst({
-    where: { slug, catalogStatus: "PUBLISHED" },
+    where: { slug, catalogStatus: { not: "REJECTED" } },
     select: {
       alias: true,
       realName: true,
