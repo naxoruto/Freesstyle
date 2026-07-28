@@ -81,7 +81,7 @@ export default function FreestylerDailyClient() {
       try {
         const [gameResponse, catalogResponse] = await Promise.all([
           fetch("/api/games/freestyler/today", { headers: { "x-game-session": currentSession } }),
-          fetch("/api/catalog/freestylers?limit=100"),
+          fetch("/api/catalog/freestylers?limit=2000"),
         ]);
         if (!gameResponse.ok || !catalogResponse.ok) throw new Error("No se pudo cargar el juego");
         const game = await gameResponse.json() as FreestylerDailyState;
