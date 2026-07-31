@@ -73,7 +73,7 @@ async function fetchFmsProfiles(): Promise<FmsProfile[]> {
 export async function importFmsProfiles(prisma: PrismaClient): Promise<FmsImportResult> {
   const profiles = await fetchFmsProfiles();
   const localProfiles = await prisma.freestyler.findMany({
-    select: { id: true, normalizedAlias: true, birthDate: true, aliases: { select: { normalizedAlias: true } } },
+    select: { id: true, normalizedAlias: true, birthDate: true, birthYear: true, aliases: { select: { normalizedAlias: true } } },
   });
   const localByAlias = new Map<string, typeof localProfiles[number]>();
   for (const profile of localProfiles) {
@@ -129,7 +129,9 @@ export async function importFmsProfiles(prisma: PrismaClient): Promise<FmsImport
       where: { id: local.id },
       data: {
         birthDate: !local.birthDate && apiBirthDate ? apiBirthDate : undefined,
-        birthYear: !hasBirthConflict && apiBirthDate ? apiBirthDate.getUTCFullYear() : undefined,
+        birthYear: !local.birthDate && !local.birthYear && !hasBirthConflict && apiBirthDate
+          ? apiBirthDate.getUTCFullYear()
+          : undefined,
         fmsParticipant: true,
         instagramUrl: profile.acf?.instagram || undefined,
         sources: {

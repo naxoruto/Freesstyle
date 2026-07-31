@@ -135,7 +135,7 @@ export interface FreestylerDailyGuess {
     birthYear: DailyAttributeResult;
     redBullInternational: DailyAttributeResult;
     fmsParticipant: DailyAttributeResult;
-    podiums: DailyAttributeResult;
+    participations: DailyAttributeResult;
     titles: DailyAttributeResult;
   };
 }
@@ -144,6 +144,11 @@ export interface FreestylerDailyAnswer {
   id: string;
   alias: string;
   country: string;
+  birthYear: number;
+  debutYear: number | null;
+  participations: number;
+  participationCompetitions: string[];
+  titles: number;
 }
 
 export interface FreestylerDailyState {

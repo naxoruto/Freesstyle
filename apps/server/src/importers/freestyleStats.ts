@@ -35,9 +35,11 @@ export function parseFreestyleStatsProfile(html: string): StatsProfile {
     .filter((name) => name.length > 1 && name.length <= 120)
     .filter((name, index, all) => all.indexOf(name) === index);
   const titlesSection = text.split("Últimos títulos")[1]?.split("Últimas jornadas")[0] ?? "";
-  const titleCandidates = [...titlesSection.matchAll(/(.+?)\s+Temporada\s+(.+?)\s+Medalla de oro/gi)]
+  const titleCandidates = [...titlesSection.matchAll(/(.+?)\s+Medalla de (oro|plata|bronce)/gi)]
+    .filter((match) => match[2].toLowerCase() === "oro")
     .map((match) => {
-      const competitionName = match[1].replace(/^\s*Ver todos\s*/i, "").trim();
+      const item = match[1].replace(/^\s*Ver todos\s*/i, "").trim();
+      const competitionName = /^(.+?)\s+Temporada\s+(.+)$/.exec(item)?.[1]?.trim() ?? item;
       return { competitionName, competitionSlug: normalizeAlias(competitionName).replace(/\s+/g, "-") };
     })
     .filter((item) => item.competitionName.length > 1 && item.competitionName.length <= 120)

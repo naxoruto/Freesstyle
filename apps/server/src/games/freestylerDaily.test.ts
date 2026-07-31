@@ -6,9 +6,14 @@ function profile(overrides: Record<string, unknown> = {}) {
     id: "guess",
     alias: "Guess",
     birthYear: 1998,
+    debutYear: null,
     fmsParticipant: true,
     redBullInternational: true,
     country: { code: "AR", name: "Argentina" },
+    participations: [
+      { id: "participation-1", competition: { slug: "fms", name: "FMS" } },
+      { id: "participation-2", competition: { slug: "red-bull-batalla", name: "Red Bull Batalla" } },
+    ],
     titles: [
       { competition: { slug: "fms" } },
       { competition: { slug: "red-bull-batalla" } },
@@ -36,6 +41,10 @@ describe("daily challenge helpers", () => {
         alias: "Answer",
         birthYear: 1991,
         country: { code: "MX", name: "México" },
+        participations: [
+          { id: "participation-1", competition: { slug: "fms", name: "FMS" } },
+          { id: "participation-3", competition: { slug: "god-level", name: "God Level" } },
+        ],
         titles: [],
       }),
       "2026-07-27",
@@ -45,7 +54,29 @@ describe("daily challenge helpers", () => {
     expect(result.attributes.country.status).toBe("miss");
     expect(result.attributes.birthYear.direction).toBe("lower");
     expect(result.attributes.titles.direction).toBe("lower");
+    expect(result.attributes.participations.status).toBe("close");
+    expect(result.attributes.participations.label).toContain("FMS");
     expect(JSON.stringify(result)).not.toContain("Answer");
+  });
+
+  it("marks geographically close countries as close", () => {
+    const result = compareFreestylers(
+      profile({ country: { code: "CL", name: "Chile" } }),
+      profile({ id: "answer", country: { code: "AR", name: "Argentina" }, participations: [{ id: "participation-1", competition: { slug: "fms", name: "FMS" } }] }),
+      "2026-07-27",
+    );
+
+    expect(result.attributes.country.status).toBe("close");
+  });
+
+  it("keeps geographically distant countries different", () => {
+    const result = compareFreestylers(
+      profile({ country: { code: "CL", name: "Chile" } }),
+      profile({ id: "answer", country: { code: "CO", name: "Colombia" } }),
+      "2026-07-27",
+    );
+
+    expect(result.attributes.country.status).toBe("miss");
   });
 
   it("marks the matching profile as the correct answer", () => {

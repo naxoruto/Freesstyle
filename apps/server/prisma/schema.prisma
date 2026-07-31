@@ -70,6 +70,7 @@ model Freestyler {
   reviewIssues         DataReviewIssue[]
   styles               FreestylerStyle[]
   aliases              FreestylerAlias[]
+  externalProfiles     ExternalProfile[]
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 
@@ -276,6 +277,109 @@ model ImportRecord {
   @@map("import_records")
 }
 
+model CatalogImportRun {
+  id              String            @id @default(cuid())
+  provider        String
+  kind            String
+  status          String            @default("RUNNING")
+  startedAt       DateTime          @default(now()) @map("started_at")
+  completedAt     DateTime?         @map("completed_at")
+  discoveredCount Int               @default(0) @map("discovered_count")
+  fetchedCount    Int               @default(0) @map("fetched_count")
+  parsedCount     Int               @default(0) @map("parsed_count")
+  failedCount     Int               @default(0) @map("failed_count")
+  metadata        Json?
+  error           String?
+  externalProfiles ExternalProfile[]
+
+  @@index([provider, kind, status])
+  @@map("catalog_import_runs")
+}
+
+model ExternalProfile {
+  id                 String                  @id @default(cuid())
+  provider           String
+  externalId         String                  @map("external_id")
+  canonicalUrl       String                  @map("canonical_url")
+  sourceAlias        String                  @map("source_alias")
+  normalizedAlias    String                  @map("normalized_alias")
+  countryCode        String?                 @map("country_code") @db.VarChar(2)
+  realName           String?                 @map("real_name")
+  birthDate          DateTime?               @map("birth_date") @db.Date
+  birthYear          Int?                    @map("birth_year")
+  parseStatus        String                  @default("PARSED") @map("parse_status")
+  contentHash        String?                 @map("content_hash")
+  payload            Json?
+  firstSeenAt        DateTime                @default(now()) @map("first_seen_at")
+  lastSeenAt         DateTime                @default(now()) @map("last_seen_at")
+  lastSeenRunId      String?                 @map("last_seen_run_id")
+  lastSeenRun        CatalogImportRun?       @relation(fields: [lastSeenRunId], references: [id], onDelete: SetNull)
+  linkedFreestylerId String?                 @map("linked_freestyler_id")
+  linkedFreestyler   Freestyler?             @relation(fields: [linkedFreestylerId], references: [id], onDelete: SetNull)
+  aliases            ExternalProfileAlias[]
+  participations     ExternalParticipation[]
+  wins               ExternalWin[]
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  @@unique([provider, externalId])
+  @@index([provider, normalizedAlias])
+  @@index([linkedFreestylerId])
+  @@index([lastSeenRunId])
+  @@map("external_profiles")
+}
+
+model ExternalProfileAlias {
+  id                String          @id @default(cuid())
+  externalProfileId String          @map("external_profile_id")
+  externalProfile   ExternalProfile @relation(fields: [externalProfileId], references: [id], onDelete: Cascade)
+  alias             String
+  normalizedAlias   String          @map("normalized_alias")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@unique([externalProfileId, normalizedAlias])
+  @@index([normalizedAlias])
+  @@map("external_profile_aliases")
+}
+
+model ExternalParticipation {
+  id                    String          @id @default(cuid())
+  externalProfileId     String          @map("external_profile_id")
+  externalProfile       ExternalProfile @relation(fields: [externalProfileId], references: [id], onDelete: Cascade)
+  competitionName       String          @map("competition_name")
+  normalizedCompetition String          @map("normalized_competition")
+  season                String?
+  eventName             String?         @map("event_name")
+  stage                 String?
+  sourceUrl             String?         @map("source_url")
+  createdAt             DateTime        @default(now()) @map("created_at")
+
+  @@unique([externalProfileId, normalizedCompetition, season, eventName, stage])
+  @@index([normalizedCompetition])
+  @@map("external_participations")
+}
+
+model ExternalWin {
+  id                    String          @id @default(cuid())
+  externalProfileId     String          @map("external_profile_id")
+  externalProfile       ExternalProfile @relation(fields: [externalProfileId], references: [id], onDelete: Cascade)
+  competitionName       String          @map("competition_name")
+  normalizedCompetition String          @map("normalized_competition")
+  label                 String
+  season                String?
+  eventName             String?         @map("event_name")
+  year                  Int?
+  category              String          @default("OTHER")
+  countsForDaily        Boolean         @default(false) @map("counts_for_daily")
+  sourceUrl             String?         @map("source_url")
+  createdAt             DateTime        @default(now()) @map("created_at")
+
+  @@unique([externalProfileId, normalizedCompetition, label])
+  @@index([normalizedCompetition])
+  @@index([category, countsForDaily])
+  @@map("external_wins")
+}
+
 model ExternalProfileCandidate {
   id              String   @id @default(cuid())
   source          String
@@ -296,7 +400,7 @@ model ExternalProfileCandidate {
 model DailyChallenge {
   id          String          @id @default(cuid())
   game        ChallengeGame
-  dateKey     String          @map("date_key") @db.VarChar(10)
+  dateKey     String          @map("date_key") @db.VarChar(64)
   status      ChallengeStatus @default(DRAFT)
   payload     Json
   validatedAt DateTime?       @map("validated_at")

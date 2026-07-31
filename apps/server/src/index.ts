@@ -6,10 +6,14 @@ import { BattleRoomManager } from "./rooms/battleRoom";
 import { TournamentRoomManager } from "./rooms/tournamentRoom";
 import { getDefaultModeConfig } from "./modes/modes";
 import { getFreestylerProfile, searchFreestylers } from "./catalog/catalog";
+import { getInventoryProfile, getInventoryReport, getPendingParticipationMappings, searchInventoryProfiles } from "./inventory/inventory";
 import {
   DailyGameError,
   getFreestylerDailyState,
+  getFreestylerDailyStateForMode,
+  giveUpFreestylerDailyForMode,
   submitFreestylerDailyGuess,
+  submitFreestylerDailyGuessForMode,
 } from "./games/freestylerDaily";
 import { prisma } from "./db/prisma";
 import type { ClientEvent, ServerEvent } from "@freestyle/shared";
@@ -55,9 +59,51 @@ app.get("/api/catalog/freestylers/:slug", async (req, res) => {
   }
 });
 
+app.get("/api/inventory/report", async (_req, res) => {
+  try {
+    res.json({ data: await getInventoryReport() });
+  } catch (error) {
+    console.error("No se pudo consultar el reporte de inventario", error);
+    res.status(500).json({ error: "No se pudo consultar el inventario" });
+  }
+});
+
+app.get("/api/inventory/profiles", async (req, res) => {
+  try {
+    const profiles = await searchInventoryProfiles(req.query.q, req.query.limit, req.query.provider, req.query.linked);
+    res.json({ data: profiles });
+  } catch (error) {
+    console.error("No se pudo buscar el inventario externo", error);
+    res.status(500).json({ error: "No se pudo buscar el inventario" });
+  }
+});
+
+app.get("/api/inventory/profiles/:id", async (req, res) => {
+  try {
+    const profile = await getInventoryProfile(req.params.id);
+    if (!profile) { res.status(404).json({ error: "Perfil externo no encontrado" }); return; }
+    res.json({ data: profile });
+  } catch (error) {
+    console.error("No se pudo consultar el perfil externo", error);
+    res.status(500).json({ error: "No se pudo consultar el perfil externo" });
+  }
+});
+
+app.get("/api/inventory/pending-participations", async (req, res) => {
+  try {
+    res.json(await getPendingParticipationMappings(req.query.q, req.query.limit));
+  } catch (error) {
+    console.error("No se pudo consultar participaciones pendientes", error);
+    res.status(500).json({ error: "No se pudo consultar participaciones pendientes" });
+  }
+});
+
 app.get("/api/games/freestyler/today", async (req, res) => {
   try {
-    const state = await getFreestylerDailyState(prisma, req.header("x-game-session"));
+    const demo = req.header("x-game-demo") === "true";
+    const state = demo
+      ? await getFreestylerDailyStateForMode(prisma, req.header("x-game-session"), true)
+      : await getFreestylerDailyState(prisma, req.header("x-game-session"));
     res.json(state);
   } catch (error) {
     const status = error instanceof DailyGameError ? error.status : 500;
@@ -69,16 +115,28 @@ app.get("/api/games/freestyler/today", async (req, res) => {
 
 app.post("/api/games/freestyler/today/guesses", async (req, res) => {
   try {
-    const state = await submitFreestylerDailyGuess(
-      prisma,
-      req.header("x-game-session"),
-      req.body.freestylerId,
-    );
+    const demo = req.header("x-game-demo") === "true";
+    const state = demo
+      ? await submitFreestylerDailyGuessForMode(prisma, req.header("x-game-session"), req.body.freestylerId, true)
+      : await submitFreestylerDailyGuess(prisma, req.header("x-game-session"), req.body.freestylerId);
     res.json(state);
   } catch (error) {
     const status = error instanceof DailyGameError ? error.status : 500;
     const message = error instanceof DailyGameError ? error.message : "No se pudo registrar el intento";
     if (!(error instanceof DailyGameError)) console.error("No se pudo registrar el intento", error);
+    res.status(status).json({ error: message });
+  }
+});
+
+app.post("/api/games/freestyler/today/give-up", async (req, res) => {
+  try {
+    const demo = req.header("x-game-demo") === "true";
+    const state = await giveUpFreestylerDailyForMode(prisma, req.header("x-game-session"), demo);
+    res.json(state);
+  } catch (error) {
+    const status = error instanceof DailyGameError ? error.status : 500;
+    const message = error instanceof DailyGameError ? error.message : "No se pudo cerrar la partida";
+    if (!(error instanceof DailyGameError)) console.error("No se pudo cerrar la partida", error);
     res.status(status).json({ error: message });
   }
 });

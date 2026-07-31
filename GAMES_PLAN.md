@@ -230,11 +230,20 @@ interface DailyChallenge {
 #### Atributos iniciales
 
 - Pais.
-- Edad o rango de edad.
-- Ano de debut.
+- Ano de nacimiento.
+- Participaciones registradas.
 - Participacion en FMS.
 - Participacion internacional en Red Bull.
-- Cantidad o rango de titulos registrados.
+- Cantidad exacta de titulos registrados.
+
+Los atributos numericos se muestran como anos o cantidades exactas, nunca como
+rangos. La pista de pais usa una matriz geografica explicita: el mismo pais es
+una coincidencia exacta, los paises proximos son cercanos y el resto son
+diferentes. En anos y cantidades, una diferencia de un punto es cercana.
+
+El campo `debutYear` existe en el modelo, pero no se activa como pista hasta que
+la cobertura editorial sea suficiente. La medicion actual no encuentra perfiles
+publicados con ese dato completo.
 
 #### Reglas
 
@@ -243,8 +252,14 @@ interface DailyChallenge {
 - Autocompletado sin exponer datos ocultos de la respuesta.
 - Una sola partida diaria por dispositivo, con reinicio solo al cambiar la fecha.
 - La respuesta no debe incluirse en el HTML ni en datos precargados.
-- La edad se presenta como rango para reducir ambiguedad y datos obsoletos.
+- Los anos se muestran como anos exactos, nunca como rangos.
 - La primera vertical usa aliases y banderas, sin fotografias de competidores.
+
+#### Modo demo
+
+La URL `/juegos/freestyler?demo=1` crea un desafio de demostracion separado del
+reto publico. El perfil se sortea por sesion demo y el boton `Sortear otro`
+genera una nueva sesion sin modificar las partidas normales.
 
 ### 9.2 Grid 3x3
 
@@ -647,7 +662,8 @@ el alias `aczíno` y devolvio el registro de Aczino de Mexico.
 - 23 candidatos permanecen pendientes.
 - Participacion FMS confirmada para los 30 perfiles historicos.
 - Participacion internacional de Red Bull definida para los 30 perfiles.
-- 27 perfiles cumplen los datos minimos para el juego diario.
+- La medicion posterior del catalogo ampliado registra 250 perfiles publicados y
+  134 elegibles para el juego diario.
 
 ### 2026-07-27 - Freestyler del dia
 
@@ -655,8 +671,8 @@ el alias `aczíno` y devolvio el registro de Aczino de Mexico.
 - Respuesta materializada en PostgreSQL y oculta hasta terminar la partida.
 - Sesion anonima persistida mediante identificador local y hash en servidor.
 - Ocho intentos con rechazo de aliases repetidos.
-- Pistas de pais, rango de edad, estilo, Red Bull Internacional, titulos FMS y
-  titulos mayores.
+- Pistas de pais geografico, ano de nacimiento, participaciones registradas,
+  FMS, Red Bull Internacional y titulos.
 - Estado restaurable al recargar la pagina.
 - Resultado final compartible sin spoilers.
 - Interfaz responsive disponible en `/juegos/freestyler`.
@@ -671,7 +687,8 @@ el alias `aczíno` y devolvio el registro de Aczino de Mexico.
 - Coincidencia exacta para el estilo dominante y parcial al compartir una
   etiqueta secundaria.
 - Procedencia editorial separada de las fuentes competitivas objetivas.
-- Estilos visibles en el catalogo y disponibles como sexta pista del juego.
+- Estilos visibles en el catalogo, pero fuera de la primera version jugable hasta
+  completar su validacion editorial.
 
 ### 2026-07-27 - Expansion del catalogo
 
@@ -728,5 +745,6 @@ el alias `aczíno` y devolvio el registro de Aczino de Mexico.
 - Fechas exactas conflictivas de Ecko eliminadas, conservando solo el ano 1999.
 - Nacimiento de Acru y Acertijo retirado hasta resolver fuentes insuficientes o
   contradictorias; ambos permanecen fuera del juego diario.
-- 33 perfiles cumplen actualmente las condiciones del desafio diario.
+- La base ampliada contiene 250 perfiles publicados, 53 con dos estilos
+  editoriales y 134 elegibles para el desafio diario.
 - Segunda validacion idempotente: cero titulos nuevos y ningun perfil faltante.

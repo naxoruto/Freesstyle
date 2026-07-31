@@ -1,6 +1,8 @@
 # Plan de Trabajo — Freestyle Arena
 
-**Estado actual:** App funcional con modo "clásico" (1vs1, rúbrica 5 categorías, jueces en tiempo real).
+**Estado actual:** App funcional con catálogo, inventario externo, juego diario, demo 1vs1 y torneos. Este documento queda como backlog de evolución de batalla.
+
+> Nota: varios puntos de esta lista ya existen de forma parcial o completa en el código actual. Se conservan aquí para ordenar el trabajo pendiente y las mejoras de la sala.
 
 ---
 

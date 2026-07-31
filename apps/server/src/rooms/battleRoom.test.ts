@@ -183,7 +183,7 @@ describe("BattleRoomManager", () => {
 
   it("runs two complete turns per MC for ida y vuelta", () => {
     const { manager, battle } = setupBattle();
-    manager.setMode("socket-admin", { ...battle.mode, timePerTurn: 60, turnStructure: "round_trip" });
+    manager.setMode("socket-admin", { ...battle.mode, timePerTurn: 60, turnStructure: "round_trip", firstTurnParticipantId: "mc1" });
     manager.startBattle("socket-admin");
 
     expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "mc1_turn", participantId: "mc1" });

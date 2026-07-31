@@ -4,7 +4,11 @@ import { normalizeAlias } from "../catalog/normalizeAlias";
 import { VERIFIED_PROFILES, VERIFIED_SOURCES } from "./verifiedCatalog";
 import { STYLE_SOURCE, STYLE_TAGS, VERIFIED_STYLES } from "./verifiedStyles";
 
-const COUNTRIES = ["argentina", "espana", "mexico", "chile", "peru", "colombia"];
+const COUNTRIES = [
+  "argentina", "espana", "mexico", "chile", "peru", "colombia", "venezuela",
+  "republica dominicana", "uruguay", "panama", "costa rica", "guatemala",
+  "puerto rico", "estados unidos", "centroamerica", "sudamerica", "caribe",
+];
 
 interface CandidateDetails {
   source?: string;

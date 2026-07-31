@@ -25,11 +25,7 @@ async function main() {
       where: {
         catalogStatus: "CANDIDATE",
         birthYear: { not: null },
-        OR: [
-          { fmsParticipant: true },
-          { participations: { some: { competition: { slug: "dem-battles" } } } },
-          { participations: { some: { competition: { slug: "el-quinto-escalon" } } } },
-        ],
+        sources: { some: {} },
       },
       select: {
         alias: true,

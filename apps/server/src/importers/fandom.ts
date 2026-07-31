@@ -313,13 +313,13 @@ export async function importFandomProfiles(prisma: PrismaClient): Promise<Fandom
     await prisma.freestyler.update({
       where: { id: freestyler.id },
       data: {
-        realName: freestyler.realName ? undefined : parsed.realName,
+        realName: parsed.realName ?? undefined,
         birthDate: invalidBirthYear && freestyler.catalogStatus === "CANDIDATE"
           ? null
-          : freestyler.birthDate ? undefined : parsed.birthDate,
+          : parsed.birthDate ?? undefined,
         birthYear: invalidBirthYear && freestyler.catalogStatus === "CANDIDATE"
           ? null
-          : freestyler.birthYear || conflicts.birthDate ? undefined : parsed.birthYear,
+          : parsed.birthYear ?? undefined,
         sources: {
           connectOrCreate: {
             where: { freestylerId_sourceId: { freestylerId: freestyler.id, sourceId: source.id } },

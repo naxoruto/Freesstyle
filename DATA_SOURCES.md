@@ -6,12 +6,12 @@ El catalogo combina fuentes con distintos niveles de confianza. Los datos no se
 publican solamente porque aparezcan en una pagina: se conserva su procedencia y
 las contradicciones se registran para revision.
 
-Orden de confianza:
+Orden de confianza para resolver conflictos:
 
-1. Sitios oficiales de FMS y Red Bull Batalla.
-2. Wikidata y fuentes periodisticas verificables.
-3. Wiki Rap en Fandom.
-4. Revision editorial para conflictos o campos sin respaldo.
+1. Wiki Rap en Fandom.
+2. Freestyle Stats.
+3. Sitios oficiales de FMS y Red Bull Batalla.
+4. Wikidata, fuentes periodisticas verificables y revision editorial.
 
 No se copian biografias completas, frases ni imagenes de las fuentes. El
 catalogo utiliza hechos puntuales como alias, fechas, participaciones y titulos.
@@ -20,7 +20,7 @@ catalogo utiliza hechos puntuales como alias, fechas, participaciones y titulos.
 
 - API: <https://fms.tv/wp-json/wp/v2/mcs>
 - Uso: perfiles, fechas, ligas, temporadas y redes sociales.
-- Prioridad: fuente oficial.
+- Prioridad: respaldo final cuando Fandom y Freestyle Stats no contienen el dato.
 - Limitacion: el endpoint actual no conserva todos los perfiles historicos y
   tambien contiene entradas de equipos.
 
@@ -31,7 +31,17 @@ catalogo utiliza hechos puntuales como alias, fechas, participaciones y titulos.
 - Licencia declarada: CC BY-SA, salvo indicacion diferente en cada contenido.
 - Uso: nombre real, nacimiento, inicio de actividad, participaciones y candidatos
   de titulos.
-- Prioridad: fuente comunitaria secundaria.
+- Prioridad: fuente principal para resolver conflictos.
+
+### Precedencia de datos
+
+La precedencia se aplica por campo y no convierte una ausencia en un valor falso:
+
+1. Wiki Rap/Fandom gana si contiene un dato valido.
+2. Freestyle Stats completa solo cuando Fandom no contiene ese dato.
+3. FMS/Red Bull se conserva como respaldo final y no reemplaza un dato de las dos fuentes anteriores.
+
+La regla esta centralizada en `apps/server/src/importers/sourcePriority.ts`.
 
 La atribucion debe mantenerse visible en cualquier pagina que publique datos
 derivados de Wiki Rap. Las imagenes alojadas por Fandom no se importan porque

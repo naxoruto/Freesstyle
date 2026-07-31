@@ -29,6 +29,7 @@ export default function RootLayout({
               <a href="/" className="hover:text-white transition">Inicio</a>
               <a href="/juegos/freestyler" className="hover:text-white transition">Jugar</a>
               <a href="/catalogo" className="hidden sm:inline hover:text-white transition">Catálogo</a>
+              <a href="/demo/1vs1" className="hover:text-white transition">Demo 1vs1</a>
               <a href="/tournament" className="hidden md:inline hover:text-white transition">Torneos</a>
             </nav>
           </div>

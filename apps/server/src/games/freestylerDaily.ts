@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type {
   DailyAttributeResult,
@@ -13,9 +13,11 @@ const gameProfileSelect = {
   id: true,
   alias: true,
   birthYear: true,
+  debutYear: true,
   fmsParticipant: true,
   redBullInternational: true,
   country: { select: { code: true, name: true } },
+  participations: { select: { id: true, competition: { select: { slug: true, name: true } } } },
   titles: { select: { competition: { select: { slug: true } } } },
 } satisfies Prisma.FreestylerSelect;
 
@@ -69,22 +71,53 @@ export function deterministicIndex(dateKey: string, size: number): number {
   return digest.readUInt32BE(0) % size;
 }
 
-function numericAttribute(guess: number, answer: number): DailyAttributeResult {
+function numericAttribute(guess: number, answer: number, closeDistance = 1): DailyAttributeResult {
   const difference = Math.abs(guess - answer);
   return {
     value: guess,
     label: String(guess),
-    status: difference === 0 ? "exact" : difference === 1 ? "close" : "miss",
+    status: difference === 0 ? "exact" : difference <= closeDistance ? "close" : "miss",
     direction: difference === 0 ? undefined : answer > guess ? "higher" : "lower",
+  };
+}
+
+const CLOSE_COUNTRY_PAIRS = new Set([
+  "AR:CL", "AR:UY", "BO:AR", "BO:CL", "BO:PE", "BR:AR", "BR:UY",
+  "CL:AR", "CL:PE", "CO:EC", "CO:PA", "CO:PE", "CO:VE", "CR:GT", "CR:NI",
+  "DO:PR", "EC:PE", "ES:PT", "GT:MX", "HN:GT", "MX:BZ", "MX:GT",
+  "MX:US", "NI:PA", "PA:CR", "PA:CO", "PE:BO", "PE:CL", "PE:EC",
+  "PE:CO", "PR:DO", "PY:AR", "PY:BO", "PY:BR", "PY:UY", "UY:AR",
+  "UY:BR", "UY:PY", "VE:CO",
+]);
+
+function countryStatus(guessCode: string, answerCode: string): DailyAttributeResult["status"] {
+  if (guessCode === answerCode) return "exact";
+  const pair = `${guessCode}:${answerCode}`;
+  const reversePair = `${answerCode}:${guessCode}`;
+  return CLOSE_COUNTRY_PAIRS.has(pair) || CLOSE_COUNTRY_PAIRS.has(reversePair) ? "close" : "miss";
+}
+
+function participationAttribute(
+  guess: GameProfile["participations"],
+  answer: GameProfile["participations"],
+): DailyAttributeResult {
+  const guessCompetitions = new Set(guess.map((participation) => participation.competition.slug));
+  const answerCompetitions = new Set(answer.map((participation) => participation.competition.slug));
+  const sameCompetitions = guessCompetitions.size === answerCompetitions.size
+    && [...guessCompetitions].every((competition) => answerCompetitions.has(competition));
+  const sameCount = guess.length === answer.length;
+  const status = sameCount && sameCompetitions ? "exact" : sameCount ? "close" : "miss";
+
+  return {
+    value: guess.length,
+    label: `${guess.length} · ${[...new Set(guess.map((participation) => participation.competition.name))].join(", ") || "sin competición indicada"}`,
+    status,
+    direction: sameCount ? undefined : answer.length > guess.length ? "higher" : "lower",
   };
 }
 
 export function compareFreestylers(guess: GameProfile, answer: GameProfile, dateKey: string): FreestylerDailyGuess {
   if (!guess.birthYear || !answer.birthYear) throw new Error("El perfil no tiene año de nacimiento");
-  const podiumCompetitionSlugs = new Set(["fms", "red-bull-batalla", "god-level"]);
-  const guessPodiums = guess.titles.filter((title) => podiumCompetitionSlugs.has(title.competition.slug)).length;
-  const answerPodiums = answer.titles.filter((title) => podiumCompetitionSlugs.has(title.competition.slug)).length;
-
   return {
     freestylerId: guess.id,
     alias: guess.alias,
@@ -93,7 +126,7 @@ export function compareFreestylers(guess: GameProfile, answer: GameProfile, date
       country: {
         value: guess.country.code,
         label: guess.country.name,
-        status: guess.country.code === answer.country.code ? "exact" : "miss",
+        status: countryStatus(guess.country.code, answer.country.code),
       },
       birthYear: numericAttribute(guess.birthYear, answer.birthYear),
       fmsParticipant: {
@@ -106,7 +139,7 @@ export function compareFreestylers(guess: GameProfile, answer: GameProfile, date
         label: guess.redBullInternational ? "Sí" : "No",
         status: guess.redBullInternational === answer.redBullInternational ? "exact" : "miss",
       },
-      podiums: numericAttribute(guessPodiums, answerPodiums),
+      participations: participationAttribute(guess.participations, answer.participations),
       titles: numericAttribute(guess.titles.length, answer.titles.length),
     },
   };
@@ -131,7 +164,7 @@ function readStoredResult(result: Prisma.JsonValue | null): StoredAttemptResult 
 
   return {
     guesses: (guesses as unknown as FreestylerDailyGuess[]).filter(
-      (guess) => Boolean(guess.attributes?.birthYear && guess.attributes?.podiums),
+      (guess) => Boolean(guess.attributes?.birthYear && guess.attributes?.participations),
     ),
   };
 }
@@ -176,6 +209,35 @@ async function getOrCreateChallenge(prisma: PrismaClient, now: Date) {
   return { challenge, dateKey };
 }
 
+async function getOrCreateDemoChallenge(prisma: PrismaClient, sessionId: string, now: Date) {
+  const dateKey = dateKeyFor(now);
+  const hash = sessionHash(sessionId);
+  const demoDateKey = `${dateKey}:demo:${hash.slice(0, 24)}`;
+  const candidates = await eligibleProfiles(prisma);
+  if (!candidates.length) throw new DailyGameError("No hay perfiles elegibles para el desafío", 503);
+
+  const existing = await prisma.dailyChallenge.findUnique({
+    where: { game_dateKey: { game: "FREESTYLER", dateKey: demoDateKey } },
+  });
+  if (existing) return { challenge: existing, dateKey };
+
+  const answer = candidates[randomInt(candidates.length)];
+  const challenge = await prisma.dailyChallenge.create({
+    data: {
+      game: "FREESTYLER",
+      dateKey: demoDateKey,
+      status: "PUBLISHED",
+      validatedAt: now,
+      payload: { answerFreestylerId: answer.id },
+    },
+  });
+  return { challenge, dateKey };
+}
+
+async function resolveChallenge(prisma: PrismaClient, sessionId: string, now: Date, demo: boolean) {
+  return demo ? getOrCreateDemoChallenge(prisma, sessionId, now) : getOrCreateChallenge(prisma, now);
+}
+
 async function buildState(
   prisma: PrismaClient,
   challengeId: string,
@@ -199,17 +261,45 @@ async function buildState(
   if (state.completed) {
     const answer = await prisma.freestyler.findUnique({
       where: { id: answerFreestylerId },
-      select: { id: true, alias: true, country: { select: { name: true } } },
+      select: {
+        id: true,
+        alias: true,
+        birthYear: true,
+        debutYear: true,
+        country: { select: { name: true } },
+        participations: { select: { competition: { select: { name: true } } } },
+        _count: { select: { participations: true, titles: true } },
+      },
     });
-    if (answer) state.answer = { id: answer.id, alias: answer.alias, country: answer.country.name };
+    if (answer?.birthYear) {
+      state.answer = {
+        id: answer.id,
+        alias: answer.alias,
+        country: answer.country.name,
+        birthYear: answer.birthYear,
+        debutYear: answer.debutYear,
+        participations: answer._count.participations,
+        participationCompetitions: [...new Set(answer.participations.map((participation) => participation.competition.name))],
+        titles: answer._count.titles,
+      };
+    }
   }
 
   return state;
 }
 
 export async function getFreestylerDailyState(prisma: PrismaClient, sessionId: unknown, now = new Date()) {
+  return getFreestylerDailyStateForMode(prisma, sessionId, false, now);
+}
+
+export async function getFreestylerDailyStateForMode(
+  prisma: PrismaClient,
+  sessionId: unknown,
+  demo = false,
+  now = new Date(),
+) {
   const validSession = validateSessionId(sessionId);
-  const { challenge, dateKey } = await getOrCreateChallenge(prisma, now);
+  const { challenge, dateKey } = await resolveChallenge(prisma, validSession, now, demo);
   const payload = readPayload(challenge.payload);
   return buildState(prisma, challenge.id, dateKey, payload.answerFreestylerId, sessionHash(validSession));
 }
@@ -220,12 +310,22 @@ export async function submitFreestylerDailyGuess(
   guessedFreestylerId: unknown,
   now = new Date(),
 ) {
+  return submitFreestylerDailyGuessForMode(prisma, sessionId, guessedFreestylerId, false, now);
+}
+
+export async function submitFreestylerDailyGuessForMode(
+  prisma: PrismaClient,
+  sessionId: unknown,
+  guessedFreestylerId: unknown,
+  demo = false,
+  now = new Date(),
+) {
   const validSession = validateSessionId(sessionId);
   if (typeof guessedFreestylerId !== "string" || !guessedFreestylerId) {
     throw new DailyGameError("Selecciona un freestyler válido", 400);
   }
 
-  const { challenge, dateKey } = await getOrCreateChallenge(prisma, now);
+  const { challenge, dateKey } = await resolveChallenge(prisma, validSession, now, demo);
   const payload = readPayload(challenge.payload);
   const hash = sessionHash(validSession);
   const [guess, answer, existingAttempt] = await Promise.all([
@@ -266,6 +366,39 @@ export async function submitFreestylerDailyGuess(
       result: { guesses } as unknown as Prisma.InputJsonValue,
     },
   });
+
+  return buildState(prisma, challenge.id, dateKey, payload.answerFreestylerId, hash);
+}
+
+export async function giveUpFreestylerDailyForMode(
+  prisma: PrismaClient,
+  sessionId: unknown,
+  demo = false,
+  now = new Date(),
+) {
+  const validSession = validateSessionId(sessionId);
+  const { challenge, dateKey } = await resolveChallenge(prisma, validSession, now, demo);
+  const payload = readPayload(challenge.payload);
+  const hash = sessionHash(validSession);
+  const existingAttempt = await prisma.gameAttempt.findUnique({
+    where: { challengeId_sessionHash: { challengeId: challenge.id, sessionHash: hash } },
+  });
+
+  if (!existingAttempt?.completed) {
+    const guesses = readStoredResult(existingAttempt?.result ?? null).guesses;
+    await prisma.gameAttempt.upsert({
+      where: { challengeId_sessionHash: { challengeId: challenge.id, sessionHash: hash } },
+      update: { attemptCount: guesses.length, completed: true, won: false, result: { guesses } as unknown as Prisma.InputJsonValue },
+      create: {
+        challengeId: challenge.id,
+        sessionHash: hash,
+        attemptCount: guesses.length,
+        completed: true,
+        won: false,
+        result: { guesses } as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
 
   return buildState(prisma, challenge.id, dateKey, payload.answerFreestylerId, hash);
 }
