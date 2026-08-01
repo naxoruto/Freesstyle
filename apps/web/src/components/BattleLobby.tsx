@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { Battle, BattleModeConfig, Participant, ReplicaConfig, UserRole } from "@freestyle/shared";
 import { useClipboard } from "@/lib/utils";
 import { BattleModeSelector } from "./BattleModeSelector";
@@ -98,6 +99,9 @@ export function BattleLobby({
           <p aria-live="polite">
             {canStart ? "El cartel está completo. La batalla puede comenzar." : `Esperando ${missing}.`}
           </p>
+        </div>
+        <div className="lobby-brand-stamp" aria-hidden="true">
+          <Image src="/brand/fa-symbol.svg" alt="" width={124} height={140} priority />
         </div>
         <button type="button" className="lobby-code" onClick={() => copy(roomId)} aria-label={`Copiar código de sala ${roomId}`}>
           <span>Código de acceso</span>

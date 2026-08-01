@@ -1,5 +1,4 @@
 import type { Battle } from "@freestyle/shared";
-import arenaBackground from "@/assets/background.png";
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
@@ -23,10 +22,9 @@ function rule(ctx: CanvasRenderingContext2D, y: number) {
 async function logo(ctx: CanvasRenderingContext2D) {
   try {
     const image = new Image();
-    image.src = arenaBackground.src;
+    image.src = "/brand/fa-wordmark.svg";
     await image.decode();
-    // The current brand lockup only exists inside the stage artwork.
-    ctx.drawImage(image, 705, 55, 675, 335, 70, 31, 245, 122);
+    ctx.drawImage(image, 70, 40, 245, 72);
   } catch {
     text(ctx, "FREESTYLE", 70, 92, "italic 900 43px 'Arial Narrow', Impact, sans-serif", PAPER);
     const offset = ctx.measureText("FREESTYLE").width + 10;

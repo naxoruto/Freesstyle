@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import Image from "next/image";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Freestyle Battle Arena",
+  title: "Freestyle Arena",
   description: "Plataforma de batallas de freestyle con jueces y palabras aleatorias",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/brand/fa-symbol.svg",
+  },
 };
 
 export const viewport: Viewport = {
@@ -21,9 +25,9 @@ export default function RootLayout({
       <body className="min-h-screen" style={{ background: "#050509" }}>
         <div className="broadcast-bar" />
         <header className="border-b border-white/5 bg-black/40 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <a href="/" className="font-battle font-black italic text-lg sm:text-xl tracking-wide text-white uppercase whitespace-nowrap">
-              Freestyle<span style={{ color: "#e30613" }}> Arena</span>
+          <div className="w-full px-4 sm:px-8 lg:px-10 py-3 flex items-center justify-between">
+            <a href="/" className="brand-wordmark" aria-label="Freestyle Arena">
+              <Image src="/brand/fa-wordmark.svg" alt="" width={170} height={50} priority />
             </a>
             <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm text-white/30">
               <a href="/" className="hover:text-white transition">Inicio</a>
