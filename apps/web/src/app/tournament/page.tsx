@@ -75,6 +75,26 @@ export default function TournamentPage() {
     }
   };
 
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    if (!tournament) return;
+    const target = index + direction;
+    if (target < 0 || target >= tournament.participants.length) return;
+    const previous = tournament.participants;
+    const reordered = [...previous];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setError("");
+    setTournament({ ...tournament, participants: reordered });
+    const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/participants/order`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminToken, orderedIds: reordered.map(participant => participant.userId) }),
+    });
+    if (!response.ok) {
+      setTournament({ ...tournament, participants: previous });
+      setError("No se pudo actualizar el orden");
+    }
+  };
+
   const openBattle = async (battleId: string) => {
     if (!tournament) return;
     const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/battles/${battleId}/access?adminToken=${encodeURIComponent(adminToken)}`);
@@ -172,20 +192,63 @@ export default function TournamentPage() {
           <div className="border border-white/10 p-5">
             <h2 className="font-battle text-2xl font-black uppercase mb-4">{tournament.name}</h2>
             <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-4">Participantes ({tournament.participants.length})</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {tournament.participants.map((p, i) => (
-                <div key={p.userId} className="border border-white/10 p-2 text-sm text-white/60">
-                  <span className="text-xs text-white/20 mr-1">{i + 1}.</span>
-                  {p.alias}
-                </div>
-              ))}
-            </div>
+            {tournament.bracketMode === "manual" ? (
+              <div className="space-y-2">
+                {tournament.participants.map((participant, index) => (
+                  <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm text-white/60">
+                    <span className="text-xs text-white/20 w-6 text-right">{index + 1}.</span>
+                    <span className="flex-1">{participant.alias}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(index, -1)}
+                      disabled={index === 0}
+                      aria-label={`Subir a ${participant.alias}`}
+                      className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(index, 1)}
+                      disabled={index === tournament.participants.length - 1}
+                      aria-label={`Bajar a ${participant.alias}`}
+                      className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {tournament.participants.map((p, i) => (
+                  <div key={p.userId} className="border border-white/10 p-2 text-sm text-white/60">
+                    <span className="text-xs text-white/20 mr-1">{i + 1}.</span>
+                    {p.alias}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+          {tournament.bracketMode === "manual" && (
+            <div className="border border-white/10 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-3">Enfrentamientos</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {Array.from({ length: Math.floor(tournament.participants.length / 2) }, (_, index) => (
+                  <div key={index} className="border border-white/5 p-2 text-sm text-white/60">
+                    {tournament.participants[index * 2]?.alias ?? "?"}
+                    <span className="text-red-500 font-black mx-2">vs</span>
+                    {tournament.participants[index * 2 + 1]?.alias ?? "?"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="border border-white/10 p-5">
             <p className="text-sm text-white/40 mb-4">
               {tournament.bracketMode === "random"
                 ? "Los enfrentamientos se sortearán aleatoriamente al iniciar."
-                : "Los enfrentamientos respetarán el orden mostrado arriba (1 vs 2, 3 vs 4...)."}
+                : "Usa las flechas para reordenar. Los enfrentamientos respetan el orden (1 vs 2, 3 vs 4...)."}
             </p>
             {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
             <div className="flex gap-3">
