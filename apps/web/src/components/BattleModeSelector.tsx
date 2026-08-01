@@ -1,10 +1,17 @@
 "use client";
 
-import type { BattleMode, BattleModeConfig, WordCategory } from "@freestyle/shared";
+import type { BattleMode, BattleModeConfig, BattleFormat, WordCategory } from "@freestyle/shared";
+import { FORMAT_DEFAULTS } from "@freestyle/shared";
 
 const MODES: { value: BattleMode; label: string; desc: string }[] = [
   { value: "clasico", label: "Clásico", desc: "Con concepto aleatorio" },
   { value: "libre", label: "Libre", desc: "Sin concepto, tema libre" },
+];
+
+const FORMATS: { value: BattleFormat; label: string; desc: string }[] = [
+  { value: "1x1", label: "1x1", desc: "Una entrada por MC, por tiempo" },
+  { value: "4x4", label: "4x4", desc: "4 entradas por MC, por control" },
+  { value: "8x8", label: "8x8", desc: "8 entradas por MC, por control" },
 ];
 
 const TIME_OPTIONS = [
@@ -41,11 +48,47 @@ export function BattleModeSelector({ value, onChange, disabled }: Props) {
   const timerMode = value.timerMode ?? "countdown";
   const entriesPerParticipant = value.entriesPerParticipant ?? 4;
   const turnStructure = value.turnStructure ?? "one_way";
+  const format = value.format ?? "1x1";
 
   const set = (patch: Partial<BattleModeConfig>) => onChange({ ...value, ...patch });
 
+  const handleFormatChange = (f: BattleFormat) => {
+    const fmt = FORMAT_DEFAULTS[f];
+    set({
+      format: f,
+      entriesPerParticipant: fmt.entriesPerParticipant,
+      timerMode: fmt.timerMode,
+      turnStructure: fmt.turnStructure,
+      timePerTurn: fmt.defaultTimePerTurn,
+      rounds: fmt.defaultRounds,
+    });
+  };
+
   return (
     <div className={`space-y-5 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+      {/* Formato */}
+      <div>
+        <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Formato</p>
+        <div className="grid grid-cols-3 gap-2">
+          {FORMATS.map((f) => (
+            <button
+              type="button"
+              key={f.value}
+              onClick={() => handleFormatChange(f.value)}
+              aria-pressed={format === f.value}
+              className={`p-3 rounded-xl border-2 text-left transition ${
+                format === f.value
+                  ? "border-red-500 bg-red-500/10"
+                  : "border-gray-800 hover:border-gray-600"
+              }`}
+            >
+              <span className="font-bold text-white text-sm block">{f.label}</span>
+              <span className="text-xs text-gray-500">{f.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Modo */}
       <div>
         <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Modo</p>
@@ -101,9 +144,10 @@ export function BattleModeSelector({ value, onChange, disabled }: Props) {
 
       <div>
         <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Sistema de votación</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" aria-pressed={value.votingSystem !== "patron"} onClick={() => set({ votingSystem: "rubrica" })} className={`p-3 border text-sm ${value.votingSystem !== "patron" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>Rúbrica</button>
+        <div className="grid grid-cols-3 gap-2">
+          <button type="button" aria-pressed={value.votingSystem !== "patron" && value.votingSystem !== "free_vote"} onClick={() => set({ votingSystem: "rubrica" })} className={`p-3 border text-sm ${value.votingSystem !== "patron" && value.votingSystem !== "free_vote" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>Rúbrica</button>
           <button type="button" aria-pressed={value.votingSystem === "patron"} onClick={() => set({ votingSystem: "patron", timerMode: "manual" })} className={`p-3 border text-sm ${value.votingSystem === "patron" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>Por patrón</button>
+          <button type="button" aria-pressed={value.votingSystem === "free_vote"} onClick={() => set({ votingSystem: "free_vote" })} className={`p-3 border text-sm ${value.votingSystem === "free_vote" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>Voto libre</button>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { WordDisplay } from "@/components/WordDisplay";
@@ -13,16 +13,33 @@ import { showToast, Toaster } from "@/lib/utils";
 import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig, ReplicaConfig } from "@freestyle/shared";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
+const CONNECT_TIMEOUT_MS = 10_000;
+const STATE_TIMEOUT_MS = 15_000;
 
 type CountdownNum = 3 | 2 | 1 | "go" | null;
+type EntryPhase = "connecting" | "joining" | "connected" | "error";
 
 export default function BattlePage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const role = (searchParams.get("role") as UserRole) || "participant";
   const alsoAs = searchParams.get("alsoAs") as UserRole | null;
   const alias = searchParams.get("alias") || "Anónimo";
-  const adminToken = searchParams.get("adminToken") || undefined;
+  const adminToken = searchParams.get("adminToken") || sessionStorage.getItem(`battle_admin_${params.id}`) || undefined;
+  const returnToParam = searchParams.get("returnTo");
+  const tournamentIdParam = searchParams.get("tournamentId");
+  const storedReturn = (() => {
+    try {
+      const raw = sessionStorage.getItem(`battle_return_${params.id}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+  const returnTo = returnToParam || storedReturn?.returnTo || undefined;
+  const tournamentId = tournamentIdParam || storedReturn?.tournamentId || undefined;
   const requestedUserId = searchParams.get("userId");
+
+  if (returnTo && tournamentId) {
+    sessionStorage.setItem(`battle_return_${params.id}`, JSON.stringify({ returnTo, tournamentId }));
+  }
 
   // FIX Bug 2: Stable userId that doesn't change between renders
   const [userId] = useState(() => requestedUserId || `${role}-${alias}-${Date.now()}`);
@@ -36,7 +53,8 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const [activeMcId, setActiveMcId] = useState<string>("");
   const [timer, setTimer] = useState(0);
   const [countdown, setCountdown] = useState<CountdownNum>(null);
-  const [connecting, setConnecting] = useState(true);
+  const [entryPhase, setEntryPhase] = useState<EntryPhase>("connecting");
+  const [entryError, setEntryError] = useState("");
   const [roundResult, setRoundResult] = useState<{ winnerId?: string; rubricVotes: JudgeRubricVote[]; scores: Record<string, number> } | null>(null);
   const [judgeVoted, setJudgeVoted] = useState(false);
   const [entryVoteSubmitted, setEntryVoteSubmitted] = useState(false);
@@ -52,6 +70,9 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const battleRef = useRef<Battle | null>(null);
   // Track phase token from server for idempotent next_phase calls
   const phaseTokenRef = useRef<string | undefined>(undefined);
+  const joinSentRef = useRef(false);
+  const timersRef = useRef<{ connect?: ReturnType<typeof setTimeout>; state?: ReturnType<typeof setTimeout> }>({});
+  const perfRef = useRef({ mount: performance.now(), connect: 0, join: 0, firstState: 0 });
 
   const isJudge = role === "judge" || (role === "admin" && alsoAs === "judge");
   const isSpectator = role === "spectator";
@@ -77,20 +98,79 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const s = io(WS_URL, { transports: ["websocket", "polling"], reconnectionAttempts: 10, reconnectionDelay: 1000 });
 
-    s.on("connect", () => {
-      setConnecting(false);
+    const clearEntryTimers = () => {
+      if (timersRef.current.connect) { clearTimeout(timersRef.current.connect); timersRef.current.connect = undefined; }
+      if (timersRef.current.state) { clearTimeout(timersRef.current.state); timersRef.current.state = undefined; }
+    };
+
+    const emitJoin = () => {
+      if (joinSentRef.current) return;
+      joinSentRef.current = true;
+      perfRef.current.join = performance.now();
+      setEntryPhase("joining");
+
       s.emit("battle:join", { battleId: params.id, user: { id: userId, name: alias, alias, role }, adminToken });
-      // FIX Bug 3: Admin who also participates uses a stable derived ID
       if (role === "admin" && alsoAs && alsoAs !== "admin") {
         s.emit("battle:join", { battleId: params.id, user: { id: secondaryUserId, name: alias, alias, role: alsoAs } });
       }
+
+      timersRef.current.state = setTimeout(() => {
+        setEntryError("El servidor no respondió a tiempo. Verifica tu conexión.");
+        setEntryPhase("error");
+      }, STATE_TIMEOUT_MS);
+    };
+
+    // Connection timeout
+    timersRef.current.connect = setTimeout(() => {
+      s.close();
+      setEntryError("No se pudo conectar al servidor. Revisa tu conexión a internet.");
+      setEntryPhase("error");
+    }, CONNECT_TIMEOUT_MS);
+
+    s.on("connect", () => {
+      perfRef.current.connect = performance.now();
+      if (timersRef.current.connect) { clearTimeout(timersRef.current.connect); timersRef.current.connect = undefined; }
+
+      const storedSessionId = localStorage.getItem(`battle_session_${params.id}`);
+      if (storedSessionId) {
+        joinSentRef.current = true;
+        perfRef.current.join = performance.now();
+        setEntryPhase("joining");
+        s.emit("battle:reconnect", { type: "battle:reconnect", battleId: params.id, sessionId: storedSessionId });
+        timersRef.current.state = setTimeout(() => {
+          setEntryError("El servidor no respondió a tiempo. Verifica tu conexión.");
+          setEntryPhase("error");
+        }, STATE_TIMEOUT_MS);
+      } else {
+        emitJoin();
+      }
     });
 
-    s.on("disconnect", () => setConnecting(false));
-    s.on("connect_error", () => setConnecting(false));
-    s.on("battle:error", (data: { message: string }) => showToast(data.message, "error"));
+    s.on("disconnect", () => {});
+    s.on("connect_error", () => {
+      if (!joinSentRef.current) {
+        setEntryError("Error al conectar con el servidor.");
+        setEntryPhase("error");
+      }
+    });
+    s.on("battle:error", (data: { message: string }) => {
+      showToast(data.message, "error");
+      if (data.message.includes("Sesión no encontrada") || data.message.includes("expirado")) {
+        localStorage.removeItem(`battle_session_${params.id}`);
+        joinSentRef.current = false;
+        emitJoin();
+      }
+    });
 
     s.on("battle:state", (data: Battle) => {
+      if (timersRef.current.state) { clearTimeout(timersRef.current.state); timersRef.current.state = undefined; }
+      if (!perfRef.current.firstState) {
+        perfRef.current.firstState = performance.now();
+        setEntryPhase("connected");
+        const mountToState = (perfRef.current.firstState - perfRef.current.mount).toFixed(0);
+        const joinToState = (perfRef.current.firstState - perfRef.current.join).toFixed(0);
+        console.log(`⏱️ Entrada a sala ${params.id}: ${mountToState}ms total · ${joinToState}ms desde join`);
+      }
       const prevBattle = battleRef.current;
       battleRef.current = data;
       setBattle(data);
@@ -105,6 +185,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       if (data.status === "in_progress" && data.roundPhase === "countdown" && prevBattle?.status !== "in_progress") {
         setCountdown(3);
       }
+      });
+
+    s.on("battle:session", (data: { sessionId: string }) => {
+      localStorage.setItem(`battle_session_${params.id}`, data.sessionId);
     });
 
     s.on("battle:round_start", (data: { round: number; word: Word; totalRounds: number }) => {
@@ -141,7 +225,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     });
 
     setSocket(s);
-    return () => { s.disconnect(); };
+    return () => { clearEntryTimers(); s.disconnect(); };
   }, [params.id, role, alsoAs, alias, adminToken, userId, secondaryUserId]);
 
   // Countdown visual effect (purely visual — server drives the transitions)
@@ -194,6 +278,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
   const handleStart = () => socket?.emit("battle:start", { type: "battle:start" });
   const handleHostChange = (targetUserId: string) => socket?.emit("battle:set_host", { type: "battle:set_host", targetUserId });
+  const handleChangeRole = (targetUserId: string, newRole: UserRole) => socket?.emit("battle:change_role", { type: "battle:change_role", targetUserId, newRole });
   const handleCompleteEntry = () => socket?.emit("battle:complete_entry", { type: "battle:complete_entry" });
   const handleEntryVote = (points: number) => {
     socket?.emit("judge:vote_entry", { type: "judge:vote_entry", battleId: params.id, points });
@@ -233,12 +318,45 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     socket?.emit("battle:next_phase", { type: "battle:next_phase", phaseToken: phaseTokenRef.current });
   };
 
-  if (connecting) {
+  const handleRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  if (entryPhase === "error") {
+    return (
+      <div className="min-h-[calc(100vh-57px)] flex items-center justify-center">
+        <Toaster />
+        <div className="text-center px-4 max-w-md animate-slide-up">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-battle text-white mb-3">No se pudo entrar a la sala</h2>
+          <p className="text-gray-400 mb-6 text-sm">{entryError || "Error inesperado."}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={handleRetry}
+              className="px-6 py-3 font-battle font-black italic uppercase tracking-wider transition-all text-sm"
+              style={{ background: "#e30613", color: "white" }}
+            >
+              Reintentar
+            </button>
+            <a
+              href="/"
+              className="px-6 py-3 border border-white/10 font-battle font-black italic uppercase tracking-wider text-white/50 hover:text-white hover:border-white/30 transition text-sm"
+            >
+              Inicio
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entryPhase === "connecting" || entryPhase === "joining") {
+    const label = entryPhase === "connecting" ? "Conectando al servidor..." : "Entrando a la sala...";
     return (
       <div className="min-h-[calc(100vh-57px)] flex items-center justify-center">
         <div className="text-center">
           <p className="text-xs font-semibold tracking-[0.4em] uppercase text-white/20 animate-pulse">
-            Conectando al servidor...
+            {label}
           </p>
         </div>
       </div>
@@ -250,6 +368,16 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       <Toaster />
 
       {/* HEADER — mínimo, solo conexión */}
+
+      {/* BACK NAVIGATION */}
+      {returnTo === "tournament" && tournamentId && (
+        <a
+          href={`/tournament?id=${tournamentId}`}
+          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-white transition"
+        >
+          <span>←</span> Volver al torneo
+        </a>
+      )}
 
       {/* LOBBY */}
       {isLobby && battle && (
@@ -264,11 +392,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           firstTurnId={firstTurnId}
           lobbyConfig={lobbyConfig}
           replicaConfig={replicaConfig}
+          adminToken={adminToken}
           onConfigChange={handleConfigChange}
           onFirstTurnChange={handleFirstTurnChange}
           onHostChange={handleHostChange}
           onReplicaToggle={handleReplicaToggle}
           onStart={handleStart}
+          onChangeRole={handleChangeRole}
         />
       )}
 
@@ -422,6 +552,32 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                 </div>
               )}
 
+              {isJudge && battle?.mode.votingSystem === "free_vote" && phase === "voting" && !judgeVoted && mc1 && mc2 && (
+                <div className="border border-white/10 p-4 space-y-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/30">Voto libre — Elegí al ganador</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        socket?.emit("judge:vote_free", { type: "judge:vote_free", battleId: params.id, votedForId: mc1.userId });
+                        setJudgeVoted(true);
+                      }}
+                      className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                    >
+                      {mc1.alias}
+                    </button>
+                    <button
+                      onClick={() => {
+                        socket?.emit("judge:vote_free", { type: "judge:vote_free", battleId: params.id, votedForId: mc2.userId });
+                        setJudgeVoted(true);
+                      }}
+                      className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                    >
+                      {mc2.alias}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Judge already voted */}
               {isJudge && judgeVoted && phase === "voting" && (
                 <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
@@ -538,13 +694,31 @@ export default function BattlePage({ params }: { params: { id: string } }) {
               </div>
             ))}
           </div>
-          <a
-            href="/"
-            className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
-            style={{ background: "#e30613", color: "white" }}
-          >
-            Nueva Batalla
-          </a>
+          {returnTo === "tournament" && tournamentId ? (
+            <div className="flex justify-center gap-3">
+              <a
+                href={`/tournament?id=${tournamentId}`}
+                className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
+                style={{ background: "#e30613", color: "white" }}
+              >
+                Volver al torneo
+              </a>
+              <a
+                href="/"
+                className="inline-block border border-white/20 px-8 py-3 font-battle font-black italic uppercase tracking-wider text-white transition hover:border-white/50"
+              >
+                Nueva Batalla
+              </a>
+            </div>
+          ) : (
+            <a
+              href="/"
+              className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
+              style={{ background: "#e30613", color: "white" }}
+            >
+              Nueva Batalla
+            </a>
+          )}
           <BattlePosterDialog
             battle={battle}
             variant="post"

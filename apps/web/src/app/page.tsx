@@ -17,7 +17,6 @@ export default function HomePage() {
   const [step, setStep] = useState<Step>("menu");
   const [battleId, setBattleId] = useState("");
   const [createdId, setCreatedId] = useState("");
-  const [adminToken, setAdminToken] = useState("");
   const [role, setRole] = useState<UserRole>("participant");
   const [alias, setAlias] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,7 +34,7 @@ export default function HomePage() {
       if (!res.ok) throw new Error("Error del servidor");
       const battle = await res.json();
       setCreatedId(battle.id);
-      setAdminToken(battle.adminToken);
+      sessionStorage.setItem(`battle_admin_${battle.id}`, battle.adminToken);
       setStep("created");
       showToast("¡Batalla creada!", "success");
     } catch {
@@ -53,7 +52,7 @@ export default function HomePage() {
   const enterCreated = () => {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
     // El creador SIEMPRE es admin. El rol extra (participante/juez) va como alsoAs
-    router.push(`/battle/${createdId}?role=admin&alsoAs=${role}&alias=${encodeURIComponent(alias)}&adminToken=${encodeURIComponent(adminToken)}`);
+    router.push(`/battle/${createdId}?role=admin&alsoAs=${role}&alias=${encodeURIComponent(alias)}`);
   };
 
   return (
