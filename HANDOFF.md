@@ -155,7 +155,7 @@ POST /api/tournaments
 POST /api/tournaments/:id/participants
 POST /api/tournaments/:id/start
 POST /api/tournaments/:id/winners
-GET /api/tournaments/:id/battles/:battleId/access
+POST /api/tournaments/:id/battles/:battleId/access
 GET /api/tournaments/:id
 ```
 

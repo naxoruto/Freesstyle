@@ -97,7 +97,11 @@ export default function TournamentPage() {
 
   const openBattle = async (battleId: string) => {
     if (!tournament) return;
-    const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/battles/${battleId}/access?adminToken=${encodeURIComponent(adminToken)}`);
+    const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/battles/${battleId}/access`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminToken }),
+    });
     if (!response.ok) { setError("No se pudo abrir la sala"); return; }
     const access = await response.json();
     sessionStorage.setItem(`battle_admin_${battleId}`, access.adminToken);

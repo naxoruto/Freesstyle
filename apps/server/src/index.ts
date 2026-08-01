@@ -193,8 +193,8 @@ app.post("/api/tournaments/:id/winners", (req, res) => {
   res.json(tournament);
 });
 
-app.get("/api/tournaments/:id/battles/:battleId/access", (req, res) => {
-  const adminToken = typeof req.query.adminToken === "string" ? req.query.adminToken : "";
+app.post("/api/tournaments/:id/battles/:battleId/access", (req, res) => {
+  const adminToken = typeof req.body.adminToken === "string" ? req.body.adminToken : "";
   const battleAdminToken = tournamentManager.getBattleAdminToken(req.params.id, adminToken, req.params.battleId);
   if (!battleAdminToken) { res.status(403).json({ error: "Acceso denegado" }); return; }
   res.json({ adminToken: battleAdminToken });
