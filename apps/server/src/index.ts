@@ -33,6 +33,13 @@ const io = new Server(httpServer, {
 const battleManager = new BattleRoomManager();
 const tournamentManager = new TournamentRoomManager(battleManager);
 
+battleManager.onSessionCleanup = (battleId) => {
+  const battle = battleManager.listBattles().find(b => b.id === battleId);
+  if (battle) {
+    io.to(battleId).emit("battle:state", battle);
+  }
+};
+
 // --- REST: Health check ---
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -151,8 +158,9 @@ app.post("/api/battles", (req, res) => {
 app.post("/api/tournaments", (req, res) => {
   const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
   const bracketMode = req.body.bracketMode === "random" ? "random" : "manual";
+  const type = req.body.type === "with_third_place" ? "with_third_place" : "single_elimination";
   if (!name) { res.status(400).json({ error: "El nombre es obligatorio" }); return; }
-  res.status(201).json(tournamentManager.createTournament(name, bracketMode));
+  res.status(201).json(tournamentManager.createTournament(name, bracketMode, type));
 });
 
 app.post("/api/tournaments/:id/participants", (req, res) => {
@@ -191,9 +199,34 @@ app.get("/api/tournaments/:id", (req, res) => {
   res.json(tournament);
 });
 
+// --- Invitaciones ---
+app.post("/api/battles/:id/invitations", (req, res) => {
+  const role = req.body.role;
+  const adminToken = typeof req.body.adminToken === "string" ? req.body.adminToken : "";
+  if (!role || !["participant", "judge", "spectator", "host"].includes(role)) {
+    res.status(400).json({ error: "Rol inválido" });
+    return;
+  }
+  const token = battleManager.createInvitation(req.params.id, role, adminToken);
+  if (!token) { res.status(403).json({ error: "Acceso denegado o batalla no encontrada" }); return; }
+  res.status(201).json({ token, role, battleId: req.params.id });
+});
+
+app.get("/api/battles/:id/invite", (req, res) => {
+  const invite = typeof req.query.invite === "string" ? req.query.invite : "";
+  if (!invite) { res.status(400).json({ error: "Token de invitación requerido" }); return; }
+  const result = battleManager.consumeInvitation(invite);
+  if (!result) { res.status(410).json({ error: "Invitación inválida o expirada" }); return; }
+  if (result.roomId !== req.params.id.toLowerCase()) {
+    res.status(403).json({ error: "La invitación no corresponde a esta sala" });
+    return;
+  }
+  res.json({ role: result.role });
+});
+
 // --- Helper: advance phase and broadcast, with server-side timer scheduling ---
-function advanceAndBroadcast(battleId: string, expectedToken?: string) {
-  const phase = battleManager.nextPhase(battleId, expectedToken);
+function advanceAndBroadcast(battleId: string, expectedToken?: string, isAuto = false) {
+  const phase = battleManager.nextPhase(battleId, expectedToken, isAuto);
   if ("error" in phase) return;
 
   io.to(battleId).emit("battle:state", phase.battle);
@@ -236,7 +269,7 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string) {
   // Countdown phases: wait 4 seconds (3-2-1-GO) then advance to mc turn
   if (phase.phase === "countdown" || phase.phase === "pause") {
     battleManager.setPhaseTimer(battleId, 4000, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken);
+      advanceAndBroadcast(battleId, phase.phaseToken, true);
     });
   }
 
@@ -244,14 +277,14 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string) {
   if ((phase.phase === "mc1_turn" || phase.phase === "mc2_turn") && phase.battle.mode.timerMode === "countdown" && phase.battle.mode.timePerTurn > 0) {
     const ms = phase.battle.mode.timePerTurn * 1000;
     battleManager.setPhaseTimer(battleId, ms, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken);
+      advanceAndBroadcast(battleId, phase.phaseToken, true);
     });
   }
 
   // Voting with no judges: auto-resolve after 3 seconds
   if (phase.phase === "voting" && phase.battle.judges.length === 0) {
     battleManager.setPhaseTimer(battleId, 3000, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken);
+      advanceAndBroadcast(battleId, phase.phaseToken, true);
     });
   }
 }
@@ -262,9 +295,12 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`🔴 Cliente desconectado: ${socket.id}`);
-    const room = battleManager.leaveRoom(socket.id);
-    if (room) {
-      io.to(room.id).emit("battle:state", room);
+    const result = battleManager.handleDisconnect(socket.id);
+    if (result) {
+      const battle = battleManager.listBattles().find(b => b.id === result.battleId);
+      if (battle) {
+        io.to(result.battleId).emit("battle:state", battle);
+      }
     }
   });
 
@@ -277,6 +313,8 @@ io.on("connection", (socket) => {
         if (!battle) { socket.emit("battle:error", { message: "Batalla no encontrada" }); return; }
         socket.join(event.battleId);
         io.to(event.battleId).emit("battle:state", battle);
+        const sessionId = battleManager.getSessionId(socket.id);
+        if (sessionId) socket.emit("battle:session", { sessionId });
         break;
       }
 
@@ -303,7 +341,7 @@ io.on("connection", (socket) => {
 
         // Server drives the countdown → mc1_turn transition
         battleManager.setPhaseTimer(battle.id, 4000, () => {
-          advanceAndBroadcast(battle.id, token);
+          advanceAndBroadcast(battle.id, token, true);
         });
         break;
       }
@@ -331,10 +369,26 @@ io.on("connection", (socket) => {
         break;
       }
 
+      case "battle:change_role": {
+        const result = battleManager.changeRole(socket.id, event.targetUserId, event.newRole);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        io.to(result.id).emit("battle:state", result);
+        break;
+      }
+
       case "battle:set_replica": {
         const battle = battleManager.setReplicaConfig(socket.id, event.config);
         if (!battle) { socket.emit("battle:error", { message: "No se pudo configurar la réplica" }); return; }
         io.to(battle.id).emit("battle:state", battle);
+        break;
+      }
+
+      case "battle:reconnect": {
+        const result = battleManager.reconnect(event.battleId, event.sessionId, socket.id);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        socket.join(result.battle.id);
+        socket.emit("battle:session", { sessionId: result.sessionId });
+        io.to(result.battle.id).emit("battle:state", result.battle);
         break;
       }
 
@@ -365,6 +419,16 @@ io.on("connection", (socket) => {
         const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
         if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
         const result = battleManager.submitPatronExtraVote(event.battleId, judgeIdentity.userId, event.mc1Extra, event.mc2Extra);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (result.allVoted) advanceAndBroadcast(result.battle.id);
+        else io.to(result.battle.id).emit("battle:state", result.battle);
+        break;
+      }
+
+      case "judge:vote_free": {
+        const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
+        if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
+        const result = battleManager.submitFreeVote(event.battleId, judgeIdentity.userId, event.votedForId);
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
         if (result.allVoted) advanceAndBroadcast(result.battle.id);
         else io.to(result.battle.id).emit("battle:state", result.battle);
