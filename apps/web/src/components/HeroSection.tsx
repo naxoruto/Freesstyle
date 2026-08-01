@@ -44,20 +44,6 @@ export default function HeroSection({
         ))}
       </div>
 
-      {/* Center title */}
-      <div className={`hero-title${ready ? " hero-title--in" : ""}`}>
-        <h1 className="font-battle text-glow">
-          {"FREESTYLE".split("").map((char, i) => (
-            <span key={i} className="hero-letter" style={{ "--i": i } as React.CSSProperties}>{char}</span>
-          ))}
-          <br />
-          {"ARENA".split("").map((char, i) => (
-            <span key={i} className="hero-letter" style={{ "--i": i + 10 } as React.CSSProperties}>{char}</span>
-          ))}
-        </h1>
-<div className="hero-vs">VS</div>
-      </div>
-
       {/* Left MC — Unirse */}
       <button
         className={[

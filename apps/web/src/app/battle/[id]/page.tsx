@@ -91,7 +91,8 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     ...(battle?.spectators ?? []),
   ].filter((candidate, index, all) => all.findIndex(item => item.id === candidate.id) === index);
   const pendingEntryKey = battle?.pendingEntry ? `${battle.currentRound}:${battle.pendingEntry.mcId}:${battle.pendingEntry.entryIndex}` : "";
-  const roleLabel = isAdmin ? "Admin" : isJudge ? "Juez" : isSpectator ? "Público" : "MC";
+  const alsoAsLabel = alsoAs === "participant" ? "MC" : alsoAs === "judge" ? "Juez" : alsoAs === "spectator" ? "Público" : alsoAs === "host" ? "Host" : "";
+  const roleLabel = isAdmin ? (alsoAsLabel ? `Admin + ${alsoAsLabel}` : "Admin") : isJudge ? "Juez" : isSpectator ? "Público" : "MC";
 
   useEffect(() => setEntryVoteSubmitted(false), [pendingEntryKey]);
 

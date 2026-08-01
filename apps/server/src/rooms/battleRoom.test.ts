@@ -425,6 +425,22 @@ describe("BattleRoomManager", () => {
     }
   });
 
+  it("lets an admin change operational role without losing admin permissions", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1 });
+    join(manager, battle.id, "socket-admin", "admin1", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-admin", "admin1", "judge");
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+
+    const result = manager.changeRole("socket-admin", "admin1", "participant");
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result.participants.some(participant => participant.userId === "admin1")).toBe(true);
+      expect(result.judges.some(judge => judge.id === "admin1")).toBe(false);
+      expect(manager.startBattle("socket-admin")).toEqual({ error: "La mesa debe tener 1, 3 o 5 jueces" });
+    }
+  });
+
   it("rejects role change from non-admin", () => {
     const { manager, battle } = setupBattle();
     const result = manager.changeRole("socket-mc1", "judge1", "participant");

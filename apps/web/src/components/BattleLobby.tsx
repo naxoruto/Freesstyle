@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import type { Battle, BattleModeConfig, Participant, ReplicaConfig, UserRole } from "@freestyle/shared";
 import { useClipboard } from "@/lib/utils";
 import { BattleModeSelector } from "./BattleModeSelector";
@@ -86,22 +85,17 @@ export function BattleLobby({
     { role: "judge", label: "Juez", icon: "⚖️" },
     { role: "spectator", label: "Público", icon: "👁️" },
   ];
+  const labelRole = (role: UserRole | "") => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "host" ? "Host" : role === "spectator" ? "Público" : role === "admin" ? "Admin" : "";
 
   return (
     <section className="lobby-shell" aria-labelledby="lobby-title">
       <header className="lobby-pass">
         <div className="lobby-pass-copy">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="lobby-live"><span aria-hidden="true" /> Sala abierta</span>
-            <span className="lobby-role">Estás como {roleLabel}</span>
-          </div>
+          <span className="lobby-role">Rol activo: {roleLabel}</span>
           <h1 id="lobby-title">Cartel de batalla</h1>
           <p aria-live="polite">
             {canStart ? "El cartel está completo. La batalla puede comenzar." : `Esperando ${missing}.`}
           </p>
-        </div>
-        <div className="lobby-brand-stamp" aria-hidden="true">
-          <Image src="/brand/fa-symbol.svg" alt="" width={124} height={140} priority />
         </div>
         <button type="button" className="lobby-code" onClick={() => copy(roomId)} aria-label={`Copiar código de sala ${roomId}`}>
           <span>Código de acceso</span>
@@ -203,26 +197,32 @@ export function BattleLobby({
           )}
 
           {isAdmin && hostCandidates.length > 0 && (
-            <div className="lobby-card lobby-control">
+            <div className="lobby-card lobby-role-card">
               <div className="lobby-card-heading">
                 <div><span className="lobby-kicker">Gestionar</span><h2>Cambiar roles</h2></div>
               </div>
-              <p className="text-xs text-gray-500 mb-3">Selecciona el nuevo rol para cada usuario conectado.</p>
-              <div className="space-y-2">
+              <p>El admin conserva permisos aunque tome un rol operativo como MC, juez, host o público.</p>
+              <div className="lobby-role-list">
                 {hostCandidates.map(candidate => {
+                  const isAdminCandidate = battle.adminId === candidate.id;
                   const isParticipant = battle.participants.some(p => p.userId === candidate.id);
                   const isJudge = battle.judges.some(j => j.id === candidate.id);
                   const isSpectator = battle.spectators.some(s => s.id === candidate.id);
                   const isHost = battle.hostId === candidate.id;
                   const currentRole = isHost ? "host" : isParticipant ? "participant" : isJudge ? "judge" : isSpectator ? "spectator" : "";
+                  const roleSummary = [
+                    isAdminCandidate ? "Admin" : "",
+                    isHost ? "Host" : "",
+                    isParticipant ? "MC" : "",
+                    isJudge ? "Juez" : "",
+                    isSpectator ? "Público" : "",
+                  ].filter(Boolean).join(" + ") || labelRole(currentRole);
                   return (
-                    <div key={candidate.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-white/50 truncate flex-1">{candidate.alias}</span>
-                      <span className="text-xs text-white/20 uppercase w-20 text-right">
-                        {currentRole === "participant" ? "MC" : currentRole === "judge" ? "Juez" : currentRole === "host" ? "Host" : currentRole === "spectator" ? "Público" : currentRole}
-                      </span>
+                    <div key={candidate.id} className="lobby-role-row">
+                      <span>{candidate.alias}</span>
+                      <strong>{roleSummary}</strong>
                       <select
-                        className="bg-black border border-white/10 text-xs p-1 rounded w-24"
+                        className="bg-black border border-white/10 text-xs p-2 rounded"
                         value=""
                         onChange={(e) => {
                           const newRole = e.target.value as UserRole;

@@ -690,30 +690,31 @@ export class BattleRoomManager {
     const targetSocket = this.findUserById(targetUserId);
     if (!targetSocket || targetSocket.battleId !== battle.id) return { error: "Usuario no encontrado en esta sala" };
 
-    const targetAdmin = targetSocket.identities.get("admin");
-    if (targetAdmin && battle.status === "lobby" && newRole !== "admin") {
-      const adminCount = this.battleAdmins.get(battle.id)?.size ?? 0;
-      if (adminCount <= 1) return { error: "No se puede quitar el último admin" };
-    }
-
-    const currentCount = this.countRoleInBattle(battle, newRole);
-    if (!canJoinAsRole(currentCount, newRole)) return { error: `El límite de ${newRole} ya fue alcanzado` };
-
     const oldRoles = [...targetSocket.identities.entries()]
-      .filter(([role]) => role !== newRole)
+      .filter(([role]) => newRole !== "admin" && role !== newRole && role !== "admin")
       .map(([role]) => role);
 
     if (oldRoles.length === 0 && targetSocket.identities.has(newRole)) {
       return { error: "El usuario ya tiene ese rol" };
     }
 
+    if (!targetSocket.identities.has(newRole)) {
+      const currentCount = this.countRoleInBattle(battle, newRole);
+      if (!canJoinAsRole(currentCount, newRole)) return { error: `El límite de ${newRole} ya fue alcanzado` };
+    }
+
     for (const role of oldRoles) {
       this.removeRoleFromBattle(battle, targetSocket, role);
+      targetSocket.identities.delete(role);
     }
-    targetSocket.identities.clear();
-    const identity: SocketIdentity = { userId: targetUserId, name: targetUserId, alias: targetUserId };
-    targetSocket.identities.set(newRole, identity);
-    this.addRoleToBattle(battle, targetSocket, newRole, identity);
+    const identity = targetSocket.identities.get(newRole)
+      ?? targetSocket.identities.get("admin")
+      ?? [...targetSocket.identities.values()][0]
+      ?? { userId: targetUserId, name: targetUserId, alias: targetUserId };
+    if (!targetSocket.identities.has(newRole)) {
+      targetSocket.identities.set(newRole, identity);
+      this.addRoleToBattle(battle, targetSocket, newRole, identity);
+    }
 
     return battle;
   }
