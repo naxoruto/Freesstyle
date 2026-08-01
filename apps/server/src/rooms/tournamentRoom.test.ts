@@ -41,4 +41,53 @@ describe("TournamentRoomManager", () => {
     expect(manager.recordBattleResult(match.battleId!, match.mc1Id!)).toBe(tournament);
     expect(match.winnerId).toBe(match.mc1Id);
   });
+
+  it("reorders participants during setup and the bracket respects the new order", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    const [a, b, c, d] = tournament.participants;
+
+    const reordered = manager.reorderParticipants(tournament.id, adminToken, [d.userId, a.userId, b.userId, c.userId]);
+    expect(reordered).toBe(tournament);
+    expect(tournament.participants.map(participant => participant.alias)).toEqual(["D", "A", "B", "C"]);
+
+    manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
+    const [first, second] = tournament.phases[0].battles;
+    expect(first).toMatchObject({ mc1Id: d.userId, mc2Id: a.userId });
+    expect(second).toMatchObject({ mc1Id: b.userId, mc2Id: c.userId });
+  });
+
+  it("rejects reorder with an invalid admin token", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    const ids = tournament.participants.map(participant => participant.userId);
+
+    expect(manager.reorderParticipants(tournament.id, "invalid-token", [...ids].reverse())).toBeNull();
+    expect(tournament.participants.map(participant => participant.userId)).toEqual(ids);
+  });
+
+  it("rejects reorder once the tournament has started", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
+    const ids = tournament.participants.map(participant => participant.userId);
+
+    expect(manager.reorderParticipants(tournament.id, adminToken, [...ids].reverse())).toBeNull();
+    expect(tournament.participants.map(participant => participant.userId)).toEqual(ids);
+  });
+
+  it("rejects reorder with missing, duplicate or unknown ids", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    const ids = tournament.participants.map(participant => participant.userId);
+
+    expect(manager.reorderParticipants(tournament.id, adminToken, ids.slice(1))).toBeNull();
+    expect(manager.reorderParticipants(tournament.id, adminToken, [ids[0], ids[0], ids[1], ids[2]])).toBeNull();
+    expect(manager.reorderParticipants(tournament.id, adminToken, [...ids.slice(1), "unknown-id"])).toBeNull();
+    expect(tournament.participants.map(participant => participant.userId)).toEqual(ids);
+  });
 });

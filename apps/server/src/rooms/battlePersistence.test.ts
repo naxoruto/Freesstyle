@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Battle, BattleModeConfig, JudgeRubricVote, PatronEntryVote, PatronExtraVote, ScoreRubric } from "@freestyle/shared";
 import { BattlePersistence } from "./battlePersistence";
 import { getDefaultModeConfig } from "../modes/modes";
@@ -37,6 +37,17 @@ const rubricScores = (value: number): ScoreRubric => ({
 describe("BattlePersistence", () => {
   const persistence = new BattlePersistence();
   const roomId = "test-persist-01";
+  const testRoomIds = [roomId, "test-persist-02", "test-persist-03"];
+
+  // Las batallas de prueba usan ids fijos: limpiar residuos de ejecuciones previas
+  // para que el suite sea repetible contra la misma base de datos local.
+  beforeAll(async () => {
+    for (const id of testRoomIds) await persistence.delete(id);
+  });
+
+  afterAll(async () => {
+    for (const id of testRoomIds) await persistence.delete(id);
+  });
 
   it("creates and reads a battle", async () => {
     const battle = makeBattle({ id: roomId });

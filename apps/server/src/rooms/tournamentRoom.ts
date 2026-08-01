@@ -42,6 +42,17 @@ export class TournamentRoomManager {
     return tournament;
   }
 
+  reorderParticipants(tournamentId: string, adminToken: string, orderedIds: string[]): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup" || !Array.isArray(orderedIds)) return null;
+    const current = tournament.participants;
+    if (orderedIds.length !== current.length || new Set(orderedIds).size !== current.length) return null;
+    const byId = new Map(current.map(participant => [participant.userId, participant]));
+    if (!orderedIds.every(id => byId.has(id))) return null;
+    tournament.participants = orderedIds.map(id => byId.get(id)!);
+    return tournament;
+  }
+
   startTournament(
     tournamentId: string,
     adminToken: string,

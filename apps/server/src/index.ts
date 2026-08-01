@@ -169,6 +169,13 @@ app.post("/api/tournaments/:id/participants", (req, res) => {
   res.json(tournament);
 });
 
+app.post("/api/tournaments/:id/participants/order", (req, res) => {
+  const orderedIds = Array.isArray(req.body.orderedIds) ? req.body.orderedIds : [];
+  const tournament = tournamentManager.reorderParticipants(req.params.id, req.body.adminToken, orderedIds);
+  if (!tournament) { res.status(400).json({ error: "No se pudo actualizar el orden de participantes" }); return; }
+  res.json(tournament);
+});
+
 app.post("/api/tournaments/:id/start", (req, res) => {
   const tournament = tournamentManager.startTournament(
     req.params.id,
