@@ -46,6 +46,8 @@ pnpm --filter @freestyle/server inventory:promote:participations
 ## Docs
 
 - `PLAN.md`: backlog de batalla y torneo.
+- `UPDATES.md`: registro agrupado de requerimientos y decisiones.
+- `EXECUTION_PLAN.md`: tareas tecnicas ordenadas para ejecutar los cambios.
 - `GAMES_PLAN.md`: diseño de juegos diarios.
 - `DATA_SOURCES.md`: reglas de procedencia y prioridad.
 - `HANDOFF.md`: snapshot operativo para retomar trabajo.
