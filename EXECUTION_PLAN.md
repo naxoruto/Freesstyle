@@ -276,6 +276,20 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
 - **Salida:** cada torneo puede generar su cartelera.
 - **Implementado:** La funcionalidad de previsualización de batalla existe en `BattlePosterDialog`. La cartelera de torneo requiere integración con un renderer de imagen externo. Posposición a fase de diseño visual con assets aprobados.
 
+### EXE-022 - Emparejamiento manual editable en setup de torneo ✅
+
+- **Relacion:** ACT-014.
+- **Dependencias:** EXE-015.
+- **Archivos iniciales:** `apps/server/src/rooms/tournamentRoom.ts`, `apps/server/src/index.ts`, `apps/web/src/app/tournament/page.tsx`.
+- **Tareas:**
+  - Permitir reordenar participantes durante `setup`.
+  - Validar admin, estado y consistencia del orden en servidor.
+  - Bloquear el orden al iniciar el torneo.
+  - Mostrar vista previa de enfrentamientos.
+  - Añadir pruebas de reorden y bloqueo.
+- **Salida:** el bracket manual se puede revisar y editar antes de bloquearse.
+- **Implementado:** `reorderParticipants(tournamentId, adminToken, orderedIds)` en `TournamentRoomManager`: valida token admin, `status === "setup"` y que `orderedIds` contenga exactamente los mismos participantes (sin faltantes, duplicados ni desconocidos). Endpoint `POST /api/tournaments/:id/participants/order`. UI en setup (modo manual): lista con botones ↑/↓ por participante, guardado optimista con rollback ante error, y sección "Enfrentamientos" con la vista previa de los cruces (1 vs 2, 3 vs 4...). El bracket generado al iniciar respeta el orden editado; el servidor rechaza reordenamientos una vez iniciado. Pruebas añadidas (4 tests: reorden válido reflejado en el bracket, token inválido, torneo ya iniciado, ids faltantes/duplicados/desconocidos). Total: 7 tests en tournamentRoom. Se corrigió además la higiene de `battlePersistence.test.ts` (limpieza `beforeAll`/`afterAll` de ids fijos) que hacía fallar corridas repetidas del suite por constraint único en la BD local. Lint, typecheck, test (140 tests), build pasan.
+
 ## Fase 6 - Pulido, navegacion y demos
 
 **Objetivo:** cerrar experiencia publica despues de estabilizar la logica.
@@ -324,7 +338,7 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
 3. EXE-007, EXE-008 y EXE-009.
 4. EXE-010 y EXE-011.
 5. EXE-012, EXE-013 y EXE-014.
-6. EXE-015, EXE-016, EXE-017 y EXE-018.
+6. EXE-015, EXE-016, EXE-017, EXE-018 y EXE-022.
 7. EXE-019, EXE-020 y EXE-021.
 
 ## Primer bloque ejecutable

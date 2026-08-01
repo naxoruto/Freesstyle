@@ -170,11 +170,11 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 
 - **Origen:** punto 9.
 - **Prioridad:** Critica.
-- **Estado:** En progreso.
+- **Estado:** Completado.
 - **Descripcion:** Separar la creacion del torneo de su inicio. El admin debe configurar participantes, emparejamiento y reglas antes de confirmar el bracket.
 - **Opciones:** Emparejamiento aleatorio o manual, reglas por fase, jueces, formato, replicas y tercer puesto.
 - **Criterio de aceptacion:** El bracket se puede revisar y editar durante `setup`, pero queda bloqueado al iniciar.
-- **Progreso:** EXE-015 completado. UI del torneo separada en 3 pasos: formulario → setup (revisión de participantes y emparejamiento) → activo. El admin ya no inicia automáticamente; debe revisar el bracket y confirmar con "Iniciar torneo".
+- **Progreso:** EXE-015 completado. UI del torneo separada en 3 pasos: formulario → setup (revisión de participantes y emparejamiento) → activo. El admin ya no inicia automáticamente; debe revisar el bracket y confirmar con "Iniciar torneo". EXE-022 completado: emparejamiento manual editable. `reorderParticipants` en `TournamentRoomManager` valida admin, estado `setup` y que el orden contenga exactamente los mismos participantes. Endpoint `POST /api/tournaments/:id/participants/order`. En setup (modo manual): botones ↑/↓ por participante con guardado optimista y vista previa de enfrentamientos (1 vs 2, 3 vs 4...). Al iniciar, el orden queda bloqueado (el servidor rechaza reordenamientos fuera de `setup`). Pruebas: 4 tests nuevos (reorden válido reflejado en bracket, token inválido, torneo iniciado, ids inválidos).
 
 ### ACT-015 - Implementar distintos tipos de torneo
 
