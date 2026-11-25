@@ -1,0 +1,42 @@
+import type { Tournament } from "@freestyle/shared";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../db/prisma";
+
+export class TournamentPersistence {
+  async create(tournament: Tournament): Promise<void> {
+    await prisma.tournament.create({
+      data: {
+        id: tournament.id,
+        name: tournament.name,
+        logo: tournament.logo ?? null,
+        organizer: tournament.organizer ?? null,
+        type: tournament.type,
+        capacity: tournament.capacity,
+        status: tournament.status,
+        data: tournament as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async update(tournament: Tournament): Promise<void> {
+    await prisma.tournament.update({
+      where: { id: tournament.id },
+      data: {
+        name: tournament.name,
+        logo: tournament.logo ?? null,
+        organizer: tournament.organizer ?? null,
+        type: tournament.type,
+        capacity: tournament.capacity,
+        status: tournament.status,
+        data: tournament as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async loadActive(): Promise<Tournament[]> {
+    const rows = await prisma.tournament.findMany({
+      where: { status: { in: ["setup", "in_progress"] } },
+    });
+    return rows.map((row) => row.data as unknown as Tournament);
+  }
+}

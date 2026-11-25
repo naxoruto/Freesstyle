@@ -2,6 +2,7 @@ import { v4 as uuid } from "uuid";
 import type { BattleModeConfig, ReplicaConfig, Tournament, TournamentPhase, TournamentType } from "@freestyle/shared";
 import { BattleRoomManager } from "./battleRoom";
 import { generateShortId } from "./id";
+import { TournamentPersistence } from "./tournamentPersistence";
 
 function phaseName(size: number): string {
   if (size === 2) return "Final";
@@ -14,6 +15,7 @@ function phaseName(size: number): string {
 export class TournamentRoomManager {
   private tournaments = new Map<string, Tournament>();
   private adminTokens = new Map<string, string>();
+  private persistence = new TournamentPersistence();
 
   constructor(private battleManager: BattleRoomManager) {}
 
@@ -44,6 +46,7 @@ export class TournamentRoomManager {
     };
     this.tournaments.set(id, tournament);
     this.adminTokens.set(id, adminToken);
+    void this.persistence.create(tournament).catch(error => console.error("No se pudo guardar el torneo", error));
     return { tournament, adminToken };
   }
 
@@ -51,6 +54,7 @@ export class TournamentRoomManager {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup" || !alias.trim()) return null;
     tournament.participants.push({ userId: uuid(), alias: alias.trim(), eliminated: false });
+    this.persist(tournament);
     return tournament;
   }
 
@@ -62,6 +66,7 @@ export class TournamentRoomManager {
     const byId = new Map(current.map(participant => [participant.userId, participant]));
     if (!orderedIds.every(id => byId.has(id))) return null;
     tournament.participants = orderedIds.map(id => byId.get(id)!);
+    this.persist(tournament);
     return tournament;
   }
 
@@ -136,13 +141,16 @@ export class TournamentRoomManager {
       tournament.thirdPlaceMatch = {};
     }
 
+    this.persist(tournament);
     return tournament;
   }
 
   recordWinner(tournamentId: string, adminToken: string, battleId: string, winnerId: string): Tournament | null {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "in_progress") return null;
-    return this.advanceWinner(tournament, battleId, winnerId);
+    const result = this.advanceWinner(tournament, battleId, winnerId);
+    if (result) this.persist(tournament);
+    return result;
   }
 
   recordBattleResult(battleId: string, winnerId: string): Tournament | null {
@@ -156,7 +164,9 @@ export class TournamentRoomManager {
         || (tournament.grandFinal?.battleId === battleId && !tournament.grandFinal.winnerId)
         || (tournament.grandFinalReset?.battleId === battleId && !tournament.grandFinalReset.winnerId);
       if (found) {
-        return this.advanceWinner(tournament, battleId, winnerId);
+        const result = this.advanceWinner(tournament, battleId, winnerId);
+        if (result) this.persist(tournament);
+        return result;
       }
     }
     return null;
@@ -344,6 +354,12 @@ export class TournamentRoomManager {
     );
     if (!belongsToTournament) return null;
     return this.battleManager.getAdminToken(battleId) ?? null;
+  }
+
+  private persist(tournament: Tournament): void {
+    void this.persistence.update(tournament).catch(error => {
+      console.error("No se pudo guardar el torneo", error);
+    });
   }
 
   private authorize(tournamentId: string, adminToken: string): Tournament | null {
