@@ -638,3 +638,19 @@ model LiveBattleRoundResult {
   @@index([roomId])
   @@map("live_battle_round_results")
 }
+
+model Tournament {
+  id        String   @id
+  name      String
+  logo      String?  @map("logo")
+  organizer String?  @map("organizer")
+  type      String   @map("type")
+  capacity  Int      @map("capacity")
+  status    String   @default("setup") @map("status")
+  data      Json     @map("data")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("tournaments")
+}
