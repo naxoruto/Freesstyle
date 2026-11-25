@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implementar tarea por tarea, en orden. Cada tarea termina con commit + push (regla de `AGENTS.md`).
 
-> **Progreso (25 de noviembre de 2026):** T1–T11 completados y commiteados. Resta T12 (refactor de la página de batalla).
+> **Progreso (25 de noviembre de 2026):** T1–T11 y pulido (C7/C11/C12/C15) completados. Resta T12 (refactor de la página de batalla).
 
 **Goal:** Rediseñar el recorrido 1vs1: elección de tipo, pantalla única de creación con presets, modalidad Exhibición, lobby claro y cierre con revancha/repetir.
 
