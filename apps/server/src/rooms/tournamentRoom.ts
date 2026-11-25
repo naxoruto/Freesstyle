@@ -37,6 +37,9 @@ export class TournamentRoomManager {
       currentPhaseIndex: 0,
       bracketMode,
       type,
+      capacity: 8,
+      suplentes: [],
+      auditLog: [],
       createdAt: new Date().toISOString(),
     };
     this.tournaments.set(id, tournament);

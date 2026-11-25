@@ -127,11 +127,25 @@ export interface TournamentPhase {
 
 export type TournamentType = "single_elimination" | "with_third_place" | "king_of_the_hill" | "double_elimination";
 
+export type TournamentCapacity = 4 | 8 | 16;
+
+export interface TournamentAuditEntry {
+  at: string;
+  actorId: string;
+  action: string;
+  detail: string;
+}
+
 export interface Tournament {
   id: string; name: string; status: "setup" | "in_progress" | "finished";
   participants: TournamentParticipant[]; phases: TournamentPhase[]; currentPhaseIndex: number;
   bracketMode: "manual" | "random"; createdAt: string; winnerId?: string;
   type: TournamentType;
+  logo?: string;
+  organizer?: string;
+  capacity: TournamentCapacity;
+  suplentes: TournamentParticipant[];
+  auditLog: TournamentAuditEntry[];
   thirdPlaceMatch?: TournamentBattle;
   losersPhases?: TournamentPhase[];
   grandFinal?: TournamentBattle;
