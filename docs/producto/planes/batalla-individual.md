@@ -2,6 +2,8 @@
 
 > **For agentic workers:** implementar tarea por tarea, en orden. Cada tarea termina con commit + push (regla de `AGENTS.md`).
 
+> **Progreso (25 de noviembre de 2026):** T1–T4 completados y commiteados (modo variado, presets, palabra por ronda, adminToken en cookie). Restan T5–T12.
+
 **Goal:** Rediseñar el recorrido 1vs1: elección de tipo, pantalla única de creación con presets, modalidad Exhibición, lobby claro y cierre con revancha/repetir.
 
 **Architecture:** Next.js (web) + Express/Socket.IO (server) + `@freestyle/shared` (contratos). Los cambios de configuración viven en `shared`; el servidor los aplica; la web los presenta.

@@ -41,6 +41,7 @@ Antes de continuar con la recuperación de torneos: afinar las mejoras de las tr
 | TEC-06 | Migraciones de recuperación en la base local | Aplicadas después de respaldo, restauración de prueba y ensayo de migración; otros entornos requieren su propia actualización |
 | TEC-07 | Generación de Prisma bloqueada en Windows | Resuelto cerrando el servidor que ocupaba la DLL; procedimiento en la guía de entorno |
 | TEC-08 | Fase 0 del plan: higiene (artefacto de git, Makefile, docker, respaldos) y consistencia (IDs de mayor entropía y bloqueo ante fallos de persistencia) | Implementado; 229 pruebas verdes; detalle en [Plan de trabajo](../PLAN_DE_TRABAJO.md) |
+| TEC-09 | Fase 1 (batalla individual) — T1–T4: modo variado, presets, palabra por ronda y adminToken en cookie httpOnly | Implementado; 239 pruebas; resta T5–T12 (frontend); [especificación](specs/batalla-individual.md) y [plan](planes/batalla-individual.md) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 

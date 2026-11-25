@@ -1,6 +1,6 @@
 # Especificación — Batalla individual (1vs1)
 
-> **Estado:** borrador para revisión (Fase 1 del [Plan de trabajo](../PLAN_DE_TRABAJO.md)). Pendiente de aprobación.
+> **Estado:** aprobada (25 de noviembre de 2026). Fase 1 del [Plan de trabajo](../PLAN_DE_TRABAJO.md).
 >
 > **Origen:** decisiones de producto confirmadas (CAMBIOS `DEC-005`…`DEC-011`, `DEC-015`) y brainstorming cerrado el 25 de noviembre de 2026.
 >
