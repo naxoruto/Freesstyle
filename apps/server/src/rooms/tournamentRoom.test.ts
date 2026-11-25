@@ -53,6 +53,18 @@ describe("TournamentRoomManager", () => {
     expect(tournament.participants.map(participant => participant.userId)).toEqual([ids[1], ids[0], ids[2], ids[3]]);
     expect(tournament.auditLog.some(entry => entry.action === "reorder")).toBe(true);
   });
+
+  it("sustituye a un titular ausente por un suplente", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E"]) manager.addParticipant(tournament.id, adminToken, alias);
+
+    const absent = tournament.participants[0];
+    manager.substituteParticipant(tournament.id, adminToken, absent.userId);
+    expect(tournament.participants[0].alias).toBe("E");
+    expect(tournament.suplentes).toHaveLength(0);
+    expect(tournament.auditLog.some(entry => entry.action === "substitute")).toBe(true);
+  });
   it("builds a bracket and advances winners to the final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;

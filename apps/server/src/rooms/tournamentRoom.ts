@@ -96,6 +96,25 @@ export class TournamentRoomManager {
     return tournament;
   }
 
+  substituteParticipant(tournamentId: string, adminToken: string, absentId: string): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup") return null;
+    const absentIndex = tournament.participants.findIndex(participant => participant.userId === absentId);
+    if (absentIndex < 0) return null;
+    const suplente = tournament.suplentes.shift();
+    if (!suplente) return null;
+    const absent = tournament.participants[absentIndex];
+    tournament.participants[absentIndex] = suplente;
+    tournament.auditLog.push({
+      at: new Date().toISOString(),
+      actorId: "admin",
+      action: "substitute",
+      detail: `${absent.alias} → ${suplente.alias}`,
+    });
+    this.persist(tournament);
+    return tournament;
+  }
+
   startTournament(
     tournamentId: string,
     adminToken: string,
