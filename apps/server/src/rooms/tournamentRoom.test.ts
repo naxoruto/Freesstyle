@@ -31,6 +31,14 @@ describe("TournamentRoomManager", () => {
     expect(manager.createTournament("Copa", "random", "king_of_the_hill")).toBeNull();
     expect(manager.createTournament("Copa", "random", "single_elimination", { capacity: 16 })).not.toBeNull();
   });
+
+  it("mantiene titulares y suplentes según la capacidad", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E", "F"]) manager.addParticipant(tournament.id, adminToken, alias);
+    expect(tournament.participants.map(participant => participant.alias)).toEqual(["A", "B", "C", "D"]);
+    expect(tournament.suplentes.map(participant => participant.alias)).toEqual(["E", "F"]);
+  });
   it("builds a bracket and advances winners to the final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
@@ -172,7 +180,7 @@ describe("TournamentRoomManager", () => {
   it("generates the standard loser bracket sizes for 8 and 16 participants", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     for (const [count, expected] of [[8, [2, 2, 1, 1]], [16, [4, 4, 2, 2, 1, 1]]] as const) {
-      const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination")!;
+      const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination", { capacity: count })!;
       for (let index = 0; index < count; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
       expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
       expect(tournament.losersPhases?.map(phase => phase.battles.length)).toEqual(expected);

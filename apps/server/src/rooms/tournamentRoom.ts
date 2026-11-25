@@ -59,7 +59,12 @@ export class TournamentRoomManager {
   addParticipant(tournamentId: string, adminToken: string, alias: string): Tournament | null {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup" || !alias.trim()) return null;
-    tournament.participants.push({ userId: uuid(), alias: alias.trim(), eliminated: false });
+    const participant = { userId: uuid(), alias: alias.trim(), eliminated: false };
+    if (tournament.participants.length < tournament.capacity) {
+      tournament.participants.push(participant);
+    } else {
+      tournament.suplentes.push(participant);
+    }
     this.persist(tournament);
     return tournament;
   }
