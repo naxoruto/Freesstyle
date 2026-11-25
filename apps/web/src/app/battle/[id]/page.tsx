@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { createBattle } from "@/lib/api";
 import { io, Socket } from "socket.io-client";
 import { WordDisplay } from "@/components/WordDisplay";
 import { Timer } from "@/components/Timer";
@@ -33,6 +34,7 @@ const now = () => (typeof performance === "undefined" ? 0 : performance.now());
 
 export default function BattlePage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const pendingJoin = (() => {
     try {
       const raw = getSessionItem(`battle_pending_${params.id}`);
@@ -386,6 +388,18 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const handleRetry = useCallback(() => {
     window.location.reload();
   }, []);
+
+  const handleRepeat = async () => {
+    if (!battle) return;
+    try {
+      const next = await createBattle(battle.mode);
+      const me = battle.members.find(member => member.userId === currentUserId);
+      sessionStorage.setItem(`battle_pending_${next.id}`, JSON.stringify({ alias: me?.alias || "Anónimo" }));
+      router.push(`/battle/${next.id}`);
+    } catch {
+      showToast("No se pudo crear la nueva sala", "error");
+    }
+  };
 
   if (entryPhase === "error") {
     return (
@@ -811,6 +825,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
               ))}
             </div>
           )}
+          <div className="flex justify-center gap-3 flex-wrap">
+            <button onClick={handleRepeat} className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all" style={{ background: "#e30613", color: "white" }}>Revancha</button>
+            <button onClick={handleRepeat} className="inline-block border border-white/20 px-8 py-3 font-battle font-black italic uppercase tracking-wider text-white transition hover:border-white/50">Repetir formato</button>
+          </div>
           {returnTo === "tournament" && tournamentId ? (
             <div className="flex justify-center gap-3">
               <a
