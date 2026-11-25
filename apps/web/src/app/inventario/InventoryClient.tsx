@@ -52,6 +52,51 @@ function providerName(provider: string) {
 }
 
 export default function InventoryClient() {
+  const [token, setToken] = useState("");
+  const [candidate, setCandidate] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setChecking(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/inventory/report", { headers: { Authorization: `Bearer ${candidate}` }, cache: "no-store" });
+      if (!response.ok) throw new Error("Acceso denegado");
+      setToken(candidate);
+      setCandidate("");
+    } catch {
+      setAuthError("No se pudo acceder. Comprueba la clave y la conexión.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  if (token) return <InventoryWorkspace token={token} onSignOut={() => setToken("")} />;
+
+  return (
+    <div className="inventory-shell">
+      <section className="inventory-hero">
+        <div>
+          <p className="catalog-kicker"><span /> Inventario externo</p>
+          <h1>Acceso<br /><em>privado.</em></h1>
+          <p className="catalog-intro">Introduce la clave de administración para revisar las fuentes del catálogo.</p>
+          <form className="catalog-tools" onSubmit={signIn}>
+            <label className="catalog-search">
+              <span>Clave de administración</span>
+              <input type="password" autoComplete="current-password" value={candidate} onChange={event => setCandidate(event.target.value)} required />
+            </label>
+            <div className="inventory-filters"><button type="submit" disabled={checking}>{checking ? "Comprobando..." : "Entrar"}</button></div>
+          </form>
+          {authError && <p role="alert">{authError}</p>}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InventoryWorkspace({ token, onSignOut }: { token: string; onSignOut: () => void }) {
   const [report, setReport] = useState<InventoryReport | null>(null);
   const [profiles, setProfiles] = useState<InventoryProfileSummary[]>([]);
   const [query, setQuery] = useState("");
@@ -70,7 +115,7 @@ export default function InventoryClient() {
 
     async function loadReport() {
       try {
-        const response = await fetch("/api/inventory/report");
+        const response = await fetch("/api/inventory/report", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
         if (!response.ok) throw new Error("No se pudo consultar el reporte");
         const body = await response.json() as { data: InventoryReport };
         if (!cancelled) setReport(body.data);
@@ -81,7 +126,7 @@ export default function InventoryClient() {
 
     void loadReport();
     return () => { cancelled = true; };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +138,7 @@ export default function InventoryClient() {
         if (query.trim()) params.set("q", query.trim());
         if (provider !== "ALL") params.set("provider", provider);
         if (linked !== "ALL") params.set("linked", linked);
-        const response = await fetch(`/api/inventory/profiles?${params.toString()}`);
+        const response = await fetch(`/api/inventory/profiles?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
         if (!response.ok) throw new Error("No se pudo consultar el inventario");
         const body = await response.json() as { data: InventoryProfileSummary[] };
         if (!cancelled) setProfiles(body.data);
@@ -106,7 +151,7 @@ export default function InventoryClient() {
 
     void loadProfiles();
     return () => { cancelled = true; };
-  }, [query, provider, linked]);
+  }, [query, provider, linked, token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +161,7 @@ export default function InventoryClient() {
       try {
         const params = new URLSearchParams({ limit: "120" });
         if (query.trim()) params.set("q", query.trim());
-        const response = await fetch(`/api/inventory/pending-participations?${params.toString()}`);
+        const response = await fetch(`/api/inventory/pending-participations?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
         if (!response.ok) throw new Error("No se pudo consultar pendientes");
         const body = await response.json() as { data: PendingParticipation[]; totalUnmapped: number };
         if (!cancelled) {
@@ -132,13 +177,13 @@ export default function InventoryClient() {
 
     void loadPending();
     return () => { cancelled = true; };
-  }, [query]);
+  }, [query, token]);
 
   async function openProfile(id: string) {
     setProfileLoading(true);
     setProfile(null);
     try {
-      const response = await fetch(`/api/inventory/profiles/${encodeURIComponent(id)}`);
+      const response = await fetch(`/api/inventory/profiles/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
       if (!response.ok) throw new Error("No se pudo cargar el perfil externo");
       const body = await response.json() as { data: InventoryProfile };
       setProfile(body.data);
@@ -172,6 +217,7 @@ export default function InventoryClient() {
       </section>
 
       <section className="inventory-workbench">
+        <div className="inventory-filters"><button type="button" onClick={onSignOut}>Cerrar acceso</button></div>
         <div className="catalog-tools">
           <label className="catalog-search">
             <span>Buscar alias externo</span>

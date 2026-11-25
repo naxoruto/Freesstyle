@@ -16,33 +16,107 @@ import {
   submitFreestylerDailyGuessForMode,
 } from "./games/freestylerDaily";
 import { prisma } from "./db/prisma";
+import { checkReadiness } from "./health/readiness";
+import { authorizeInventory } from "./inventory/access";
+import { validateProductionConfig } from "./config/production";
+import { RateLimiter } from "./security/rateLimit";
+import { createOriginPolicy } from "./security/origins";
+import { isSocketPayloadValid } from "./security/socketPayload";
 import type { ClientEvent, ServerEvent } from "@freestyle/shared";
+import { DEFAULT_RECONNECT_WINDOW_MS } from "@freestyle/shared";
 
 const PORT = Number(process.env.WS_PORT) || 3001;
+validateProductionConfig(process.env);
 
 const app = express();
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
+const originAllowed = createOriginPolicy(process.env.ALLOWED_ORIGINS);
+app.use(cors({ origin: (origin, callback) => callback(null, originAllowed(origin)) }));
+app.use(express.json({ limit: "32kb" }));
+
+const inventoryLimiter = new RateLimiter(30, 60_000);
+const creationLimiter = new RateLimiter(30, 60_000);
+const gameLimiter = new RateLimiter(60, 60_000);
+const socketLimiter = new RateLimiter(180, 60_000);
+function limitRequests(limiter: RateLimiter): express.RequestHandler {
+  return (req, res, next) => {
+    if (limiter.consume(req.ip ?? "unknown")) { next(); return; }
+    res.setHeader("Retry-After", "60");
+    res.status(429).json({ error: "Demasiadas solicitudes. Inténtalo de nuevo en un minuto." });
+  };
+}
+app.use("/api/inventory", limitRequests(inventoryLimiter));
+app.use("/api/battles", (req, res, next) => {
+  if (req.method === "POST" && req.path === "/") { limitRequests(creationLimiter)(req, res, next); return; }
+  next();
+});
+app.use("/api/tournaments", (req, res, next) => {
+  if (req.method === "POST" && req.path === "/") { limitRequests(creationLimiter)(req, res, next); return; }
+  next();
+});
+app.use("/api/games/freestyler/today", (req, res, next) => {
+  if (req.method === "POST") { limitRequests(gameLimiter)(req, res, next); return; }
+  next();
+});
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: (origin, callback) => callback(null, originAllowed(origin)), methods: ["GET", "POST"] },
+  allowRequest: (req, callback) => callback(null, originAllowed(req.headers.origin)),
   transports: ["websocket", "polling"],
+  maxHttpBufferSize: 32 * 1024,
 });
 
 const battleManager = new BattleRoomManager();
 const tournamentManager = new TournamentRoomManager(battleManager);
+const blockedBattles = new Set<string>();
+const roomEventQueues = new Map<string, Promise<void>>();
+
+function enqueueRoomTask(roomId: string, task: () => void | Promise<void>): void {
+  const previous = roomEventQueues.get(roomId) ?? Promise.resolve();
+  const current = previous.then(task).catch(error => console.error("No se pudo procesar la acción de la sala", error));
+  roomEventQueues.set(roomId, current);
+  void current.then(() => { if (roomEventQueues.get(roomId) === current) roomEventQueues.delete(roomId); });
+}
+
+function blockBattle(battleId: string, message: string): void {
+  blockedBattles.add(battleId);
+  battleManager.quarantineBattle(battleId);
+  io.to(battleId).emit("battle:error", { message });
+  io.in(battleId).disconnectSockets(true);
+}
+
+async function persistRolesOrBlock(battleId: string): Promise<boolean> {
+  try {
+    await battleManager.persistMemberRoles(battleId);
+    return true;
+  } catch (error) {
+    console.error("No se pudieron guardar los permisos de la sala", error);
+    blockBattle(battleId, "No se pudieron guardar los permisos. La sala quedó bloqueada; vuelve a conectarte cuando se restablezca el servicio.");
+    return false;
+  }
+}
 
 battleManager.onSessionCleanup = (battleId) => {
-  const battle = battleManager.listBattles().find(b => b.id === battleId);
-  if (battle) {
-    io.to(battleId).emit("battle:state", battle);
-  }
+  enqueueRoomTask(battleId, () => {
+    if (blockedBattles.has(battleId)) return;
+    const battle = battleManager.listBattles().find(b => b.id === battleId);
+    if (battle) io.to(battleId).emit("battle:state", battle);
+  });
+};
+
+battleManager.onPersistenceFailure = (battleId) => {
+  blockBattle(battleId, "No se pudo guardar el estado de la sala. La sala quedó bloqueada; vuelve a conectarte cuando se restablezca el servicio.");
 };
 
 // --- REST: Health check ---
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+app.get("/api/ready", async (_req, res) => {
+  const readiness = await checkReadiness(() => prisma.$queryRaw`SELECT 1`);
+  res.status(readiness.status === "ready" ? 200 : 503).json(readiness);
 });
 
 app.get("/api/catalog/freestylers", async (req, res) => {
@@ -64,6 +138,15 @@ app.get("/api/catalog/freestylers/:slug", async (req, res) => {
     console.error("No se pudo consultar el perfil de freestyler", error);
     res.status(500).json({ error: "No se pudo consultar el perfil" });
   }
+});
+
+app.use("/api/inventory", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (!authorizeInventory(process.env.INVENTORY_ADMIN_TOKEN, req.header("authorization"))) {
+    res.status(401).json({ error: "Acceso al inventario denegado" });
+    return;
+  }
+  next();
 });
 
 app.get("/api/inventory/report", async (_req, res) => {
@@ -149,21 +232,38 @@ app.post("/api/games/freestyler/today/give-up", async (req, res) => {
 });
 
 // --- REST: Crear batalla ---
-app.post("/api/battles", (req, res) => {
+app.post("/api/battles", async (req, res) => {
   const { mode } = req.body;
-  const battle = battleManager.createBattle(mode);
-  res.json({ ...battle, adminToken: battleManager.getAdminToken(battle.id) });
+  try {
+    const battle = await battleManager.createBattleDurably(mode);
+    res.json({ ...battle, adminToken: battleManager.getAdminToken(battle.id) });
+  } catch (error) {
+    console.error("No se pudo crear la batalla", error);
+    res.status(503).json({ error: "No se pudo guardar la batalla. Inténtalo de nuevo." });
+  }
 });
 
 app.post("/api/tournaments", (req, res) => {
   const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
   const bracketMode = req.body.bracketMode === "random" ? "random" : "manual";
-  const type = req.body.type === "with_third_place" ? "with_third_place" : "single_elimination";
-  if (!name) { res.status(400).json({ error: "El nombre es obligatorio" }); return; }
+  const type = req.body.type === "with_third_place" || req.body.type === "king_of_the_hill" || req.body.type === "double_elimination"
+    ? req.body.type
+    : "single_elimination";
+  if (!name || name.length > 100) { res.status(400).json({ error: "El nombre es obligatorio y debe tener hasta 100 caracteres" }); return; }
+  if (req.body.participants !== undefined) {
+    const created = tournamentManager.createTournamentWithParticipants(name, bracketMode, type, req.body.participants);
+    if (!created) { res.status(400).json({ error: "La lista debe tener 4, 8, 16... participantes con alias válidos" }); return; }
+    res.status(201).json(created);
+    return;
+  }
   res.status(201).json(tournamentManager.createTournament(name, bracketMode, type));
 });
 
 app.post("/api/tournaments/:id/participants", (req, res) => {
+  if (typeof req.body?.alias !== "string" || !req.body.alias.trim() || req.body.alias.trim().length > 40) {
+    res.status(400).json({ error: "El alias debe tener entre 1 y 40 caracteres" });
+    return;
+  }
   const tournament = tournamentManager.addParticipant(req.params.id, req.body.adminToken, req.body.alias);
   if (!tournament) { res.status(400).json({ error: "No se pudo agregar el participante" }); return; }
   res.json(tournament);
@@ -206,34 +306,25 @@ app.get("/api/tournaments/:id", (req, res) => {
   res.json(tournament);
 });
 
-// --- Invitaciones ---
-app.post("/api/battles/:id/invitations", (req, res) => {
-  const role = req.body.role;
-  const adminToken = typeof req.body.adminToken === "string" ? req.body.adminToken : "";
-  if (!role || !["participant", "judge", "spectator", "host"].includes(role)) {
-    res.status(400).json({ error: "Rol inválido" });
-    return;
-  }
-  const token = battleManager.createInvitation(req.params.id, role, adminToken);
-  if (!token) { res.status(403).json({ error: "Acceso denegado o batalla no encontrada" }); return; }
-  res.status(201).json({ token, role, battleId: req.params.id });
-});
-
 app.get("/api/battles/:id/invite", (req, res) => {
   const invite = typeof req.query.invite === "string" ? req.query.invite : "";
   if (!invite) { res.status(400).json({ error: "Token de invitación requerido" }); return; }
-  const result = battleManager.consumeInvitation(invite);
-  if (!result) { res.status(410).json({ error: "Invitación inválida o expirada" }); return; }
-  if (result.roomId !== req.params.id.toLowerCase()) {
-    res.status(403).json({ error: "La invitación no corresponde a esta sala" });
-    return;
-  }
-  res.json({ role: result.role });
+  const result = battleManager.inspectInvitation(invite, req.params.id);
+  if (!result) { res.status(410).json({ error: "Invitación inválida o revocada" }); return; }
+  res.json({ battleId: result.roomId });
 });
 
 // --- Helper: advance phase and broadcast, with server-side timer scheduling ---
-function advanceAndBroadcast(battleId: string, expectedToken?: string, isAuto = false) {
-  const phase = battleManager.nextPhase(battleId, expectedToken, isAuto);
+async function advanceAndBroadcast(battleId: string, expectedToken?: string, isAuto = false): Promise<void> {
+  if (blockedBattles.has(battleId.toLowerCase())) return;
+  let phase: Awaited<ReturnType<typeof battleManager.nextPhaseDurably>>;
+  try { phase = await battleManager.nextPhaseDurably(battleId, expectedToken, isAuto); }
+  catch (error) {
+    console.error("No se pudo guardar la transición de batalla", error);
+    blockBattle(battleId.toLowerCase(), "No se pudo guardar el avance. La sala quedó temporalmente bloqueada.");
+    return;
+  }
+  if (blockedBattles.has(battleId.toLowerCase())) return;
   if ("error" in phase) return;
 
   io.to(battleId).emit("battle:state", phase.battle);
@@ -273,25 +364,31 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string, isAuto = 
   }
 
   // --- Server-side timer scheduling ---
+  scheduleCurrentPhase(phase.battle);
+}
+
+function scheduleCurrentPhase(battle: import("@freestyle/shared").Battle): void {
+  const battleId = battle.id;
+  const token = battle.phaseToken;
   // Countdown phases: wait 4 seconds (3-2-1-GO) then advance to mc turn
-  if (phase.phase === "countdown" || phase.phase === "pause") {
+  if (battle.roundPhase === "countdown" || battle.roundPhase === "pause") {
     battleManager.setPhaseTimer(battleId, 4000, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken, true);
+      enqueueRoomTask(battleId.toLowerCase(), () => advanceAndBroadcast(battleId, token, true));
     });
   }
 
   // MC turn phases: auto-advance when timePerTurn expires
-  if ((phase.phase === "mc1_turn" || phase.phase === "mc2_turn") && phase.battle.mode.timerMode === "countdown" && phase.battle.mode.timePerTurn > 0) {
-    const ms = phase.battle.mode.timePerTurn * 1000;
+  if ((battle.roundPhase === "mc1_turn" || battle.roundPhase === "mc2_turn") && battle.mode.timerMode === "countdown" && battle.mode.timePerTurn > 0) {
+    const ms = battle.mode.timePerTurn * 1000;
     battleManager.setPhaseTimer(battleId, ms, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken, true);
+      enqueueRoomTask(battleId.toLowerCase(), () => advanceAndBroadcast(battleId, token, true));
     });
   }
 
   // Voting with no judges: auto-resolve after 3 seconds
-  if (phase.phase === "voting" && phase.battle.judges.length === 0) {
+  if (battle.roundPhase === "voting" && battle.judges.length === 0 && battle.mode.votingSystem !== "room_vote") {
     battleManager.setPhaseTimer(battleId, 3000, () => {
-      advanceAndBroadcast(battleId, phase.phaseToken, true);
+      enqueueRoomTask(battleId.toLowerCase(), () => advanceAndBroadcast(battleId, token, true));
     });
   }
 }
@@ -299,40 +396,97 @@ function advanceAndBroadcast(battleId: string, expectedToken?: string, isAuto = 
 // --- WebSocket ---
 io.on("connection", (socket) => {
   console.log(`🟢 Cliente conectado: ${socket.id}`);
+  let sessionHeartbeat: ReturnType<typeof setInterval> | undefined;
+  const stopHeartbeat = () => { if (sessionHeartbeat) clearInterval(sessionHeartbeat); sessionHeartbeat = undefined; };
+  const startHeartbeat = () => {
+    stopHeartbeat();
+    sessionHeartbeat = setInterval(() => {
+      const room = battleManager.findBattleBySocket(socket.id);
+      if (!room || blockedBattles.has(room.id)) return;
+      void battleManager.persistSessionForSocket(socket.id).catch(error => {
+        console.error("No se pudo renovar la sesión", error);
+        blockBattle(room.id, "No se pudo renovar la sesión. La sala quedó temporalmente bloqueada.");
+      });
+    }, Math.floor(DEFAULT_RECONNECT_WINDOW_MS / 2));
+  };
 
   socket.on("disconnect", () => {
     console.log(`🔴 Cliente desconectado: ${socket.id}`);
-    const result = battleManager.handleDisconnect(socket.id);
-    if (result) {
-      const battle = battleManager.listBattles().find(b => b.id === result.battleId);
-      if (battle) {
-        io.to(result.battleId).emit("battle:state", battle);
-      }
+    stopHeartbeat();
+    const disconnectedRoom = battleManager.findBattleBySocket(socket.id);
+    if (disconnectedRoom && !blockedBattles.has(disconnectedRoom.id)) {
+      void battleManager.persistSessionForSocket(socket.id).catch(error => console.error("No se pudo actualizar la caducidad de la sesión", error));
     }
+    enqueueRoomTask(disconnectedRoom?.id ?? `socket:${socket.id}`, async () => {
+      const result = battleManager.handleDisconnect(socket.id);
+      if (result && !blockedBattles.has(result.battleId)) {
+        const battle = battleManager.listBattles().find(b => b.id === result.battleId);
+        if (battle) {
+          io.to(result.battleId).emit("battle:state", battle);
+          if (battleManager.isRoomVoteComplete(result.battleId)) await advanceAndBroadcast(result.battleId);
+        }
+      }
+    });
   });
 
-  const handleEvent = (event: ClientEvent) => {
+  const handleEvent = async (event: ClientEvent): Promise<void> => {
     switch (event.type) {
       case "battle:join": {
-        const joinError = battleManager.getJoinError(event.battleId, event.user, event.adminToken);
+        const requestedRole: "admin" | undefined = event.user.role === "admin" ? "admin" : undefined;
+        const joiningUser = { ...event.user, role: requestedRole };
+        const joinError = battleManager.getJoinError(event.battleId, joiningUser, event.adminToken, event.inviteToken);
         if (joinError) { socket.emit("battle:error", { message: joinError }); return; }
-        const battle = battleManager.joinBattle(event.battleId, socket.id, event.user, event.adminToken);
+        if (battleManager.hasMember(event.battleId, joiningUser.id)) { socket.emit("battle:error", { message: "Esta identidad ya está en la sala; vuelve a conectarte con tu sesión." }); return; }
+        const battle = battleManager.joinBattle(event.battleId, socket.id, joiningUser, event.adminToken, event.inviteToken);
         if (!battle) { socket.emit("battle:error", { message: "Batalla no encontrada" }); return; }
-        socket.join(event.battleId);
-        io.to(event.battleId).emit("battle:state", battle);
         const sessionId = battleManager.getSessionId(socket.id);
+        try {
+          await battleManager.persistSessionForSocket(socket.id);
+          if (!await persistRolesOrBlock(battle.id)) throw new Error("No se pudieron guardar los permisos");
+          if (!socket.connected) {
+            if (sessionId) await battleManager.revokePersistedSession(battle.id, sessionId);
+            battleManager.leaveRoom(socket.id);
+            await persistRolesOrBlock(battle.id);
+            return;
+          }
+        } catch (error) {
+          console.error("No se pudo guardar la sesión de la sala", error);
+          blockBattle(battle.id, "No se pudo guardar la sesión. La sala quedó temporalmente bloqueada.");
+          socket.emit("battle:error", { message: "No se pudo guardar la sesión. Inténtalo más tarde." });
+          return;
+        }
+        socket.join(event.battleId);
+        startHeartbeat();
+        io.to(event.battleId).emit("battle:state", battle);
         if (sessionId) socket.emit("battle:session", { sessionId });
+        const member = battleManager.getSocketMember(socket.id);
+        if (member) socket.emit("room:joined", member);
         break;
       }
 
       case "battle:leave": {
+        const current = battleManager.findBattleBySocket(socket.id);
+        const token = battleManager.getSessionId(socket.id);
+        if (current && token) {
+          try { await battleManager.revokePersistedSession(current.id, token); }
+          catch (error) { console.error("No se pudo revocar la sesión", error); blockBattle(current.id, "No se pudo cerrar la sesión de la sala."); return; }
+        }
         const battle = battleManager.leaveRoom(socket.id);
-        if (battle) { socket.leave(battle.id); io.to(battle.id).emit("battle:state", battle); }
+        stopHeartbeat();
+        if (battle && await persistRolesOrBlock(battle.id)) { socket.leave(battle.id); io.to(battle.id).emit("battle:state", battle); }
         break;
       }
 
       case "battle:start": {
-        const result = battleManager.startBattle(socket.id);
+        const room = battleManager.findBattleBySocket(socket.id);
+        let result: Awaited<ReturnType<typeof battleManager.startBattleDurably>>;
+        try { result = await battleManager.startBattleDurably(socket.id); }
+        catch (error) {
+          console.error("No se pudo guardar el inicio de la batalla", error);
+          if (room) blockBattle(room.id, "No se pudo guardar el inicio. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (room && blockedBattles.has(room.id)) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
 
         const battle = result.battle;
@@ -348,7 +502,7 @@ io.on("connection", (socket) => {
 
         // Server drives the countdown → mc1_turn transition
         battleManager.setPhaseTimer(battle.id, 4000, () => {
-          advanceAndBroadcast(battle.id, token, true);
+          enqueueRoomTask(battle.id, () => advanceAndBroadcast(battle.id, token, true));
         });
         break;
       }
@@ -358,7 +512,25 @@ io.on("connection", (socket) => {
         if (!battle) { console.log(`⚠️ next_phase: batalla no encontrada para socket ${socket.id}`); return; }
         if (!battleManager.canControlBattle(socket.id, battle)) { socket.emit("battle:error", { message: "No tienes permiso para avanzar la fase" }); return; }
 
-        advanceAndBroadcast(battle.id, event.phaseToken);
+        await advanceAndBroadcast(battle.id, event.phaseToken);
+        break;
+      }
+
+      case "battle:resume": {
+        const room = battleManager.findBattleBySocket(socket.id);
+        if (!room) return;
+        try {
+          const result = await battleManager.resumeBattleDurably(socket.id, event.action);
+          if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+          if (blockedBattles.has(room.id)) return;
+          io.to(room.id).emit("battle:state", result.battle);
+          io.to(room.id).emit("battle:phase", { phase: room.roundPhase, participantId: room.currentTurn, timeRemaining: room.timeRemaining, phaseToken: room.phaseToken });
+          scheduleCurrentPhase(room);
+          if (battleManager.isVotingComplete(room.id)) await advanceAndBroadcast(room.id, room.phaseToken, true);
+        } catch (error) {
+          console.error("No se pudo guardar la reanudación", error);
+          blockBattle(room.id, "No se pudo guardar la reanudación. La sala quedó temporalmente bloqueada.");
+        }
         break;
       }
 
@@ -372,6 +544,7 @@ io.on("connection", (socket) => {
       case "battle:set_host": {
         const battle = battleManager.transferHost(socket.id, event.targetUserId);
         if (!battle) { socket.emit("battle:error", { message: "No se pudo transferir el rol de host" }); return; }
+        if (!await persistRolesOrBlock(battle.id)) return;
         io.to(battle.id).emit("battle:state", battle);
         break;
       }
@@ -379,6 +552,7 @@ io.on("connection", (socket) => {
       case "battle:change_role": {
         const result = battleManager.changeRole(socket.id, event.targetUserId, event.newRole);
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (!await persistRolesOrBlock(result.id)) return;
         io.to(result.id).emit("battle:state", result);
         break;
       }
@@ -391,62 +565,158 @@ io.on("connection", (socket) => {
       }
 
       case "battle:reconnect": {
-        const result = battleManager.reconnect(event.battleId, event.sessionId, socket.id);
+        const result = await battleManager.reconnectPersisted(event.battleId, event.sessionId, socket.id);
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        try { await battleManager.persistSessionForSocket(socket.id); }
+        catch (error) { console.error("No se pudo renovar la sesión", error); blockBattle(result.battle.id, "No se pudo recuperar la sesión."); socket.emit("battle:error", { message: "No se pudo recuperar la sesión." }); socket.disconnect(true); return; }
+        startHeartbeat();
         socket.join(result.battle.id);
         socket.emit("battle:session", { sessionId: result.sessionId });
+        const member = battleManager.getSocketMember(socket.id);
+        if (member) socket.emit("room:joined", member);
         io.to(result.battle.id).emit("battle:state", result.battle);
         break;
       }
 
       case "battle:complete_entry": {
-        const result = battleManager.completeEntry(socket.id);
+        const room = battleManager.findBattleBySocket(socket.id);
+        let result: Awaited<ReturnType<typeof battleManager.completeEntryDurably>>;
+        try { result = await battleManager.completeEntryDurably(socket.id); }
+        catch (error) {
+          console.error("No se pudo guardar la entrada", error);
+          if (room) blockBattle(room.id, "No se pudo guardar la entrada. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (room && blockedBattles.has(room.id)) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
-        if (result.shouldAdvance) advanceAndBroadcast(result.battle.id);
+        if (result.shouldAdvance) await advanceAndBroadcast(result.battle.id);
         else io.to(result.battle.id).emit("battle:state", result.battle);
         break;
       }
 
+      case "battle:revoke_role": {
+        const result = battleManager.revokeRole(socket.id, event.targetUserId, event.role);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (!await persistRolesOrBlock(result.id)) return;
+        io.to(result.id).emit("battle:state", result);
+        break;
+      }
+
+      case "battle:grant_admin": {
+        const result = battleManager.grantAdmin(socket.id, event.targetUserId);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (!await persistRolesOrBlock(result.id)) return;
+        io.to(result.id).emit("battle:state", result);
+        break;
+      }
+
+      case "battle:transfer_admin": {
+        const result = battleManager.transferAdmin(socket.id, event.targetUserId);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (!await persistRolesOrBlock(result.id)) return;
+        io.to(result.id).emit("battle:state", result);
+        break;
+      }
+
+      case "battle:revoke_admin": {
+        const result = battleManager.revokeAdmin(socket.id, event.targetUserId);
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (!await persistRolesOrBlock(result.id)) return;
+        io.to(result.id).emit("battle:state", result);
+        break;
+      }
+
+      case "battle:create_invitation": {
+        const token = battleManager.createInvitationForSocket(socket.id, event.regenerate === true);
+        if (!token) { socket.emit("battle:error", { message: "No tienes permiso para crear invitaciones" }); return; }
+        socket.emit("battle:invitation", { token });
+        break;
+      }
+
       case "judge:vote_entry": {
-        const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
+        const judgeIdentity = battleManager.getSocketIdentityForBattle(socket.id, "judge", event.battleId);
         if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
-        const result = battleManager.submitPatronEntryVote(event.battleId, judgeIdentity.userId, event.points);
+        let result: Awaited<ReturnType<typeof battleManager.submitPatronEntryVoteDurably>>;
+        try { result = await battleManager.submitPatronEntryVoteDurably(event.battleId, judgeIdentity.userId, event.points); }
+        catch (error) {
+          console.error("No se pudo guardar el voto de entrada", error);
+          blockBattle(event.battleId.toLowerCase(), "No se pudo guardar el voto. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (blockedBattles.has(event.battleId.toLowerCase())) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
         io.to(result.battle.id).emit("battle:state", result.battle);
         if (result.allVoted) {
-          io.to(result.battle.id).emit("battle:phase", { phase: result.battle.roundPhase });
+          io.to(result.battle.id).emit("battle:phase", { phase: result.battle.roundPhase, phaseToken: result.battle.phaseToken, timeRemaining: result.battle.timeRemaining });
           if (result.battle.roundPhase === "pause") {
-            battleManager.setPhaseTimer(result.battle.id, 4000, () => advanceAndBroadcast(result.battle.id));
+            const token = result.battle.phaseToken;
+            battleManager.setPhaseTimer(result.battle.id, 4000, () => enqueueRoomTask(result.battle.id, () => advanceAndBroadcast(result.battle.id, token, true)));
           }
         }
         break;
       }
 
       case "judge:vote_patron_extra": {
-        const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
+        const judgeIdentity = battleManager.getSocketIdentityForBattle(socket.id, "judge", event.battleId);
         if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
-        const result = battleManager.submitPatronExtraVote(event.battleId, judgeIdentity.userId, event.mc1Extra, event.mc2Extra);
+        let result: Awaited<ReturnType<typeof battleManager.submitPatronExtraVoteDurably>>;
+        try { result = await battleManager.submitPatronExtraVoteDurably(event.battleId, judgeIdentity.userId, event.mc1Extra, event.mc2Extra); }
+        catch (error) {
+          console.error("No se pudo guardar el voto extra", error);
+          blockBattle(event.battleId.toLowerCase(), "No se pudo guardar el voto. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (blockedBattles.has(event.battleId.toLowerCase())) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
-        if (result.allVoted) advanceAndBroadcast(result.battle.id);
+        if (result.allVoted) await advanceAndBroadcast(result.battle.id);
         else io.to(result.battle.id).emit("battle:state", result.battle);
         break;
       }
 
       case "judge:vote_free": {
-        const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
+        const judgeIdentity = battleManager.getSocketIdentityForBattle(socket.id, "judge", event.battleId);
         if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
-        const result = battleManager.submitFreeVote(event.battleId, judgeIdentity.userId, event.votedForId);
+        let result: Awaited<ReturnType<typeof battleManager.submitFreeVoteDurably>>;
+        try { result = await battleManager.submitFreeVoteDurably(event.battleId, judgeIdentity.userId, event.votedForId); }
+        catch (error) {
+          console.error("No se pudo guardar el voto libre", error);
+          blockBattle(event.battleId.toLowerCase(), "No se pudo guardar el voto. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (blockedBattles.has(event.battleId.toLowerCase())) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
-        if (result.allVoted) advanceAndBroadcast(result.battle.id);
+        if (result.allVoted) await advanceAndBroadcast(result.battle.id);
+        else io.to(result.battle.id).emit("battle:state", result.battle);
+        break;
+      }
+
+      case "room:vote": {
+        let result: Awaited<ReturnType<typeof battleManager.submitRoomVoteDurably>>;
+        try { result = await battleManager.submitRoomVoteDurably(socket.id, event.battleId, event.votedForId); }
+        catch (error) {
+          console.error("No se pudo guardar el voto de sala", error);
+          blockBattle(event.battleId.toLowerCase(), "No se pudo guardar el voto. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (blockedBattles.has(event.battleId.toLowerCase())) return;
+        if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+        if (result.allVoted) await advanceAndBroadcast(result.battle.id);
         else io.to(result.battle.id).emit("battle:state", result.battle);
         break;
       }
 
       case "judge:vote_rubric": {
-        const judgeIdentity = battleManager.getSocketIdentity(socket.id, "judge");
+        const judgeIdentity = battleManager.getSocketIdentityForBattle(socket.id, "judge", event.battleId);
         if (!judgeIdentity) { socket.emit("battle:error", { message: "No eres juez" }); return; }
         const ev = event as Extract<ClientEvent, { type: "judge:vote_rubric" }>;
-        const result = battleManager.submitRubricVote(ev.battleId, judgeIdentity.userId, ev.round, ev.mc1Id, ev.mc2Id, ev.mc1Scores, ev.mc2Scores);
+        let result: Awaited<ReturnType<typeof battleManager.submitRubricVoteDurably>>;
+        try { result = await battleManager.submitRubricVoteDurably(ev.battleId, judgeIdentity.userId, ev.round, ev.mc1Id, ev.mc2Id, ev.mc1Scores, ev.mc2Scores); }
+        catch (error) {
+          console.error("No se pudo guardar el voto de rúbrica", error);
+          blockBattle(ev.battleId.toLowerCase(), "No se pudo guardar el voto. La sala quedó temporalmente bloqueada.");
+          return;
+        }
+        if (blockedBattles.has(ev.battleId.toLowerCase())) return;
         if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
 
         // Emitir estado actualizado
@@ -455,7 +725,7 @@ io.on("connection", (socket) => {
 
         if (result.allVoted) {
           // Auto-avanzar a round_result
-          advanceAndBroadcast(ev.battleId);
+          await advanceAndBroadcast(ev.battleId);
         }
         break;
       }
@@ -466,12 +736,34 @@ io.on("connection", (socket) => {
   };
 
   socket.onAny((eventName: string, data: ClientEvent) => {
-    handleEvent({ ...data, type: eventName } as ClientEvent);
+    if (!socketLimiter.consume(socket.id)) { socket.emit("battle:error", { message: "Demasiadas acciones. Espera un momento." }); return; }
+    if (!isSocketPayloadValid(eventName, data)) { socket.emit("battle:error", { message: "Datos de la acción inválidos." }); return; }
+    const event = { ...data, type: eventName } as ClientEvent;
+    const attachedRoom = battleManager.findBattleBySocket(socket.id)?.id;
+    const requestedRoom = "battleId" in event && typeof event.battleId === "string" ? event.battleId.toLowerCase() : undefined;
+    const roomId = attachedRoom ?? requestedRoom ?? `socket:${socket.id}`;
+    if (blockedBattles.has(roomId)) { socket.emit("battle:error", { message: "La sala está temporalmente bloqueada por un error de almacenamiento." }); return; }
+    const previous = roomEventQueues.get(roomId) ?? Promise.resolve();
+    const current = previous.then(() => {
+      if (!socket.connected) return;
+      if (blockedBattles.has(roomId)) { socket.emit("battle:error", { message: "La sala está temporalmente bloqueada por un error de almacenamiento." }); return; }
+      return handleEvent(event);
+    }).catch(error => {
+      console.error("No se pudo procesar la acción de la sala", error);
+      socket.emit("battle:error", { message: "No se pudo procesar la acción." });
+    });
+    roomEventQueues.set(roomId, current);
+    void current.then(() => { if (roomEventQueues.get(roomId) === current) roomEventQueues.delete(roomId); });
   });
 });
 
 // --- Iniciar servidor ---
-httpServer.listen(PORT, () => {
-  console.log(`🎤 Freestyle Battle Server corriendo en http://localhost:${PORT}`);
-  console.log(`   WebSocket listo | REST: http://localhost:${PORT}/api/health`);
+void battleManager.loadActiveBattlesFromDb().then(() => {
+  httpServer.listen(PORT, () => {
+    console.log(`🎤 Freestyle Battle Server corriendo en http://localhost:${PORT}`);
+    console.log(`   WebSocket listo | REST: http://localhost:${PORT}/api/health`);
+  });
+}).catch(error => {
+  console.error("No se pudieron recuperar las salas; servidor no iniciado", error);
+  process.exitCode = 1;
 });

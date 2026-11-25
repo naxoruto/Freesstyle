@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RoomInvitation, RoomSession } from "@freestyle/shared";
 import {
-  consumeInvitation,
-  DEFAULT_INVITATION_MAX_USES,
-  DEFAULT_INVITATION_TTL_MS,
   DEFAULT_RECONNECT_WINDOW_MS,
   isInvitationValid,
   isSessionExpired,
@@ -32,11 +29,7 @@ function makeInvitation(overrides: Partial<RoomInvitation> = {}): RoomInvitation
   return {
     token: "invite-abc123",
     roomId: "battle-abc",
-    role: "participant",
-    maxUses: DEFAULT_INVITATION_MAX_USES,
-    usedCount: 0,
     createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + DEFAULT_INVITATION_TTL_MS).toISOString(),
     createdBy: "admin-1",
     ...overrides,
   };
@@ -113,51 +106,19 @@ describe("RoomSession", () => {
 
 describe("RoomInvitation", () => {
   describe("isInvitationValid", () => {
-    it("returns true for a fresh unused invitation", () => {
+    it("returns true for a reusable invitation", () => {
       expect(isInvitationValid(makeInvitation())).toBe(true);
     });
 
-    it("returns false when max uses are exhausted", () => {
-      const invite = makeInvitation({ maxUses: 1, usedCount: 1 });
-      expect(isInvitationValid(invite)).toBe(false);
+    it("returns false for malformed invitation data", () => {
+      expect(isInvitationValid(makeInvitation({ token: "" }))).toBe(false);
+      expect(isInvitationValid(makeInvitation({ roomId: "" }))).toBe(false);
     });
 
-    it("returns false when expired", () => {
-      const past = Date.now() - 10000;
-      const invite = makeInvitation({ expiresAt: new Date(past).toISOString() });
-      expect(isInvitationValid(invite)).toBe(false);
+    it("does not accept a creation date from the future", () => {
+      const now = Date.now();
+      const invite = makeInvitation({ createdAt: new Date(now + 1000).toISOString() });
+      expect(isInvitationValid(invite, now)).toBe(false);
     });
-
-    it("returns true when not at max yet and not expired", () => {
-      const invite = makeInvitation({ maxUses: 3, usedCount: 2 });
-      expect(isInvitationValid(invite)).toBe(true);
-    });
-  });
-
-  describe("consumeInvitation", () => {
-    it("increments used count for a valid invitation", () => {
-      const invite = makeInvitation();
-      expect(consumeInvitation(invite)).toBe(true);
-      expect(invite.usedCount).toBe(1);
-    });
-
-    it("returns false and does not increment an expired invitation", () => {
-      const past = Date.now() - 10000;
-      const invite = makeInvitation({ expiresAt: new Date(past).toISOString() });
-      expect(consumeInvitation(invite)).toBe(false);
-      expect(invite.usedCount).toBe(0);
-    });
-
-    it("returns false and does not increment an exhausted invitation", () => {
-      const invite = makeInvitation({ maxUses: 1, usedCount: 1 });
-      expect(consumeInvitation(invite)).toBe(false);
-      expect(invite.usedCount).toBe(1);
-    });
-  });
-
-  it("defaults to single-use and 24h TTL", () => {
-    const invite = makeInvitation();
-    expect(invite.maxUses).toBe(DEFAULT_INVITATION_MAX_USES);
-    expect(new Date(invite.expiresAt).getTime() - new Date(invite.createdAt).getTime()).toBe(DEFAULT_INVITATION_TTL_MS);
   });
 });

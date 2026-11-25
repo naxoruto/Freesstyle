@@ -110,12 +110,21 @@ export const VOTING_METHODS: Record<VotingSystem, VotingMethodRules> = {
     requiresExtra: false,
     dimensions: 1,
   },
+  room_vote: {
+    label: "Voto de sala",
+    description:
+      "Todos los miembros conectados y con rol, excepto los MC activos, eligen directamente al ganador.",
+    scoreRange: { min: 0, max: 1 },
+    perEntry: false,
+    requiresExtra: false,
+    dimensions: 1,
+  },
 };
 
 /** Método de votación permitido según el timerMode. */
 export const VOTING_COMPATIBILITY: Record<string, VotingSystem[]> = {
-  countdown: ["rubrica", "free_vote"],
-  manual: ["rubrica", "patron", "free_vote"],
+  countdown: ["rubrica", "free_vote", "room_vote"],
+  manual: ["rubrica", "patron", "free_vote", "room_vote"],
 };
 
 // --- Réplicas ---
@@ -165,7 +174,7 @@ export function validateConfig(config: BattleModeConfig): ConfigValidationResult
     errors.push(`Formato inválido: ${config.format}`);
   }
 
-  if (!["rubrica", "patron"].includes(config.votingSystem)) {
+  if (!["rubrica", "patron", "free_vote", "room_vote"].includes(config.votingSystem)) {
     errors.push(`Sistema de votación inválido: ${config.votingSystem}`);
   }
 

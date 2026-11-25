@@ -6,8 +6,6 @@ import { useClipboard } from "@/lib/utils";
 import { BattleModeSelector } from "./BattleModeSelector";
 import { BattlePosterDialog } from "./BattlePosterDialog";
 
-const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
-
 interface BattleLobbyProps {
   battle: Battle;
   roomId: string;
@@ -19,13 +17,18 @@ interface BattleLobbyProps {
   firstTurnId: string | "random";
   lobbyConfig: Partial<BattleModeConfig>;
   replicaConfig: ReplicaConfig | null;
-  adminToken?: string;
+  invitationToken: string;
   onConfigChange: (config: Partial<BattleModeConfig>) => void;
   onFirstTurnChange: (id: string | "random") => void;
   onHostChange: (id: string) => void;
   onReplicaToggle: () => void;
   onStart: () => void;
   onChangeRole: (targetUserId: string, newRole: UserRole) => void;
+  onRevokeRole: (targetUserId: string, role: UserRole) => void;
+  onGrantAdmin: (targetUserId: string) => void;
+  onTransferAdmin: (targetUserId: string) => void;
+  onRevokeAdmin: (targetUserId: string) => void;
+  onCreateInvitation: (regenerate: boolean) => void;
 }
 
 export function BattleLobby({
@@ -39,18 +42,21 @@ export function BattleLobby({
   firstTurnId,
   lobbyConfig,
   replicaConfig,
-  adminToken,
+  invitationToken,
   onConfigChange,
   onFirstTurnChange,
   onHostChange,
   onReplicaToggle,
   onStart,
   onChangeRole,
+  onRevokeRole,
+  onGrantAdmin,
+  onTransferAdmin,
+  onRevokeAdmin,
+  onCreateInvitation,
 }: BattleLobbyProps) {
   const { copied, copy } = useClipboard();
   const [configOpen, setConfigOpen] = useState(false);
-  const [inviteTokens, setInviteTokens] = useState<Record<string, string>>({});
-  const [generating, setGenerating] = useState<string | null>(null);
   const participants: Participant[] = battle.participants;
   const missingParticipants = Math.max(0, 2 - participants.length);
   const validJudgeCount = [1, 3, 5].includes(battle.judges.length);
@@ -61,31 +67,9 @@ export function BattleLobby({
     missingJudges ? `${missingJudges} juez` : "",
   ].filter(Boolean).join(" y ");
 
-  const generateInvite = async (role: UserRole) => {
-    if (!adminToken) return;
-    setGenerating(role);
-    try {
-      const res = await fetch(`${API_URL}/api/battles/${encodeURIComponent(roomId)}/invitations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, adminToken }),
-      });
-      if (!res.ok) throw new Error("Error del servidor");
-      const data = await res.json();
-      setInviteTokens((prev) => ({ ...prev, [role]: data.token }));
-    } catch {
-      setInviteTokens((prev) => ({ ...prev, [role]: "" }));
-    } finally {
-      setGenerating(null);
-    }
-  };
-
-  const inviteRoles: { role: UserRole; label: string; icon: string }[] = [
-    { role: "participant", label: "MC (Participante)", icon: "🎤" },
-    { role: "judge", label: "Juez", icon: "⚖️" },
-    { role: "spectator", label: "Público", icon: "👁️" },
-  ];
-  const labelRole = (role: UserRole | "") => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "host" ? "Host" : role === "spectator" ? "Público" : role === "admin" ? "Admin" : "";
+  const inviteLink = invitationToken && typeof window !== "undefined" ? `${window.location.origin}/unirse_batalla/${roomId}?invite=${invitationToken}` : "";
+  const operationalRoles: UserRole[] = ["participant", "judge", "spectator", "host"];
+  const adminCount = battle.members.filter(member => member.roles.includes("admin")).length;
 
   return (
     <section className="lobby-shell" aria-labelledby="lobby-title">
@@ -196,47 +180,45 @@ export function BattleLobby({
             </div>
           )}
 
-          {isAdmin && hostCandidates.length > 0 && (
+          {isAdmin && battle.members.length > 0 && (
             <div className="lobby-card lobby-role-card">
               <div className="lobby-card-heading">
-                <div><span className="lobby-kicker">Gestionar</span><h2>Cambiar roles</h2></div>
+                <div><span className="lobby-kicker">Gestionar</span><h2>Personas y roles</h2></div>
               </div>
-              <p>El admin conserva permisos aunque tome un rol operativo como MC, juez, host o público.</p>
+              <p>Quienes entran quedan en espera hasta que un admin les asigne un rol.</p>
               <div className="lobby-role-list">
-                {hostCandidates.map(candidate => {
-                  const isAdminCandidate = battle.adminId === candidate.id;
-                  const isParticipant = battle.participants.some(p => p.userId === candidate.id);
-                  const isJudge = battle.judges.some(j => j.id === candidate.id);
-                  const isSpectator = battle.spectators.some(s => s.id === candidate.id);
-                  const isHost = battle.hostId === candidate.id;
-                  const currentRole = isHost ? "host" : isParticipant ? "participant" : isJudge ? "judge" : isSpectator ? "spectator" : "";
-                  const roleSummary = [
-                    isAdminCandidate ? "Admin" : "",
-                    isHost ? "Host" : "",
-                    isParticipant ? "MC" : "",
-                    isJudge ? "Juez" : "",
-                    isSpectator ? "Público" : "",
-                  ].filter(Boolean).join(" + ") || labelRole(currentRole);
+                {battle.members.map(member => {
+                  const isAdminCandidate = member.roles.includes("admin");
+                  const currentRole = operationalRoles.find(role => member.roles.includes(role));
+                  const roleSummary = member.roles.map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : "Admin").join(" + ") || "En espera";
                   return (
-                    <div key={candidate.id} className="lobby-role-row">
-                      <span>{candidate.alias}</span>
-                      <strong>{roleSummary}</strong>
+                    <div key={member.userId} className="lobby-role-row">
+                      <span>{member.alias}{member.userId === currentUserId ? " (tú)" : ""}</span>
+                      <strong>{roleSummary}{member.connected ? "" : " · desconectado"}</strong>
                       <select
                         className="bg-black border border-white/10 text-xs p-2 rounded"
                         value=""
                         onChange={(e) => {
-                          const newRole = e.target.value as UserRole;
-                          if (newRole && newRole !== currentRole) {
-                            onChangeRole(candidate.id, newRole);
+                          if (e.target.value === "waiting") {
+                            operationalRoles.filter(role => member.roles.includes(role)).forEach(role => onRevokeRole(member.userId, role));
+                          } else {
+                            const newRole = e.target.value as UserRole;
+                            if (newRole && newRole !== currentRole) onChangeRole(member.userId, newRole);
                           }
                         }}
                       >
                         <option value="" disabled>Cambiar a...</option>
+                        <option value="waiting">En espera</option>
                         <option value="participant">MC</option>
                         <option value="judge">Juez</option>
                         <option value="spectator">Público</option>
                         <option value="host">Host</option>
                       </select>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {!isAdminCandidate && adminCount < 2 && <button type="button" className="lobby-edit" onClick={() => onGrantAdmin(member.userId)}>Dar admin</button>}
+                        {member.userId !== currentUserId && <button type="button" className="lobby-edit" onClick={() => onTransferAdmin(member.userId)}>Transferir</button>}
+                        {isAdminCandidate && member.userId !== currentUserId && adminCount > 1 && <button type="button" className="lobby-edit" onClick={() => onRevokeAdmin(member.userId)}>Quitar admin</button>}
+                      </div>
                     </div>
                   );
                 })}
@@ -249,42 +231,19 @@ export function BattleLobby({
               <div className="lobby-card-heading">
                 <div><span className="lobby-kicker">Compartir</span><h2>Invitar personas</h2></div>
               </div>
-              <p className="text-xs text-gray-500 mb-3">Genera un enlace para cada rol. Quien lo abra entrará directo sin escribir el código.</p>
-              <div className="space-y-2">
-                {inviteRoles.map(({ role, label, icon }) => {
-                  const token = inviteTokens[role];
-                  const isGenerating = generating === role;
-                  const link = token ? `${window.location.origin}/unirse_batalla/${roomId}?invite=${token}` : "";
-                  return (
-                    <div key={role} className="flex items-center gap-2">
-                      <span className="text-lg">{icon}</span>
-                      <span className="text-sm text-white/60 w-36">{label}</span>
-                      {!token ? (
-                        <button
-                          type="button"
-                          onClick={() => generateInvite(role)}
-                          disabled={isGenerating || !adminToken}
-                          className="text-xs px-3 py-1.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded transition disabled:opacity-40"
-                        >
-                          {isGenerating ? "..." : "Generar enlace"}
-                        </button>
-                      ) : token === "" ? (
-                        <span className="text-xs text-red-400">Error al generar</span>
-                      ) : (
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="text-xs text-white/30 truncate font-mono flex-1">{link}</span>
-                          <button
-                            type="button"
-                            onClick={() => copy(link)}
-                            className="text-xs px-2 py-1 border border-white/10 text-white/50 hover:text-white hover:border-white/30 rounded transition shrink-0"
-                          >
-                            {copied ? "Copiado" : "Copiar"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <p className="text-xs text-gray-500 mb-3">Un único enlace reutilizable. Todas las personas entran en espera y reciben su rol dentro de la sala.</p>
+              <div className="flex items-center gap-2">
+                {!invitationToken ? (
+                  <button type="button" onClick={() => onCreateInvitation(false)} className="text-xs px-3 py-1.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded transition disabled:opacity-40">
+                    Generar invitación
+                  </button>
+                ) : (
+                  <>
+                    <span className="text-xs text-white/30 truncate font-mono flex-1">{inviteLink}</span>
+                    <button type="button" onClick={() => copy(inviteLink)} className="text-xs px-2 py-1 border border-white/10 text-white/50 hover:text-white hover:border-white/30 rounded transition shrink-0">{copied ? "Copiado" : "Copiar"}</button>
+                    <button type="button" onClick={() => onCreateInvitation(true)} className="text-xs px-2 py-1 border border-red-500/30 text-red-400 rounded transition disabled:opacity-40">Regenerar</button>
+                  </>
+                )}
               </div>
             </div>
           )}

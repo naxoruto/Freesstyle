@@ -1,7 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ScoreRubric, UserRole } from "@freestyle/shared";
 import { ROLE_LIMITS } from "@freestyle/shared";
 import { BattleRoomManager } from "./battleRoom";
+import type { BattlePersistence } from "./battlePersistence";
+
+vi.mock("./battlePersistence", () => ({
+  BattlePersistence: class {
+    create = vi.fn().mockResolvedValue(undefined);
+    update = vi.fn().mockResolvedValue(undefined);
+    addParticipant = vi.fn().mockResolvedValue(undefined);
+    removeParticipant = vi.fn().mockResolvedValue(undefined);
+    addJudge = vi.fn().mockResolvedValue(undefined);
+    removeJudge = vi.fn().mockResolvedValue(undefined);
+    addSpectator = vi.fn().mockResolvedValue(undefined);
+    removeSpectator = vi.fn().mockResolvedValue(undefined);
+    saveRubricVote = vi.fn().mockResolvedValue(undefined);
+    savePatronEntryVote = vi.fn().mockResolvedValue(undefined);
+    commitPatronEntryVote = vi.fn().mockResolvedValue(undefined);
+    commitRoomVotingRoster = vi.fn().mockResolvedValue(undefined);
+    saveFreeVote = vi.fn().mockResolvedValue(undefined);
+    saveRoomVote = vi.fn().mockResolvedValue(undefined);
+    savePatronExtraVote = vi.fn().mockResolvedValue(undefined);
+    saveRoundResult = vi.fn().mockResolvedValue(undefined);
+    commitBattleAndResult = vi.fn().mockResolvedValue(undefined);
+    loadActiveBattles = vi.fn().mockResolvedValue([]);
+    saveSession = vi.fn().mockResolvedValue(undefined);
+    deleteSession = vi.fn().mockResolvedValue(undefined);
+    commitMemberRoles = vi.fn().mockResolvedValue(undefined);
+    commitBattleStart = vi.fn().mockResolvedValue(undefined);
+    findSession = vi.fn().mockResolvedValue(null);
+    listSessionMembers = vi.fn().mockResolvedValue([]);
+  },
+}));
 
 const scores = (value: number): ScoreRubric => ({
   flow: value,
@@ -37,7 +67,158 @@ function setupBattle() {
   return { manager, battle };
 }
 
+describe("BattleRoomManager — persistencia y bloqueo ante fallos", () => {
+  it("notifica el fallo de una escritura en lugar de silenciarlo", async () => {
+    const persistence = {
+      create: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockRejectedValue(new Error("fallo simulado")),
+    } as unknown as BattlePersistence;
+    const manager = new BattleRoomManager(persistence);
+    const onFailure = vi.fn();
+    manager.onPersistenceFailure = onFailure;
+
+    const battle = manager.createBattle({ rounds: 1, timePerTurn: 1 });
+    manager.joinBattle(battle.id, "socket-admin", { id: "admin1", name: "admin1", alias: "admin1", role: "admin" }, manager.getAdminToken(battle.id));
+    manager.setMode("socket-admin", { ...battle.mode, rounds: 2 });
+
+    await vi.waitFor(() => {
+      expect(onFailure).toHaveBeenCalledWith(battle.id);
+    });
+  });
+});
+
 describe("BattleRoomManager", () => {
+  it("resumes a recovered phase only after authorization, a time decision and a durable save", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    manager["recoveryPaused"].add(battle.id);
+    battle.phaseDeadline = new Date(Date.now() - 1000).toISOString();
+    expect(await manager.resumeBattleDurably("socket-judge", "restart_clock")).toHaveProperty("error");
+    expect(await manager.resumeBattleDurably("socket-admin", "continue")).toHaveProperty("error");
+    const mc = battle.members.find(member => member.userId === "mc1")!;
+    mc.connected = false;
+    expect(await manager.resumeBattleDurably("socket-admin", "restart_clock")).toHaveProperty("error");
+    mc.connected = true;
+    const oldToken = battle.phaseToken;
+    let release!: () => void;
+    vi.spyOn(manager["persistence"], "update").mockReturnValue(new Promise(resolve => { release = () => resolve(battle); }));
+    const pending = manager.resumeBattleDurably("socket-admin", "restart_clock");
+    expect(manager.isRecoveryPaused(battle.id)).toBe(true);
+    release();
+    expect(await pending).toHaveProperty("battle.id", battle.id);
+    expect(manager.isRecoveryPaused(battle.id)).toBe(false);
+    expect(battle.phaseToken).not.toBe(oldToken);
+    expect(manager.getPhaseTiming(battle.id)).toMatchObject({ state: "pending", timeRemaining: 4 });
+    expect(await manager.resumeBattleDurably("socket-admin", "restart_clock")).toHaveProperty("error");
+  });
+
+  it("keeps a recovered battle paused if resumption cannot be saved", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    manager["recoveryPaused"].add(battle.id);
+    const oldToken = battle.phaseToken;
+    vi.spyOn(manager["persistence"], "update").mockRejectedValue(new Error("storage failure"));
+    await expect(manager.resumeBattleDurably("socket-admin", "continue")).rejects.toThrow("storage failure");
+    expect(manager.isRecoveryPaused(battle.id)).toBe(true);
+    expect(battle.phaseToken).toBe(oldToken);
+  });
+
+  it("refuses to resume incomplete historical state or a missing room roster", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    manager["recoveryPaused"].add(battle.id);
+    const token = battle.phaseToken;
+    battle.phaseToken = undefined;
+    expect(await manager.resumeBattleDurably("socket-admin", "restart_clock")).toHaveProperty("error");
+    battle.phaseToken = token;
+    battle.mode.votingSystem = "room_vote";
+    battle.roundPhase = "voting";
+    expect(await manager.resumeBattleDurably("socket-admin", "continue")).toHaveProperty("error");
+    expect(manager.isRecoveryPaused(battle.id)).toBe(true);
+  });
+  it("sets phase deadlines before persisting and preserves them on rejected advances", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-22T10:00:00Z"));
+      const { manager, battle } = setupBattle();
+      manager.startBattle("socket-admin");
+      expect(battle.phaseDeadline).toBe("2026-11-22T10:00:04.000Z");
+      expect(battle.phaseToken).toBe(manager.getPhaseToken(battle.id));
+      manager.nextPhase(battle.id);
+      expect(battle.phaseDeadline).toBe("2026-11-22T10:01:00.000Z");
+      const token = battle.phaseToken;
+      const deadline = battle.phaseDeadline;
+      expect(manager.nextPhase(battle.id, "stale-token")).toHaveProperty("error");
+      expect(battle.phaseToken).toBe(token);
+      expect(battle.phaseDeadline).toBe(deadline);
+      manager.nextPhase(battle.id);
+      manager.nextPhase(battle.id);
+      manager.nextPhase(battle.id);
+      expect(battle.roundPhase).toBe("voting");
+      expect(battle.phaseDeadline).toBeUndefined();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("schedules from the saved deadline instead of restarting the full duration", () => {
+    vi.useFakeTimers();
+    try {
+      const { manager, battle } = setupBattle();
+      manager.startBattle("socket-admin");
+      vi.advanceTimersByTime(2500);
+      const callback = vi.fn();
+      manager.setPhaseTimer(battle.id, 4000, callback);
+      vi.advanceTimersByTime(1499);
+      expect(callback).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(callback).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("leaves manual turns and entry voting untimed and gives patron pauses a fresh deadline", () => {
+    const { manager, battle } = setupBattle();
+    manager.setMode("socket-admin", { ...battle.mode, timerMode: "manual", votingSystem: "patron", entriesPerParticipant: 2 });
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    expect(manager.getPhaseTiming(battle.id)).toEqual({ state: "untimed" });
+    const firstToken = battle.phaseToken;
+    manager.completeEntry("socket-admin");
+    expect(battle.phaseToken).not.toBe(firstToken);
+    expect(battle.phaseDeadline).toBeUndefined();
+    manager.submitPatronEntryVote(battle.id, "judge1", 3);
+    expect(manager.getPhaseTiming(battle.id)).toEqual({ state: "untimed" });
+    manager.completeEntry("socket-admin");
+    manager.submitPatronEntryVote(battle.id, "judge1", 3);
+    expect(battle.roundPhase).toBe("pause");
+    expect(manager.getPhaseTiming(battle.id)).toMatchObject({ state: "pending", timeRemaining: 4 });
+  });
+  it("only confirms durable creation after the database write succeeds", async () => {
+    const manager = new BattleRoomManager();
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    vi.spyOn(manager["persistence"], "create").mockReturnValue(write as never);
+    let completed = false;
+    const creation = manager.createBattleDurably().then(battle => { completed = true; return battle; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    release();
+    const battle = await creation;
+    expect(manager.listBattles()).toContain(battle);
+    expect(manager.getAdminToken(battle.id)).toBeTruthy();
+  });
+
+  it("removes the in-memory room and credential when durable creation fails", async () => {
+    const manager = new BattleRoomManager();
+    vi.spyOn(manager["persistence"], "create").mockRejectedValue(new Error("database unavailable"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await expect(manager.createBattleDurably()).rejects.toThrow("database unavailable");
+      expect(manager.listBattles()).toHaveLength(0);
+      expect(log).toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("creates a lobby with merged mode defaults", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle({ mode: "libre", rounds: 5 });
@@ -76,6 +257,83 @@ describe("BattleRoomManager", () => {
     expect(manager.startBattle("socket-admin")).toEqual({ error: "La mesa debe tener 1, 3 o 5 jueces" });
   });
 
+  it("waits for a durable battle start and rejects storage errors", async () => {
+    const { manager, battle } = setupBattle();
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    vi.spyOn(manager["persistence"], "commitBattleStart").mockReturnValue(write as never);
+    let completed = false;
+    const pending = manager.startBattleDurably("socket-admin").then(result => { completed = true; return result; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    release();
+    expect(await pending).toMatchObject({ battle: { id: battle.id, status: "in_progress" } });
+    const another = setupBattle();
+    vi.spyOn(another.manager["persistence"], "commitBattleStart").mockRejectedValue(new Error("database unavailable"));
+    await expect(another.manager.startBattleDurably("socket-admin")).rejects.toThrow("database unavailable");
+  });
+
+  it("waits for a rubric vote to be saved and propagates storage errors", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    const save = vi.spyOn(manager["persistence"], "saveRubricVote").mockReturnValue(write as never);
+    let completed = false;
+    const args = [battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(8), scores(5)] as const;
+    const pending = manager.submitRubricVoteDurably(...args).then(result => { completed = true; return result; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    release();
+    expect(await pending).toMatchObject({ allVoted: true });
+    save.mockRejectedValue(new Error("database unavailable"));
+    await expect(manager.submitRubricVoteDurably(...args)).rejects.toThrow("database unavailable");
+  });
+
+  it("waits for a patron entry vote and resulting phase to be committed", async () => {
+    const { manager, battle } = setupBattle();
+    manager.setMode("socket-admin", { ...battle.mode, timerMode: "manual", votingSystem: "patron", entriesPerParticipant: 2 });
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    manager.completeEntry("socket-admin");
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    const commit = vi.spyOn(manager["persistence"], "commitPatronEntryVote").mockReturnValue(write as never);
+    let completed = false;
+    const pending = manager.submitPatronEntryVoteDurably(battle.id, "judge1", 4).then(result => { completed = true; return result; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({ pendingEntry: undefined }), expect.objectContaining({ judgeId: "judge1", points: 4 }));
+    release();
+    expect(await pending).toMatchObject({ allVoted: true });
+  });
+
+  it("does not confirm an entry completion before it is saved", async () => {
+    const { manager, battle } = setupBattle();
+    manager.setMode("socket-admin", { ...battle.mode, timerMode: "manual", votingSystem: "patron", entriesPerParticipant: 2 });
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    vi.spyOn(manager["persistence"], "update").mockReturnValue(write as never);
+    let completed = false;
+    const pending = manager.completeEntryDurably("socket-admin").then(result => { completed = true; return result; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    release();
+    expect(await pending).toMatchObject({ battle: { roundPhase: "entry_voting" } });
+  });
+
+  it("propagates a patron extra vote storage failure", async () => {
+    const { manager, battle } = setupBattle();
+    manager.setMode("socket-admin", { ...battle.mode, timerMode: "manual", votingSystem: "patron", entriesPerParticipant: 2 });
+    manager.startBattle("socket-admin");
+    battle.roundPhase = "voting";
+    vi.spyOn(manager["persistence"], "savePatronExtraVote").mockRejectedValue(new Error("database unavailable"));
+    await expect(manager.submitPatronExtraVoteDurably(battle.id, "judge1", 3, 1)).rejects.toThrow("database unavailable");
+  });
+
   it("advances through the round and finishes after rubric voting", () => {
     const { manager, battle } = setupBattle();
     expect(manager.startBattle("socket-admin")).toHaveProperty("battle");
@@ -102,6 +360,79 @@ describe("BattleRoomManager", () => {
     expect(manager.nextPhase(battle.id)).toMatchObject({ battle: { status: "finished" } });
   });
 
+  it("persists a resolved round and its final battle state in one operation", () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    manager.submitRubricVote(battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(8), scores(5));
+    const commit = vi.spyOn(manager["persistence"], "commitBattleAndResult");
+    manager.nextPhase(battle.id);
+    expect(commit).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({ roundPhase: "round_result" }), expect.objectContaining({ round: 1, replica: 0 }));
+  });
+
+  it("waits for the phase write before confirming a durable transition", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    let release!: () => void;
+    const write = new Promise<void>(resolve => { release = resolve; });
+    vi.spyOn(manager["persistence"], "update").mockReturnValue(write as never);
+    let completed = false;
+    const pending = manager.nextPhaseDurably(battle.id).then(result => { completed = true; return result; });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    release();
+    expect(await pending).toMatchObject({ phase: "mc1_turn" });
+  });
+
+  it("rejects a durable transition if persistence fails", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    vi.spyOn(manager["persistence"], "update").mockRejectedValue(new Error("database unavailable"));
+    await expect(manager.nextPhaseDurably(battle.id)).rejects.toThrow("database unavailable");
+  });
+
+  it("does not confirm a round result when its transaction fails", async () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    manager.submitRubricVote(battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(8), scores(5));
+    vi.spyOn(manager["persistence"], "commitBattleAndResult").mockRejectedValue(new Error("transaction failed"));
+    await expect(manager.nextPhaseDurably(battle.id)).rejects.toThrow("transaction failed");
+  });
+
+  it("persists each successful phase transition", () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    const update = vi.spyOn(manager["persistence"], "update");
+    update.mockClear();
+
+    const phase = manager.nextPhase(battle.id);
+    expect(phase).toHaveProperty("phase", battle.roundPhase);
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0][0].roundPhase).toBe(battle.roundPhase);
+  });
+
+  it("persists lobby configuration changes", () => {
+    const { manager, battle } = setupBattle();
+    const update = vi.spyOn(manager["persistence"], "update");
+    update.mockClear();
+    expect(manager.setMode("socket-admin", { ...battle.mode, rounds: 2 })).toBe(battle);
+    expect(update).toHaveBeenCalledTimes(1);
+    update.mockClear();
+    expect(manager.setReplicaConfig("socket-admin", { enabled: true, maxReplicas: 1, tieRange: 0, mode: { ...battle.mode } })).toBe(battle);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not grant admin access to a restored room without a valid admin token", async () => {
+    const previous = new BattleRoomManager().createBattle();
+    const manager = new BattleRoomManager();
+    vi.spyOn(manager["persistence"], "loadActiveBattles").mockResolvedValue([previous]);
+    await manager.loadActiveBattlesFromDb();
+
+    expect(manager.getJoinError(previous.id, { id: "stranger", alias: "Stranger", role: "admin" })).toBe("Acceso de admin inválido");
+  });
+
   it("rejects votes from non-judges", () => {
     const { manager, battle } = setupBattle();
 
@@ -114,6 +445,14 @@ describe("BattleRoomManager", () => {
       scores(5),
       scores(5),
     )).toEqual({ error: "No eres juez" });
+  });
+
+  it("does not authorize a judge's socket to vote in a different room", () => {
+    const { manager, battle } = setupBattle();
+    const other = manager.createBattle();
+    expect(manager.getSocketIdentityForBattle("socket-judge", "judge", battle.id)?.userId).toBe("judge1");
+    expect(manager.getSocketIdentityForBattle("socket-judge", "judge", other.id)).toBeUndefined();
+    expect(manager.getSocketIdentityForBattle("socket-judge", "judge", "")).toBeUndefined();
   });
 
   it("rejects duplicate phase transitions with a stale token", () => {
@@ -143,6 +482,28 @@ describe("BattleRoomManager", () => {
     expect(battle.hostId).toBe("judge1");
     expect(manager.canControlBattle("socket-judge", battle)).toBe(true);
     expect(manager.setMode("socket-judge", { ...battle.mode, rounds: 5 })).toBeNull();
+  });
+
+  it("assigns a waiting member as host and preserves a judge role", () => {
+    const { manager, battle } = setupBattle();
+    manager.joinBattle(battle.id, "socket-guest", { id: "guest", name: "Guest", alias: "Guest" });
+
+    expect(manager.transferHost("socket-admin", "guest")).toBe(battle);
+    expect(battle.members.find(member => member.userId === "guest")?.roles).toEqual(["host"]);
+    expect(manager.changeRole("socket-admin", "guest", "judge")).toBe(battle);
+    expect(battle.members.find(member => member.userId === "guest")?.roles).toEqual(expect.arrayContaining(["host", "judge"]));
+    expect(manager.canControlBattle("socket-guest", battle)).toBe(true);
+  });
+
+  it("removes host control from the previous host when transferring", () => {
+    const { manager, battle } = setupBattle();
+    manager.joinBattle(battle.id, "socket-guest", { id: "guest", name: "Guest", alias: "Guest" });
+
+    expect(manager.transferHost("socket-admin", "mc1")).toBe(battle);
+    expect(manager.transferHost("socket-admin", "guest")).toBe(battle);
+    expect(battle.members.find(member => member.userId === "mc1")?.roles).not.toContain("host");
+    expect(manager.canControlBattle("socket-mc1", battle)).toBe(false);
+    expect(manager.canControlBattle("socket-guest", battle)).toBe(true);
   });
 
   it("counts manual entries and advances when the active MC finishes", () => {
@@ -238,6 +599,30 @@ describe("BattleRoomManager", () => {
     expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "countdown", battle: { status: "replica", replicaCount: 1 } });
   });
 
+  it("does not reuse the original round's rubric vote in a replica", () => {
+    const { manager, battle } = setupBattle();
+    manager.setReplicaConfig("socket-admin", { enabled: true, maxReplicas: 1, tieRange: 0, mode: { ...battle.mode, rounds: 1 } });
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    manager.submitRubricVote(battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(5), scores(5));
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    expect(battle.roundPhase).toBe("voting");
+    expect(manager.nextPhase(battle.id)).toHaveProperty("error", "Esperando votos de los jueces...");
+  });
+
+  it("keeps the phase token valid when the server is still waiting for votes", () => {
+    const { manager, battle } = setupBattle();
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 4; i++) manager.nextPhase(battle.id);
+    const token = manager.getPhaseToken(battle.id)!;
+    expect(manager.nextPhase(battle.id, token)).toHaveProperty("error", "Esperando votos de los jueces...");
+    expect(manager.getPhaseToken(battle.id)).toBe(token);
+    manager.submitRubricVote(battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(8), scores(5));
+    expect(manager.nextPhase(battle.id, token)).toHaveProperty("phase", "round_result");
+  });
+
   it("rejects a third participant beyond the limit", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle();
@@ -249,13 +634,13 @@ describe("BattleRoomManager", () => {
     expect(battle.participants.length).toBe(ROLE_LIMITS.participant);
   });
 
-  it("allows up to the admin limit and rejects the next", () => {
+  it("uses the creator token only for the initial admin", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle();
     const token = manager.getAdminToken(battle.id);
 
     join(manager, battle.id, "socket-admin1", "admin1", "admin", token);
-    expect(join(manager, battle.id, "socket-admin2", "admin2", "admin", token)).not.toBeNull();
+    expect(join(manager, battle.id, "socket-admin2", "admin2", "admin", token)).toBeNull();
     expect(join(manager, battle.id, "socket-admin3", "admin3", "admin", token)).toBeNull();
   });
 
@@ -298,6 +683,65 @@ describe("BattleRoomManager", () => {
     }
   });
 
+  it("keeps competitors and judges in an active battle during extended disconnects", () => {
+    vi.useFakeTimers();
+    try {
+      const { manager, battle } = setupBattle();
+      manager.startBattle("socket-admin");
+      const token = manager.getSessionId("socket-mc1")!;
+      manager.handleDisconnect("socket-mc1");
+      manager.handleDisconnect("socket-judge");
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+      expect(battle.participants.map(participant => participant.userId)).toContain("mc1");
+      expect(battle.judges.map(judge => judge.id)).toContain("judge1");
+      expect(manager["persistence"].removeParticipant).not.toHaveBeenCalled();
+      expect(manager["persistence"].removeJudge).not.toHaveBeenCalled();
+      expect(manager.reconnect(battle.id, token, "socket-mc1-return")).toHaveProperty("battle.id", battle.id);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("creates a high-entropy session token for each connected member", () => {
+    const { manager } = setupBattle();
+    const first = manager.getSessionId("socket-admin");
+    const second = manager.getSessionId("socket-mc1");
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    expect(second).toMatch(/^[a-f0-9]{64}$/);
+    expect(first).not.toBe(second);
+  });
+
+  it("does not write session credentials to logs during disconnect and reconnect", () => {
+    const { manager, battle } = setupBattle();
+    const token = manager.getSessionId("socket-mc1")!;
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      manager.handleDisconnect("socket-mc1");
+      manager.reconnect(battle.id, token, "socket-mc1-new");
+      expect(JSON.stringify(log.mock.calls)).not.toContain(token);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("cancels disconnected-session cleanup when a battle is quarantined", () => {
+    vi.useFakeTimers();
+    try {
+      const { manager, battle } = setupBattle();
+      manager.handleDisconnect("socket-mc1");
+      const phaseCallback = vi.fn();
+      manager.setPhaseTimer(battle.id, 1000, phaseCallback);
+      manager.quarantineBattle(battle.id);
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+      expect(manager["persistence"].deleteSession).not.toHaveBeenCalled();
+      expect(manager["persistence"].commitMemberRoles).not.toHaveBeenCalled();
+      expect(phaseCallback).not.toHaveBeenCalled();
+      expect(manager.findBattleBySocket("socket-admin")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("removes participant on explicit leaveRoom", () => {
     const { manager, battle } = setupBattle();
     expect(battle.participants).toHaveLength(2);
@@ -323,53 +767,45 @@ describe("BattleRoomManager", () => {
     if ("error" in result) expect(result.error).toBe("La sesión ya está conectada");
   });
 
-  it("creates and consumes a valid invitation", () => {
+  it("creates one reusable invitation", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle({ rounds: 1 });
     const adminToken = manager.getAdminToken(battle.id)!;
     join(manager, battle.id, "socket-admin", "admin1", "admin", adminToken);
 
-    const inviteToken = manager.createInvitation(battle.id, "participant", adminToken);
+    const inviteToken = manager.createInvitation(battle.id, adminToken);
     expect(inviteToken).toBeTruthy();
 
-    const result = manager.consumeInvitation(inviteToken!);
-    expect(result).not.toBeNull();
-    expect(result!.roomId).toBe(battle.id);
-    expect(result!.role).toBe("participant");
+    expect(manager.inspectInvitation(inviteToken!, battle.id)).toEqual({ roomId: battle.id });
+    expect(manager.inspectInvitation(inviteToken!, battle.id)).toEqual({ roomId: battle.id });
+    expect(manager.createInvitation(battle.id, adminToken)).toBe(inviteToken);
   });
 
   it("rejects invitation creation with invalid adminToken", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle({ rounds: 1 });
 
-    const inviteToken = manager.createInvitation(battle.id, "participant", "wrong-token");
+    const inviteToken = manager.createInvitation(battle.id, "wrong-token");
     expect(inviteToken).toBeNull();
   });
 
-  it("rejects invitation for unsupported roles", () => {
+  it("regenerates an invitation and revokes the previous token", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle({ rounds: 1 });
     const adminToken = manager.getAdminToken(battle.id)!;
 
-    const inviteToken = manager.createInvitation(battle.id, "admin", adminToken);
-    expect(inviteToken).toBeNull();
-  });
-
-  it("rejects consumed/expired invitations", () => {
-    const manager = new BattleRoomManager();
-    const battle = manager.createBattle({ rounds: 1 });
-    const adminToken = manager.getAdminToken(battle.id)!;
-
-    const inviteToken = manager.createInvitation(battle.id, "participant", adminToken)!;
-    expect(manager.consumeInvitation(inviteToken)).not.toBeNull();
-    expect(manager.consumeInvitation(inviteToken)).toBeNull();
+    const inviteToken = manager.createInvitation(battle.id, adminToken)!;
+    const nextToken = manager.createInvitation(battle.id, adminToken, true)!;
+    expect(nextToken).not.toBe(inviteToken);
+    expect(manager.inspectInvitation(inviteToken, battle.id)).toBeNull();
+    expect(manager.inspectInvitation(nextToken, battle.id)).toEqual({ roomId: battle.id });
   });
 
   it("rejects invalid invitation token", () => {
     const manager = new BattleRoomManager();
     const battle = manager.createBattle({ rounds: 1 });
 
-    expect(manager.consumeInvitation("invalid-token")).toBeNull();
+    expect(manager.inspectInvitation("invalid-token", battle.id)).toBeNull();
   });
 
   it("rejects admin access without valid token", () => {
@@ -730,5 +1166,141 @@ describe("BattleRoomManager", () => {
     if (!("error" in result)) {
       expect(result.battle.status).toBe("finished");
     }
+  });
+
+  it("keeps a new guest waiting and preserves the display alias when assigning a role", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle();
+    join(manager, battle.id, "socket-admin", "admin-1", "admin", manager.getAdminToken(battle.id));
+    manager.joinBattle(battle.id, "socket-guest", { id: "opaque-user-id", name: "Hola", alias: "  Hola  " });
+
+    expect(battle.members.find(member => member.userId === "opaque-user-id")).toMatchObject({ alias: "Hola", roles: [] });
+    expect(manager.changeRole("socket-admin", "opaque-user-id", "participant")).toBe(battle);
+    expect(battle.participants[0]).toMatchObject({ userId: "opaque-user-id", alias: "Hola", name: "Hola" });
+  });
+
+  it("supports co-admin, revocation and atomic admin transfer", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle();
+    join(manager, battle.id, "socket-admin", "admin-1", "admin", manager.getAdminToken(battle.id));
+    manager.joinBattle(battle.id, "socket-guest", { id: "guest-1", name: "Invitado", alias: "Invitado" });
+
+    expect(manager.grantAdmin("socket-admin", "guest-1")).toBe(battle);
+    expect(battle.members.find(member => member.userId === "guest-1")?.roles).toContain("admin");
+    expect(manager.createInvitationForSocket("socket-guest")).toBeTruthy();
+    expect(manager.revokeAdmin("socket-admin", "guest-1")).toBe(battle);
+    expect(battle.members.find(member => member.userId === "guest-1")?.roles).not.toContain("admin");
+
+    expect(manager.transferAdmin("socket-admin", "guest-1")).toBe(battle);
+    expect(battle.adminId).toBe("guest-1");
+    expect(battle.members.find(member => member.userId === "admin-1")?.roles).not.toContain("admin");
+    expect(manager.createInvitationForSocket("socket-admin", true)).toBeNull();
+    expect(manager.createInvitationForSocket("socket-guest", true)).toBeTruthy();
+    expect(join(manager, battle.id, "socket-admin-rejoin", "admin-1", "admin", manager.getAdminToken(battle.id))).toBeNull();
+    expect(manager.startBattle("socket-admin")).toEqual({ error: "Solo el admin puede iniciar la batalla" });
+  });
+
+  it("locks room voting to connected assigned members and excludes battlers", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(manager, battle.id, "socket-admin", "admin", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    join(manager, battle.id, "socket-judge", "judge", "judge");
+    join(manager, battle.id, "socket-viewer", "viewer", "spectator");
+    manager.joinBattle(battle.id, "socket-waiting", { id: "waiting", name: "Waiting", alias: "Waiting" });
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+
+    expect(manager.submitRoomVote("socket-mc1", battle.id, "mc1")).toEqual({ error: "Los MC de esta batalla no pueden votar" });
+    expect(manager.submitRoomVote("socket-waiting", battle.id, "mc1")).toEqual({ error: "Necesitas un rol asignado para votar" });
+    expect(manager.submitRoomVote("socket-judge", battle.id, "mc1")).toMatchObject({ allVoted: false });
+    expect(manager.submitRoomVote("socket-viewer", battle.id, "mc2")).toMatchObject({ allVoted: false });
+    expect(manager.submitRoomVote("socket-admin", battle.id, "mc1")).toMatchObject({ allVoted: true });
+
+    const result = manager.nextPhase(battle.id);
+    expect(result).toMatchObject({ phase: "round_result", scores: { mc1: 2, mc2: 1 } });
+  });
+
+  it("persists the closed room voting roster before confirming the phase", async () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(manager, battle.id, "socket-admin", "admin", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    manager.startBattle("socket-admin");
+    for (let i = 0; i < 3; i++) manager.nextPhase(battle.id);
+    const commit = vi.spyOn(manager["persistence"], "commitRoomVotingRoster").mockRejectedValue(new Error("roster failure"));
+    await expect(manager.nextPhaseDurably(battle.id)).rejects.toThrow("roster failure");
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({ roundPhase: "voting" }), ["admin"]);
+  });
+
+  it("waits for free and room votes and propagates storage failures", async () => {
+    const { manager, battle } = setupBattle();
+    battle.mode.votingSystem = "free_vote";
+    manager.startBattle("socket-admin");
+    battle.roundPhase = "voting";
+    vi.spyOn(manager["persistence"], "saveFreeVote").mockRejectedValue(new Error("free vote failure"));
+    await expect(manager.submitFreeVoteDurably(battle.id, "judge1", battle.participants[0].userId)).rejects.toThrow("free vote failure");
+    const room = new BattleRoomManager();
+    const match = room.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(room, match.id, "admin", "admin", "admin", room.getAdminToken(match.id));
+    join(room, match.id, "mc1", "mc1", "participant");
+    join(room, match.id, "mc2", "mc2", "participant");
+    room.startBattle("admin");
+    for (let i = 0; i < 4; i++) room.nextPhase(match.id);
+    vi.spyOn(room["persistence"], "saveRoomVote").mockRejectedValue(new Error("room vote failure"));
+    await expect(room.submitRoomVoteDurably("admin", match.id, "mc1")).rejects.toThrow("room vote failure");
+  });
+
+  it("requires an eligible non-battling member to start room voting", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(manager, battle.id, "socket-admin", "admin", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    manager.changeRole("socket-admin", "admin", "participant");
+
+    expect(manager.startBattle("socket-admin")).toEqual({ error: "El voto de sala necesita al menos un miembro conectado que no esté batallando" });
+  });
+
+  it("does not add late arrivals to a room voting roster", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(manager, battle.id, "socket-admin", "admin", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    join(manager, battle.id, "socket-late", "late", "spectator");
+
+    expect(manager.submitRoomVote("socket-late", battle.id, "mc1")).toEqual({ error: "No formas parte del padrón de votación" });
+    expect(manager.submitRoomVote("socket-admin", battle.id, "mc1")).toMatchObject({ allVoted: true });
+  });
+
+  it("stops waiting for a room voter who disconnects", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ rounds: 1, votingSystem: "room_vote" });
+    join(manager, battle.id, "socket-admin", "admin", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    join(manager, battle.id, "socket-viewer", "viewer", "spectator");
+    manager.startBattle("socket-admin");
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+
+    expect(manager.submitRoomVote("socket-admin", battle.id, "mc1")).toMatchObject({ allVoted: false });
+    const viewerSession = manager.getSessionId("socket-viewer")!;
+    manager.handleDisconnect("socket-viewer");
+    expect(manager.isRoomVoteComplete(battle.id)).toBe(true);
+    manager.reconnect(battle.id, viewerSession, "socket-viewer-reconnected");
+    manager.leaveRoom("socket-viewer-reconnected");
   });
 });

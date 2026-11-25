@@ -1,6 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type { BattleModeConfig, ReplicaConfig, Tournament, TournamentPhase, TournamentType } from "@freestyle/shared";
 import { BattleRoomManager } from "./battleRoom";
+import { generateShortId } from "./id";
 
 function phaseName(size: number): string {
   if (size === 2) return "Final";
@@ -16,8 +17,16 @@ export class TournamentRoomManager {
 
   constructor(private battleManager: BattleRoomManager) {}
 
+  createTournamentWithParticipants(name: string, bracketMode: "manual" | "random", type: TournamentType, aliases: unknown): { tournament: Tournament; adminToken: string } | null {
+    if (!Array.isArray(aliases) || aliases.length < 4 || aliases.length > 128 || (aliases.length & (aliases.length - 1)) !== 0) return null;
+    if (!aliases.every(alias => typeof alias === "string" && alias.trim().length > 0 && alias.trim().length <= 40)) return null;
+    const created = this.createTournament(name, bracketMode, type);
+    created.tournament.participants = aliases.map(alias => ({ userId: uuid(), alias: (alias as string).trim(), eliminated: false }));
+    return created;
+  }
+
   createTournament(name: string, bracketMode: "manual" | "random", type: TournamentType = "single_elimination"): { tournament: Tournament; adminToken: string } {
-    const id = uuid().slice(0, 8);
+    const id = generateShortId();
     const adminToken = uuid();
     const tournament: Tournament = {
       id,
@@ -73,22 +82,52 @@ export class TournamentRoomManager {
     }
 
     const phases: TournamentPhase[] = [];
-    for (let size = participantCount; size >= 2; size /= 2) {
+    if (tournament.type === "king_of_the_hill") {
+      const roomVoteMode = { ...modeConfig, votingSystem: "room_vote" as const };
       phases.push({
-        name: phaseName(size),
-        modeConfig: { ...modeConfig },
+        name: "Rey de la pista",
+        modeConfig: roomVoteMode,
         replicaConfig,
-        battles: Array.from({ length: size / 2 }, () => ({})),
+        battles: [{
+          mc1Id: participants[0].userId,
+          mc2Id: participants[1].userId,
+          battleId: this.battleManager.createBattle(roomVoteMode).id,
+        }],
+      });
+      tournament.participants = participants;
+    } else {
+      for (let size = participantCount; size >= 2; size /= 2) {
+        phases.push({
+          name: phaseName(size),
+          modeConfig: { ...modeConfig },
+          replicaConfig,
+          battles: Array.from({ length: size / 2 }, () => ({})),
+        });
+      }
+      phases[0].battles.forEach((match, index) => {
+        match.mc1Id = participants[index * 2].userId;
+        match.mc2Id = participants[index * 2 + 1].userId;
+        match.battleId = this.battleManager.createBattle(modeConfig).id;
       });
     }
-    phases[0].battles.forEach((match, index) => {
-      match.mc1Id = participants[index * 2].userId;
-      match.mc2Id = participants[index * 2 + 1].userId;
-      match.battleId = this.battleManager.createBattle(modeConfig).id;
-    });
 
     tournament.phases = phases;
     tournament.status = "in_progress";
+
+    if (tournament.type === "double_elimination") {
+      const winnerRoundCount = phases.length;
+      tournament.losersPhases = [];
+      for (let round = 0; round < (winnerRoundCount - 1) * 2; round++) {
+        const size = Math.max(1, participantCount / 2 ** (Math.floor(round / 2) + 2));
+        tournament.losersPhases.push({
+          name: `Repesca · Ronda ${round + 1}`,
+          modeConfig: { ...modeConfig },
+          replicaConfig,
+          battles: Array.from({ length: size }, () => ({})),
+        });
+      }
+      tournament.grandFinal = {};
+    }
 
     if (tournament.type === "with_third_place" && phases.length >= 2) {
       tournament.thirdPlaceMatch = {};
@@ -109,7 +148,10 @@ export class TournamentRoomManager {
       // Check all phases (not just current) for the battle
       const found = tournament.phases.some(phase =>
         phase.battles.some(match => match.battleId === battleId && !match.winnerId)
-      ) || (tournament.thirdPlaceMatch?.battleId === battleId && !tournament.thirdPlaceMatch.winnerId);
+      ) || tournament.losersPhases?.some(phase => phase.battles.some(match => match.battleId === battleId && !match.winnerId))
+        || (tournament.thirdPlaceMatch?.battleId === battleId && !tournament.thirdPlaceMatch.winnerId)
+        || (tournament.grandFinal?.battleId === battleId && !tournament.grandFinal.winnerId)
+        || (tournament.grandFinalReset?.battleId === battleId && !tournament.grandFinalReset.winnerId);
       if (found) {
         return this.advanceWinner(tournament, battleId, winnerId);
       }
@@ -118,6 +160,7 @@ export class TournamentRoomManager {
   }
 
   private advanceWinner(tournament: Tournament, battleId: string, winnerId: string): Tournament | null {
+    if (tournament.type === "double_elimination") return this.advanceDoubleElimination(tournament, battleId, winnerId);
     // Third place match — prevent double registration
     if (tournament.thirdPlaceMatch?.battleId === battleId) {
       if (tournament.thirdPlaceMatch.winnerId) return null;
@@ -136,6 +179,21 @@ export class TournamentRoomManager {
     const loserId = winnerId === match.mc1Id ? match.mc2Id : match.mc1Id;
     const loser = tournament.participants.find(participant => participant.userId === loserId);
     if (loser) loser.eliminated = true;
+
+    if (tournament.type === "king_of_the_hill") {
+      const nextChallenger = tournament.participants[phase.battles.length + 1];
+      if (!nextChallenger) {
+        tournament.status = "finished";
+        tournament.winnerId = winnerId;
+        return tournament;
+      }
+      phase.battles.push({
+        mc1Id: winnerId,
+        mc2Id: nextChallenger.userId,
+        battleId: this.battleManager.createBattle(phase.modeConfig).id,
+      });
+      return tournament;
+    }
 
     if (tournament.currentPhaseIndex === tournament.phases.length - 1) {
       // Generate third place match if semifinal losers have been identified
@@ -170,13 +228,118 @@ export class TournamentRoomManager {
     return tournament;
   }
 
+  private advanceDoubleElimination(tournament: Tournament, battleId: string, winnerId: string): Tournament | null {
+    const winnersPhase = tournament.phases.find(phase => phase.battles.some(match => match.battleId === battleId));
+    const losersPhase = tournament.losersPhases?.find(phase => phase.battles.some(match => match.battleId === battleId));
+    const grandFinal = tournament.grandFinal?.battleId === battleId ? tournament.grandFinal : undefined;
+    const resetFinal = tournament.grandFinalReset?.battleId === battleId ? tournament.grandFinalReset : undefined;
+    const match = winnersPhase?.battles.find(candidate => candidate.battleId === battleId)
+      ?? losersPhase?.battles.find(candidate => candidate.battleId === battleId)
+      ?? grandFinal
+      ?? resetFinal;
+    if (!match || match.winnerId || (winnerId !== match.mc1Id && winnerId !== match.mc2Id)) return null;
+
+    match.winnerId = winnerId;
+    const loserId = winnerId === match.mc1Id ? match.mc2Id : match.mc1Id;
+    const loser = tournament.participants.find(participant => participant.userId === loserId);
+
+    if (resetFinal) {
+      tournament.status = "finished";
+      tournament.winnerId = winnerId;
+      if (loser) loser.eliminated = true;
+      return tournament;
+    }
+
+    if (grandFinal) {
+      if (winnerId === grandFinal.mc1Id) {
+        tournament.status = "finished";
+        tournament.winnerId = winnerId;
+        if (loser) loser.eliminated = true;
+      } else {
+        tournament.grandFinalReset = {
+          mc1Id: grandFinal.mc1Id,
+          mc2Id: grandFinal.mc2Id,
+          battleId: this.battleManager.createBattle(tournament.phases[0].modeConfig).id,
+        };
+      }
+      return tournament;
+    }
+
+    if (winnersPhase) {
+      const nextPhase = tournament.phases[tournament.phases.indexOf(winnersPhase) + 1];
+      if (nextPhase) {
+        const matchIndex = winnersPhase.battles.indexOf(match);
+        const nextMatch = nextPhase.battles[Math.floor(matchIndex / 2)];
+        if (matchIndex % 2 === 0) nextMatch.mc1Id = winnerId;
+        else nextMatch.mc2Id = winnerId;
+        if (nextMatch.mc1Id && nextMatch.mc2Id && !nextMatch.battleId) nextMatch.battleId = this.battleManager.createBattle(nextPhase.modeConfig).id;
+      }
+    }
+
+    if (loser && losersPhase) loser.eliminated = true;
+    this.prepareDoubleElimination(tournament);
+    return tournament;
+  }
+
+  private prepareDoubleElimination(tournament: Tournament): void {
+    const losersPhases = tournament.losersPhases;
+    if (!losersPhases) return;
+    const loserOf = (match: { mc1Id?: string; mc2Id?: string; winnerId?: string }): string | undefined => {
+      if (!match.winnerId) return undefined;
+      return match.winnerId === match.mc1Id ? match.mc2Id : match.mc1Id;
+    };
+    const winnerOf = (match: { winnerId?: string }): string | undefined => match.winnerId;
+
+    for (let phaseIndex = 0; phaseIndex < losersPhases.length; phaseIndex++) {
+      const phase = losersPhases[phaseIndex];
+      const ids: (string | undefined)[] = [];
+      if (phaseIndex === 0) {
+        ids.push(...tournament.phases[0].battles.map(loserOf));
+      } else if (phaseIndex % 2 === 0) {
+        ids.push(...losersPhases[phaseIndex - 1].battles.map(winnerOf));
+      } else {
+        const winnersFromPrevious = losersPhases[phaseIndex - 1].battles.map(winnerOf);
+        const winnersPhaseIndex = (phaseIndex + 1) / 2;
+        const losersFromWinners = tournament.phases[winnersPhaseIndex]?.battles.map(loserOf) ?? [];
+        for (let index = 0; index < Math.max(winnersFromPrevious.length, losersFromWinners.length); index++) {
+          ids.push(winnersFromPrevious[index], losersFromWinners[index]);
+        }
+      }
+
+      if (ids.length < phase.battles.length * 2 || ids.some(id => !id)) continue;
+      for (let index = 0; index < phase.battles.length; index++) {
+        const match = phase.battles[index];
+        if (match.battleId) continue;
+        match.mc1Id = ids[index * 2];
+        match.mc2Id = ids[index * 2 + 1];
+        match.battleId = this.battleManager.createBattle(phase.modeConfig).id;
+      }
+    }
+
+    const finalWinners = tournament.phases.at(-1)?.battles[0]?.winnerId;
+    const finalLoserWinner = losersPhases.at(-1)?.battles[0]?.winnerId;
+    if (finalWinners && finalLoserWinner && !tournament.grandFinal?.battleId) {
+      tournament.grandFinal = {
+        mc1Id: finalWinners,
+        mc2Id: finalLoserWinner,
+        battleId: this.battleManager.createBattle(tournament.phases[0].modeConfig).id,
+      };
+    }
+  }
+
   getTournament(tournamentId: string): Tournament | undefined {
     return this.tournaments.get(tournamentId.toLowerCase());
   }
 
   getBattleAdminToken(tournamentId: string, adminToken: string, battleId: string): string | null {
     const tournament = this.authorize(tournamentId, adminToken);
-    if (!tournament || !tournament.phases.some(phase => phase.battles.some(match => match.battleId === battleId))) return null;
+    const belongsToTournament = tournament && (
+      tournament.phases.some(phase => phase.battles.some(match => match.battleId === battleId))
+      || tournament.losersPhases?.some(phase => phase.battles.some(match => match.battleId === battleId))
+      || tournament.grandFinal?.battleId === battleId
+      || tournament.grandFinalReset?.battleId === battleId
+    );
+    if (!belongsToTournament) return null;
     return this.battleManager.getAdminToken(battleId) ?? null;
   }
 

@@ -1,39 +1,26 @@
-# ---- Build Stage ----
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache openssl && corepack enable && corepack prepare pnpm@9.12.0 --activate
 
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
-
-# Copy workspace config + all package.json files needed for install
+FROM base AS builder
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
-COPY apps/server/package.json apps/server/tsconfig.json ./apps/server/
-
-# Install ALL dependencies (root + all workspace packages)
+COPY apps/server/package.json apps/server/tsconfig.json apps/server/tsconfig.build.json ./apps/server/
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
 COPY packages/shared/src ./packages/shared/src
 COPY apps/server/src ./apps/server/src
+COPY apps/server/prisma ./apps/server/prisma
+COPY apps/server/prisma.config.ts ./apps/server/
+RUN pnpm --filter @freestyle/server prisma:generate \
+    && pnpm --filter @freestyle/server build \
+    && pnpm exec tsc -p packages/shared/tsconfig.json --module commonjs --moduleResolution node \
+    && node -e "const fs=require('fs');const p='packages/shared/package.json';const pkg=JSON.parse(fs.readFileSync(p));pkg.main='./dist/index.js';fs.writeFileSync(p,JSON.stringify(pkg,null,2))"
 
-# Build TypeScript
-RUN pnpm --filter @freestyle/server build
-
-# ---- Production Stage ----
-FROM node:20-alpine
-WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
-
-# Copy workspace config + built files for prod
-COPY --from=builder /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json ./
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/shared/src ./packages/shared/src
-COPY --from=builder /app/apps/server/package.json ./apps/server/
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
-
-# Install production deps only
-RUN pnpm install --frozen-lockfile --prod
-
+FROM base AS runner
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/apps/server ./apps/server
+WORKDIR /app/apps/server
 EXPOSE 3001
-CMD ["sh", "-c", "cd apps/server && node dist/index.js"]
+CMD ["node", "dist/index.js"]

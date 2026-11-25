@@ -9,6 +9,13 @@ export interface User {
   id: string; name: string; alias: string; role: UserRole; avatarUrl?: string;
 }
 
+export interface RoomMember {
+  userId: string;
+  alias: string;
+  roles: UserRole[];
+  connected: boolean;
+}
+
 export type WordCategory = "animales" | "objetos" | "famosos" | "abstractos" | "acciones" | "lugares" | "comida" | "tecnologia";
 export type WordDifficulty = "facil" | "medio" | "dificil";
 
@@ -21,7 +28,7 @@ export type BattleMode = "clasico" | "libre";
 /** Formato de batalla: determina cuántas entradas tiene cada MC y la estructura de turnos. */
 export type BattleFormat = "1x1" | "4x4" | "8x8";
 
-export type VotingSystem = "rubrica" | "patron" | "free_vote";
+export type VotingSystem = "rubrica" | "patron" | "free_vote" | "room_vote";
 
 export interface BattleModeConfig {
   mode: BattleMode;
@@ -52,15 +59,17 @@ export interface Participant {
 
 export interface BattleRoundResult {
   round: number;
+  replica?: number;
   winnerId?: string;
   scores: Record<string, number>;
   judgeVotes: { judgeId: string; judgeName: string; votedForId?: string }[];
 }
 
 export interface Battle {
+  recovery?: { paused: true; issue?: string };
   id: string; mode: BattleModeConfig; status: BattleStatus; participants: Participant[];
-  judges: { id: string; alias: string }[]; spectators: { id: string; alias: string }[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
-  currentWord?: Word; timeRemaining: number; entriesRemaining: Record<string, number>; pendingEntry?: { mcId: string; entryIndex: number }; totalScores: Record<string, number>; roundResults: BattleRoundResult[]; turnSequenceIndex: number; replicaCount: number; replicaConfig?: ReplicaConfig; createdAt: string; adminId?: string; hostId?: string;
+  judges: { id: string; alias: string }[]; spectators: { id: string; alias: string }[]; members: RoomMember[]; currentRound: number; roundPhase: RoundPhase; currentTurn: string;
+  currentWord?: Word; timeRemaining: number; phaseDeadline?: string; phaseToken?: string; entriesRemaining: Record<string, number>; pendingEntry?: { mcId: string; entryIndex: number }; totalScores: Record<string, number>; roundResults: BattleRoundResult[]; turnSequenceIndex: number; replicaCount: number; replicaConfig?: ReplicaConfig; createdAt: string; adminId?: string; hostId?: string;
 }
 
 export interface ScoreRubric {
@@ -97,6 +106,15 @@ export interface TournamentParticipant {
   userId: string; alias: string; eliminated: boolean;
 }
 
+export interface RoomVote {
+  voterId: string;
+  voterName: string;
+  round: number;
+  mc1Id: string;
+  mc2Id: string;
+  votedForId: string;
+}
+
 export interface TournamentBattle {
   battleId?: string; mc1Id?: string; mc2Id?: string; winnerId?: string;
 }
@@ -105,7 +123,7 @@ export interface TournamentPhase {
   name: string; battles: TournamentBattle[]; modeConfig: BattleModeConfig; replicaConfig?: ReplicaConfig;
 }
 
-export type TournamentType = "single_elimination" | "with_third_place";
+export type TournamentType = "single_elimination" | "with_third_place" | "king_of_the_hill" | "double_elimination";
 
 export interface Tournament {
   id: string; name: string; status: "setup" | "in_progress" | "finished";
@@ -113,6 +131,9 @@ export interface Tournament {
   bracketMode: "manual" | "random"; createdAt: string; winnerId?: string;
   type: TournamentType;
   thirdPlaceMatch?: TournamentBattle;
+  losersPhases?: TournamentPhase[];
+  grandFinal?: TournamentBattle;
+  grandFinalReset?: TournamentBattle;
 }
 
 export type ServerEvent =
@@ -124,13 +145,15 @@ export type ServerEvent =
   | { type: "battle:winner"; winnerId: string; finalScores: Record<string, number> }
   | { type: "battle:error"; message: string }
   | { type: "battle:session"; sessionId: string }
-  | { type: "room:joined"; userId: string; role: UserRole }
+  | { type: "battle:invitation"; token: string }
+  | { type: "room:joined"; userId: string; roles: UserRole[] }
   | { type: "room:left"; userId: string };
 
 export type ClientEvent =
-  | { type: "battle:join"; battleId: string; user: Pick<User, "id" | "name" | "alias" | "role">; adminToken?: string }
+  | { type: "battle:join"; battleId: string; user: { id: string; name: string; alias: string; role?: UserRole }; adminToken?: string; inviteToken?: string }
   | { type: "battle:leave" }
   | { type: "battle:start" }
+  | { type: "battle:resume"; action: "continue" | "restart_clock" }
   | { type: "battle:next_phase"; phaseToken?: string }
   | { type: "judge:vote_rubric"; battleId: string; round: number; mc1Id: string; mc2Id: string; mc1Scores: ScoreRubric; mc2Scores: ScoreRubric }
   | { type: "battle:set_mode"; mode: BattleModeConfig }
@@ -142,6 +165,11 @@ export type ClientEvent =
   | { type: "battle:reconnect"; battleId: string; sessionId: string }
   | { type: "battle:change_role"; targetUserId: string; newRole: UserRole }
   | { type: "battle:revoke_role"; targetUserId: string; role: UserRole }
+  | { type: "battle:grant_admin"; targetUserId: string }
+  | { type: "battle:transfer_admin"; targetUserId: string }
+  | { type: "battle:revoke_admin"; targetUserId: string }
+  | { type: "battle:create_invitation"; regenerate?: boolean }
+  | { type: "room:vote"; battleId: string; votedForId: string }
   | { type: "judge:vote_free"; battleId: string; votedForId: string };
 
 export type DailyMatchStatus = "exact" | "close" | "miss";

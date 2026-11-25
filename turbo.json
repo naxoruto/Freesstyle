@@ -12,6 +12,6 @@
     },
     "lint": {},
     "typecheck": {},
-    "test": { "dependsOn": ["^build"] }
+    "test": { "dependsOn": ["^build"], "cache": false, "passThroughEnv": ["DATABASE_URL"] }
   }
 }

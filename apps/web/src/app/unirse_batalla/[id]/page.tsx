@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import type { UserRole } from "@freestyle/shared";
 import { Toaster, showToast } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
@@ -10,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 type State =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; role: UserRole; battleId: string };
+  | { status: "ready"; battleId: string };
 
 export default function JoinBattlePage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
@@ -37,7 +36,7 @@ export default function JoinBattlePage({ params }: { params: { id: string } }) {
           return;
         }
         const data = await res.json();
-        if (!cancelled) setState({ status: "ready", role: data.role, battleId: params.id });
+        if (!cancelled) setState({ status: "ready", battleId: data.battleId });
       })
       .catch(() => {
         if (!cancelled) setState({ status: "error", message: "No se pudo conectar con el servidor. Intenta de nuevo." });
@@ -54,15 +53,8 @@ export default function JoinBattlePage({ params }: { params: { id: string } }) {
     }
     if (state.status !== "ready") return;
     setJoining(true);
-    router.push(`/battle/${state.battleId}?role=${state.role}&alias=${encodeURIComponent(trimmed)}`);
-  };
-
-  const labelByRole: Record<UserRole, string> = {
-    participant: "MC (Participante)",
-    judge: "Juez",
-    spectator: "Público",
-    host: "Host",
-    admin: "Admin",
+    sessionStorage.setItem(`battle_pending_${state.battleId}`, JSON.stringify({ alias: trimmed, inviteToken: invite }));
+    router.push(`/battle/${state.battleId}`);
   };
 
   return (
@@ -100,9 +92,7 @@ export default function JoinBattlePage({ params }: { params: { id: string } }) {
 
           <h2 className="text-3xl font-battle text-white mb-2">Unirse a la batalla</h2>
           <p className="text-gray-400 mb-8">
-            Fuiste invitado como{" "}
-            <span className="text-red-400 font-bold">{labelByRole[state.role]}</span>.
-            Solo necesitas tu alias para entrar.
+            Escribe tu alias para entrar. El admin de la sala te asignará un rol.
           </p>
 
           <div className="mb-8">

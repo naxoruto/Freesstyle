@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { JudgeRubricVote, ScoreRubric } from "@freestyle/shared";
-import { calculatePatronResult, calculateRubricResult, isValidRubric, sumRubric } from "./scoring";
+import type { JudgeRubricVote, RoomVote, ScoreRubric } from "@freestyle/shared";
+import { calculatePatronResult, calculateRoomVoteResult, calculateRubricResult, isValidRubric, sumRubric } from "./scoring";
 
 const rubric = (value: number): ScoreRubric => ({
   flow: value,
@@ -51,5 +51,21 @@ describe("rubric scoring", () => {
       [{ judgeId: "j", judgeName: "J", round: 1, mc1Id: "mc1", mc2Id: "mc2", mc1Extra: 3, mc2Extra: 4 }],
     );
     expect(result).toEqual({ scores: { mc1: 7, mc2: 6 }, winnerId: "mc1" });
+  });
+
+  it("keeps a room vote tie unresolved for the replica rule", () => {
+    const roomVote = (voterId: string, votedForId: string): RoomVote => ({
+      voterId,
+      voterName: voterId,
+      round: 1,
+      mc1Id: "mc1",
+      mc2Id: "mc2",
+      votedForId,
+    });
+
+    expect(calculateRoomVoteResult([
+      roomVote("voter-1", "mc1"),
+      roomVote("voter-2", "mc2"),
+    ])).toEqual({ scores: { mc1: 1, mc2: 1 }, winnerId: undefined });
   });
 });

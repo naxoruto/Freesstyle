@@ -32,22 +32,13 @@ export default function TournamentPage() {
       const createResponse = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, bracketMode: random ? "random" : "manual", type }),
+        body: JSON.stringify({ name, bracketMode: random ? "random" : "manual", type, participants }),
       });
       if (!createResponse.ok) throw new Error("No se pudo crear el torneo");
       const created = await createResponse.json();
       setAdminToken(created.adminToken);
 
-      for (const alias of participants) {
-        await fetch(`${API_URL}/api/tournaments/${created.tournament.id}/participants`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminToken: created.adminToken, alias }),
-        });
-      }
-
-      const updated = await fetch(`${API_URL}/api/tournaments/${created.tournament.id}`);
-      setTournament(await updated.json());
+      setTournament(created.tournament);
       setStep("setup");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Error inesperado");
@@ -167,7 +158,7 @@ export default function TournamentPage() {
             </label>
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Tipo de torneo</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <button type="button" onClick={() => setType("single_elimination")} aria-pressed={type === "single_elimination"} className={`p-3 border text-sm text-left ${type === "single_elimination" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
                   <span className="block font-bold">Eliminación directa</span>
                   <span className="text-xs text-gray-500">El que pierde queda fuera</span>
@@ -175,6 +166,14 @@ export default function TournamentPage() {
                 <button type="button" onClick={() => setType("with_third_place")} aria-pressed={type === "with_third_place"} className={`p-3 border text-sm text-left ${type === "with_third_place" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
                   <span className="block font-bold">Con tercer puesto</span>
                   <span className="text-xs text-gray-500">Partido extra por el 3er lugar</span>
+                </button>
+                <button type="button" onClick={() => setType("king_of_the_hill")} aria-pressed={type === "king_of_the_hill"} className={`p-3 border text-sm text-left ${type === "king_of_the_hill" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
+                  <span className="block font-bold">Rey de la pista</span>
+                  <span className="text-xs text-gray-500">El ganador permanece contra la fila</span>
+                </button>
+                <button type="button" onClick={() => setType("double_elimination")} aria-pressed={type === "double_elimination"} className={`p-3 border text-sm text-left ${type === "double_elimination" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
+                  <span className="block font-bold">Con repesca</span>
+                  <span className="text-xs text-gray-500">Dos derrotas eliminan</span>
                 </button>
               </div>
             </div>
@@ -184,7 +183,7 @@ export default function TournamentPage() {
             </button>
           </div>
           <div className="border border-white/5 p-5 text-sm leading-7 text-white/40">
-            <p>Participantes permitidos: 4, 8, 16 o 32.</p>
+            <p>Participantes permitidos: 4, 8, 16 o 32. La repesca soporta cuadros de 4, 8 y 16.</p>
             <p>Cada enfrentamiento crea una sala de batalla normal.</p>
             <p>Podrás revisar el bracket antes de iniciar el torneo.</p>
           </div>
@@ -234,7 +233,20 @@ export default function TournamentPage() {
               </div>
             )}
           </div>
-          {tournament.bracketMode === "manual" && (
+          {tournament.bracketMode === "manual" && tournament.type === "king_of_the_hill" && (
+            <div className="border border-white/10 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-3">Orden de la pista</p>
+              <div className="border border-red-500/30 p-3 text-sm text-white/70">
+                <span className="font-bold text-white">Duelo inicial:</span> {tournament.participants[0]?.alias ?? "?"}
+                <span className="text-red-500 font-black mx-2">vs</span>
+                {tournament.participants[1]?.alias ?? "?"}
+              </div>
+              <p className="mt-3 text-xs text-white/40">
+                Fila de retadores: {tournament.participants.slice(2).map(participant => participant.alias).join(" → ")}
+              </p>
+            </div>
+          )}
+          {tournament.bracketMode === "manual" && tournament.type !== "king_of_the_hill" && (
             <div className="border border-white/10 p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-3">Enfrentamientos</p>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -251,8 +263,8 @@ export default function TournamentPage() {
           <div className="border border-white/10 p-5">
             <p className="text-sm text-white/40 mb-4">
               {tournament.bracketMode === "random"
-                ? "Los enfrentamientos se sortearán aleatoriamente al iniciar."
-                : "Usa las flechas para reordenar. Los enfrentamientos respetan el orden (1 vs 2, 3 vs 4...)."}
+                ? tournament.type === "king_of_the_hill" ? "El orden completo de la pista se sorteará al iniciar." : "Los enfrentamientos se sortearán aleatoriamente al iniciar."
+                : tournament.type === "king_of_the_hill" ? "Usa las flechas para definir el duelo inicial y la fila de retadores." : tournament.type === "double_elimination" ? "Usa las flechas para definir el cuadro principal y el orden de la repesca." : "Usa las flechas para reordenar. Los enfrentamientos respetan el orden (1 vs 2, 3 vs 4...)."}
             </p>
             {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
             <div className="flex gap-3">
@@ -268,6 +280,20 @@ export default function TournamentPage() {
       {step === "active" && tournament && (
         <div className="mt-8 space-y-8">
           <h2 className="font-battle text-xl font-black uppercase text-white/50">{tournament.name}</h2>
+          {tournament.type === "king_of_the_hill" && (
+            <div className="border border-red-500/30 bg-red-950/10 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-red-400">Dinámica de la pista</p>
+              <p className="mt-2 text-sm text-white/60">El ganador de cada duelo permanece y enfrenta al siguiente retador de la fila.</p>
+              {tournament.winnerId && <p className="mt-3 font-battle text-2xl uppercase text-white">Campeón: {tournament.participants.find(participant => participant.userId === tournament.winnerId)?.alias}</p>}
+            </div>
+          )}
+          {tournament.type === "double_elimination" && (
+            <div className="border border-yellow-500/30 bg-yellow-950/10 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-yellow-400">Doble eliminación</p>
+              <p className="mt-2 text-sm text-white/60">El cuadro principal lleva al ganador invicto. Una derrota envía a repesca; la segunda elimina. Si el campeón de repesca gana la gran final, se juega una final de reinicio.</p>
+              {tournament.winnerId && <p className="mt-3 font-battle text-2xl uppercase text-white">Campeón: {tournament.participants.find(participant => participant.userId === tournament.winnerId)?.alias}</p>}
+            </div>
+          )}
           {tournament.phases.map((phase, phaseIndex) => (
             <section key={phase.name} className="border border-white/10 p-5">
               <h2 className="font-battle text-2xl font-black uppercase">{phase.name}</h2>
@@ -284,6 +310,26 @@ export default function TournamentPage() {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {renderBattle(tournament.thirdPlaceMatch)}
               </div>
+            </section>
+          )}
+          {tournament.type === "double_elimination" && tournament.losersPhases?.map((phase, phaseIndex) => (
+            <section key={phase.name} className="border border-yellow-500/20 p-5">
+              <h2 className="font-battle text-2xl font-black uppercase text-yellow-300">{phase.name}</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {phase.battles.map((match, matchIndex) => <div key={`losers-${phaseIndex}-${matchIndex}`}>{renderBattle(match)}</div>)}
+              </div>
+            </section>
+          ))}
+          {tournament.type === "double_elimination" && tournament.grandFinal?.battleId && (
+            <section className="border border-red-500/30 p-5">
+              <h2 className="font-battle text-2xl font-black uppercase text-red-400">Gran final</h2>
+              {renderBattle(tournament.grandFinal)}
+            </section>
+          )}
+          {tournament.type === "double_elimination" && tournament.grandFinalReset?.battleId && (
+            <section className="border border-red-500/30 p-5">
+              <h2 className="font-battle text-2xl font-black uppercase text-red-400">Final de reinicio</h2>
+              {renderBattle(tournament.grandFinalReset)}
             </section>
           )}
         </div>

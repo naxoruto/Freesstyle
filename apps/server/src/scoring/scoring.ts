@@ -1,4 +1,4 @@
-import type { JudgeRubricVote, PatronEntryVote, PatronExtraVote, FreeVote, ScoreRubric } from "@freestyle/shared";
+import type { JudgeRubricVote, PatronEntryVote, PatronExtraVote, FreeVote, RoomVote, ScoreRubric } from "@freestyle/shared";
 
 const RUBRIC_KEYS: (keyof ScoreRubric)[] = ["flow", "lirica", "ingenio", "presencia", "tecnica"];
 
@@ -50,6 +50,21 @@ export function calculateFreeVoteResult(votes: FreeVote[]): {
     // Ensure both MCs have entries even if they got 0 votes
     if (!(vote.mc1Id in scores)) scores[vote.mc1Id] = scores[vote.mc1Id] ?? 0;
     if (!(vote.mc2Id in scores)) scores[vote.mc2Id] = scores[vote.mc2Id] ?? 0;
+  }
+  const sorted = Object.entries(scores).sort(([, left], [, right]) => right - left);
+  const winnerId = sorted.length >= 2 && sorted[0][1] !== sorted[1][1] ? sorted[0][0] : undefined;
+  return { scores, winnerId };
+}
+
+export function calculateRoomVoteResult(votes: RoomVote[]): {
+  scores: Record<string, number>;
+  winnerId?: string;
+} {
+  const scores: Record<string, number> = {};
+  for (const vote of votes) {
+    scores[vote.votedForId] = (scores[vote.votedForId] ?? 0) + 1;
+    scores[vote.mc1Id] ??= 0;
+    scores[vote.mc2Id] ??= 0;
   }
   const sorted = Object.entries(scores).sort(([, left], [, right]) => right - left);
   const winnerId = sorted.length >= 2 && sorted[0][1] !== sorted[1][1] ? sorted[0][0] : undefined;

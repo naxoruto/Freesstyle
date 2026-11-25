@@ -60,15 +60,24 @@ describe("VOTING_METHODS", () => {
       scoreRange: { min: 0, max: 4 },
     });
   });
+
+  it("room vote selects one winner without judge-only scoring", () => {
+    expect(VOTING_METHODS.room_vote).toMatchObject({
+      perEntry: false,
+      requiresExtra: false,
+      dimensions: 1,
+      scoreRange: { min: 0, max: 1 },
+    });
+  });
 });
 
 describe("VOTING_COMPATIBILITY", () => {
   it("countdown only supports rubrica", () => {
-    expect(VOTING_COMPATIBILITY.countdown).toEqual(["rubrica", "free_vote"]);
+    expect(VOTING_COMPATIBILITY.countdown).toEqual(["rubrica", "free_vote", "room_vote"]);
   });
 
   it("manual supports both rubrica and patron", () => {
-    expect(VOTING_COMPATIBILITY.manual).toEqual(["rubrica", "patron", "free_vote"]);
+    expect(VOTING_COMPATIBILITY.manual).toEqual(["rubrica", "patron", "free_vote", "room_vote"]);
   });
 });
 

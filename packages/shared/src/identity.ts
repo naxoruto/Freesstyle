@@ -33,29 +33,13 @@ export interface RoomSession {
 
 export const DEFAULT_RECONNECT_WINDOW_MS = 5 * 60 * 1000; // 5 minutos
 
-/**
- * Invitación de un solo uso para unirse a una sala con un rol específico.
- *
- * - `token`: opaco, se incluye en la URL de invitación.
- * - `maxUses`: normalmente 1. Puede ser mayor para invitaciones de audiencia.
- * - `usedCount`: cuántas veces se ha consumido ya.
- * - `expiresAt`: después de esta fecha la invitación es inválida.
- *
- * Las invitaciones NUNCA deben contener `adminToken` ni credenciales.
- */
+/** Invitación reutilizable de sala. Regenerarla revoca el token anterior. */
 export interface RoomInvitation {
   token: string;
   roomId: string;
-  role: UserRole;
-  maxUses: number;
-  usedCount: number;
   createdAt: string;
-  expiresAt: string;
   createdBy: string; // userId del admin que la generó
 }
-
-export const DEFAULT_INVITATION_MAX_USES = 1;
-export const DEFAULT_INVITATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 /**
  * Política de exposición en URLs — DOCUMENTACIÓN CANÓNICA.
@@ -86,13 +70,7 @@ export function isSessionInReconnectWindow(session: RoomSession, now: number = D
 }
 
 export function isInvitationValid(invitation: RoomInvitation, now: number = Date.now()): boolean {
-  return invitation.usedCount < invitation.maxUses && now <= new Date(invitation.expiresAt).getTime();
-}
-
-export function consumeInvitation(invitation: RoomInvitation): boolean {
-  if (!isInvitationValid(invitation)) return false;
-  invitation.usedCount++;
-  return true;
+  return Boolean(invitation.token && invitation.roomId && new Date(invitation.createdAt).getTime() <= now);
 }
 
 export function markSessionDisconnected(session: RoomSession): void {

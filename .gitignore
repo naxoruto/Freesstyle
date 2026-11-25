@@ -8,4 +8,5 @@ apps/*/.env.local
 *.log
 gstack
 .turbo
+.local-backups/
 *.tsbuildinfo

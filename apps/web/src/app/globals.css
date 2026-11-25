@@ -996,7 +996,7 @@ body {
 .lobby-role-card { padding: clamp(1.1rem, 3vw, 1.75rem); }
 .lobby-role-card > p { max-width: 28rem; margin-top: 0.75rem; color: var(--lobby-muted); font-size: 0.75rem; line-height: 1.5; }
 .lobby-role-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
-.lobby-role-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(8rem, 10rem); align-items: center; gap: 0.8rem; font-size: 0.85rem; }
+.lobby-role-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(8rem, 10rem) minmax(8rem, auto); align-items: center; gap: 0.8rem; font-size: 0.85rem; }
 .lobby-role-row > span { min-width: 0; overflow: hidden; color: #dce8e6; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-role-row strong { color: var(--lobby-muted); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.12em; text-align: right; text-transform: uppercase; }
 .lobby-role-row select { width: 100%; color: #eef4f6; }

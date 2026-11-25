@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { WordDisplay } from "@/components/WordDisplay";
@@ -19,17 +19,36 @@ const STATE_TIMEOUT_MS = 15_000;
 type CountdownNum = 3 | 2 | 1 | "go" | null;
 type EntryPhase = "connecting" | "joining" | "connected" | "error";
 
+const getSessionItem = (key: string) => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const now = () => (typeof performance === "undefined" ? 0 : performance.now());
+
 export default function BattlePage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
-  const role = (searchParams.get("role") as UserRole) || "participant";
-  const alsoAs = searchParams.get("alsoAs") as UserRole | null;
-  const alias = searchParams.get("alias") || "Anónimo";
-  const adminToken = searchParams.get("adminToken") || sessionStorage.getItem(`battle_admin_${params.id}`) || undefined;
+  const pendingJoin = (() => {
+    try {
+      const raw = getSessionItem(`battle_pending_${params.id}`);
+      return raw ? JSON.parse(raw) as { alias?: string; role?: UserRole; inviteToken?: string } : null;
+    } catch { return null; }
+  })();
+  const legacyRole = searchParams.get("role") as UserRole | null;
+  const alias = pendingJoin?.alias || searchParams.get("alias") || "Anónimo";
+  const adminToken = searchParams.get("adminToken") || getSessionItem(`battle_admin_${params.id}`) || undefined;
+  const requestedRole: UserRole | undefined = adminToken ? "admin" : searchParams.get("returnTo") === "tournament" ? legacyRole ?? undefined : pendingJoin?.role;
+  const inviteToken = pendingJoin?.inviteToken;
   const returnToParam = searchParams.get("returnTo");
   const tournamentIdParam = searchParams.get("tournamentId");
   const storedReturn = (() => {
     try {
-      const raw = sessionStorage.getItem(`battle_return_${params.id}`);
+      const raw = getSessionItem(`battle_return_${params.id}`);
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   })();
@@ -37,14 +56,21 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const tournamentId = tournamentIdParam || storedReturn?.tournamentId || undefined;
   const requestedUserId = searchParams.get("userId");
 
-  if (returnTo && tournamentId) {
-    sessionStorage.setItem(`battle_return_${params.id}`, JSON.stringify({ returnTo, tournamentId }));
-  }
+  useEffect(() => {
+    if (!returnTo || !tournamentId) return;
+    try {
+      window.sessionStorage.setItem(`battle_return_${params.id}`, JSON.stringify({ returnTo, tournamentId }));
+    } catch {}
+  }, [params.id, returnTo, tournamentId]);
 
   // FIX Bug 2: Stable userId that doesn't change between renders
-  const [userId] = useState(() => requestedUserId || `${role}-${alias}-${Date.now()}`);
-  const secondaryUserId = useMemo(() => (alsoAs ? `${alsoAs}-${alias}-secondary` : ""), [alsoAs, alias]);
-  const scoreboardUserId = role === "admin" && alsoAs === "participant" ? secondaryUserId : userId;
+  const [userId] = useState(() => requestedUserId || getSessionItem(`battle_user_${params.id}`) || crypto.randomUUID());
+  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
+  const currentUserId = authenticatedUserId ?? userId;
+
+  useEffect(() => {
+    sessionStorage.setItem(`battle_user_${params.id}`, userId);
+  }, [params.id, userId]);
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [battle, setBattle] = useState<Battle | null>(null);
@@ -62,6 +88,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const [lobbyConfig, setLobbyConfig] = useState<Partial<BattleModeConfig>>({});
   const [firstTurnId, setFirstTurnId] = useState<string | "random">("random");
   const [replicaConfig, setReplicaConfig] = useState<ReplicaConfig | null>(null);
+  const [invitationToken, setInvitationToken] = useState("");
   // Rubric scoring state for judges — persist across phases (FMS-style live scoring)
   const [mc1Scores, setMc1Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
   const [mc2Scores, setMc2Scores] = useState<ScoreRubric>({ flow: 5, lirica: 5, ingenio: 5, presencia: 5, tecnica: 5 });
@@ -72,27 +99,28 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const phaseTokenRef = useRef<string | undefined>(undefined);
   const joinSentRef = useRef(false);
   const timersRef = useRef<{ connect?: ReturnType<typeof setTimeout>; state?: ReturnType<typeof setTimeout> }>({});
-  const perfRef = useRef({ mount: performance.now(), connect: 0, join: 0, firstState: 0 });
+  const perfRef = useRef({ mount: now(), connect: 0, join: 0, firstState: 0 });
 
-  const isJudge = role === "judge" || (role === "admin" && alsoAs === "judge");
-  const isSpectator = role === "spectator";
-  const isAdmin = role === "admin";
+  const currentMember = battle?.members.find(member => member.userId === currentUserId);
+  const currentRoles = currentMember?.roles ?? (requestedRole ? [requestedRole] : []);
+  const isJudge = currentRoles.includes("judge");
+  const isAdmin = currentRoles.includes("admin");
   const isLobby = battle?.status === "lobby";
   const isInProgress = battle?.status === "in_progress" || battle?.status === "replica";
   const participants = battle?.participants || [];
   const mc1 = participants[0];
   const mc2 = participants[1];
+  const isActiveParticipant = participants.some(participant => participant.userId === currentUserId);
+  const canRoomVote = battle?.mode.votingSystem === "room_vote"
+    && Boolean(currentMember?.connected)
+    && currentRoles.length > 0
+    && !isActiveParticipant;
   const showScores = true;
-  const isHost = Boolean(battle?.hostId && [userId, secondaryUserId].includes(battle.hostId));
+  const isHost = currentRoles.includes("host") || battle?.hostId === currentUserId;
   const canControl = isAdmin || isHost;
-  const hostCandidates = [
-    ...participants.map(({ userId: id, alias: candidateAlias }) => ({ id, alias: candidateAlias })),
-    ...(battle?.judges ?? []),
-    ...(battle?.spectators ?? []),
-  ].filter((candidate, index, all) => all.findIndex(item => item.id === candidate.id) === index);
+  const hostCandidates = (battle?.members ?? []).map(member => ({ id: member.userId, alias: member.alias }));
   const pendingEntryKey = battle?.pendingEntry ? `${battle.currentRound}:${battle.pendingEntry.mcId}:${battle.pendingEntry.entryIndex}` : "";
-  const alsoAsLabel = alsoAs === "participant" ? "MC" : alsoAs === "judge" ? "Juez" : alsoAs === "spectator" ? "Público" : alsoAs === "host" ? "Host" : "";
-  const roleLabel = isAdmin ? (alsoAsLabel ? `Admin + ${alsoAsLabel}` : "Admin") : isJudge ? "Juez" : isSpectator ? "Público" : "MC";
+  const roleLabel = currentRoles.length === 0 ? "En espera" : currentRoles.map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : "Admin").join(" + ");
 
   useEffect(() => setEntryVoteSubmitted(false), [pendingEntryKey]);
 
@@ -107,13 +135,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     const emitJoin = () => {
       if (joinSentRef.current) return;
       joinSentRef.current = true;
-      perfRef.current.join = performance.now();
+      perfRef.current.join = now();
       setEntryPhase("joining");
 
-      s.emit("battle:join", { battleId: params.id, user: { id: userId, name: alias, alias, role }, adminToken });
-      if (role === "admin" && alsoAs && alsoAs !== "admin") {
-        s.emit("battle:join", { battleId: params.id, user: { id: secondaryUserId, name: alias, alias, role: alsoAs } });
-      }
+      s.emit("battle:join", { battleId: params.id, user: { id: userId, name: alias, alias, role: requestedRole }, adminToken, inviteToken });
 
       timersRef.current.state = setTimeout(() => {
         setEntryError("El servidor no respondió a tiempo. Verifica tu conexión.");
@@ -129,13 +154,13 @@ export default function BattlePage({ params }: { params: { id: string } }) {
     }, CONNECT_TIMEOUT_MS);
 
     s.on("connect", () => {
-      perfRef.current.connect = performance.now();
+      perfRef.current.connect = now();
       if (timersRef.current.connect) { clearTimeout(timersRef.current.connect); timersRef.current.connect = undefined; }
 
       const storedSessionId = localStorage.getItem(`battle_session_${params.id}`);
       if (storedSessionId) {
         joinSentRef.current = true;
-        perfRef.current.join = performance.now();
+        perfRef.current.join = now();
         setEntryPhase("joining");
         s.emit("battle:reconnect", { type: "battle:reconnect", battleId: params.id, sessionId: storedSessionId });
         timersRef.current.state = setTimeout(() => {
@@ -147,7 +172,18 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       }
     });
 
-    s.on("disconnect", () => {});
+    s.on("disconnect", (reason) => {
+      clearEntryTimers();
+      joinSentRef.current = false;
+      perfRef.current.firstState = 0;
+      if (reason === "io server disconnect") {
+        setEntryError("La sala se desconectó. Comprueba el servicio y vuelve a entrar.");
+        setEntryPhase("error");
+      } else {
+        setEntryError("");
+        setEntryPhase("connecting");
+      }
+    });
     s.on("connect_error", () => {
       if (!joinSentRef.current) {
         setEntryError("Error al conectar con el servidor.");
@@ -160,14 +196,23 @@ export default function BattlePage({ params }: { params: { id: string } }) {
         localStorage.removeItem(`battle_session_${params.id}`);
         joinSentRef.current = false;
         emitJoin();
+      } else if (!perfRef.current.firstState) {
+        clearEntryTimers();
+        setEntryError(data.message);
+        setEntryPhase("error");
       }
+    });
+
+    s.on("room:joined", (data: { userId: string }) => {
+      setAuthenticatedUserId(data.userId);
+      sessionStorage.setItem(`battle_user_${params.id}`, data.userId);
     });
 
     s.on("battle:state", (data: Battle) => {
       if (timersRef.current.state) { clearTimeout(timersRef.current.state); timersRef.current.state = undefined; }
+      setEntryPhase("connected");
       if (!perfRef.current.firstState) {
-        perfRef.current.firstState = performance.now();
-        setEntryPhase("connected");
+        perfRef.current.firstState = now();
         const mountToState = (perfRef.current.firstState - perfRef.current.mount).toFixed(0);
         const joinToState = (perfRef.current.firstState - perfRef.current.join).toFixed(0);
         console.log(`⏱️ Entrada a sala ${params.id}: ${mountToState}ms total · ${joinToState}ms desde join`);
@@ -176,6 +221,15 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       battleRef.current = data;
       setBattle(data);
       setPhase(data.roundPhase);
+      phaseTokenRef.current = data.phaseToken;
+      setCurrentWord(data.currentWord ?? null);
+      setActiveMcId(data.currentTurn);
+      setTimer(data.recovery ? data.timeRemaining : data.phaseDeadline ? Math.max(0, Math.ceil((Date.parse(data.phaseDeadline) - Date.now()) / 1000)) : data.timeRemaining);
+      if (data.recovery) setCountdown(null);
+      if (data.roundPhase === "round_result") {
+        const saved = data.roundResults.find(result => result.round === data.currentRound && (result.replica ?? 0) === data.replicaCount);
+        if (saved) setRoundResult({ winnerId: saved.winnerId, scores: saved.scores, rubricVotes: [] });
+      }
       if (data.status === "lobby") {
         setLobbyConfig(data.mode);
         setReplicaConfig(data.replicaConfig ?? null);
@@ -183,13 +237,17 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       }
 
       // FIX Bug 1: Use ref instead of stale closure for comparison
-      if (data.status === "in_progress" && data.roundPhase === "countdown" && prevBattle?.status !== "in_progress") {
+      if (!data.recovery && data.status === "in_progress" && data.roundPhase === "countdown" && prevBattle?.status !== "in_progress") {
         setCountdown(3);
       }
       });
 
     s.on("battle:session", (data: { sessionId: string }) => {
       localStorage.setItem(`battle_session_${params.id}`, data.sessionId);
+    });
+
+    s.on("battle:invitation", (data: { token: string }) => {
+      setInvitationToken(data.token);
     });
 
     s.on("battle:round_start", (data: { round: number; word: Word; totalRounds: number }) => {
@@ -217,7 +275,10 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       // Start visual countdown for pauses and new rounds
       // FIX Bug 7: Only start if we're not already counting down
       if (data.phase === "pause" || data.phase === "countdown") {
-        setCountdown(3);
+        const remaining = data.timeRemaining ?? 4;
+        setCountdown(remaining > 3 ? 3 : remaining > 2 ? 2 : remaining > 1 ? 1 : "go");
+      } else {
+        setCountdown(null);
       }
     });
 
@@ -227,11 +288,11 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
     setSocket(s);
     return () => { clearEntryTimers(); s.disconnect(); };
-  }, [params.id, role, alsoAs, alias, adminToken, userId, secondaryUserId]);
+  }, [params.id, requestedRole, alias, adminToken, inviteToken, userId]);
 
   // Countdown visual effect (purely visual — server drives the transitions)
   useEffect(() => {
-    if (countdown === null) return;
+    if (countdown === null || battle?.recovery) return;
     if (countdown === "go") {
       // Show "¡TIEMPO!" briefly then clear
       const t = setTimeout(() => setCountdown(null), 800);
@@ -243,12 +304,12 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       else if (countdown === 1) setCountdown("go");
     }, 1000);
     return () => clearTimeout(timeout);
-  }, [countdown]);
+  }, [countdown, battle?.recovery]);
 
   // FIX Bug 4 & 5: Timer is now purely visual (server drives auto-advance)
   // The client just decrements for display purposes, no auto-emit of next_phase
   useEffect(() => {
-    if (timer <= 0 || countdown !== null) return;
+    if (timer <= 0 || countdown !== null || battle?.recovery) return;
     const interval = setInterval(() => {
       setTimer((t) => {
         if (t <= 1) {
@@ -259,7 +320,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [timer, countdown]);
+  }, [timer, countdown, battle?.recovery]);
 
   const handleConfigChange = (config: Partial<BattleModeConfig>) => {
     const merged = { ...(battle?.mode ?? {}), ...config };
@@ -280,6 +341,11 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const handleStart = () => socket?.emit("battle:start", { type: "battle:start" });
   const handleHostChange = (targetUserId: string) => socket?.emit("battle:set_host", { type: "battle:set_host", targetUserId });
   const handleChangeRole = (targetUserId: string, newRole: UserRole) => socket?.emit("battle:change_role", { type: "battle:change_role", targetUserId, newRole });
+  const handleRevokeRole = (targetUserId: string, role: UserRole) => socket?.emit("battle:revoke_role", { type: "battle:revoke_role", targetUserId, role });
+  const handleGrantAdmin = (targetUserId: string) => socket?.emit("battle:grant_admin", { type: "battle:grant_admin", targetUserId });
+  const handleTransferAdmin = (targetUserId: string) => socket?.emit("battle:transfer_admin", { type: "battle:transfer_admin", targetUserId });
+  const handleRevokeAdmin = (targetUserId: string) => socket?.emit("battle:revoke_admin", { type: "battle:revoke_admin", targetUserId });
+  const handleCreateInvitation = (regenerate: boolean) => socket?.emit("battle:create_invitation", { type: "battle:create_invitation", regenerate });
   const handleCompleteEntry = () => socket?.emit("battle:complete_entry", { type: "battle:complete_entry" });
   const handleEntryVote = (points: number) => {
     socket?.emit("judge:vote_entry", { type: "judge:vote_entry", battleId: params.id, points });
@@ -388,23 +454,43 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           roleLabel={roleLabel}
           isAdmin={isAdmin}
           canControl={canControl}
-          currentUserId={scoreboardUserId}
+          currentUserId={currentUserId}
           hostCandidates={hostCandidates}
           firstTurnId={firstTurnId}
           lobbyConfig={lobbyConfig}
           replicaConfig={replicaConfig}
-          adminToken={adminToken}
+          invitationToken={invitationToken}
           onConfigChange={handleConfigChange}
           onFirstTurnChange={handleFirstTurnChange}
           onHostChange={handleHostChange}
           onReplicaToggle={handleReplicaToggle}
           onStart={handleStart}
           onChangeRole={handleChangeRole}
+          onRevokeRole={handleRevokeRole}
+          onGrantAdmin={handleGrantAdmin}
+          onTransferAdmin={handleTransferAdmin}
+          onRevokeAdmin={handleRevokeAdmin}
+          onCreateInvitation={handleCreateInvitation}
         />
       )}
 
       {/* IN PROGRESS */}
-      {isInProgress && (
+      {isInProgress && battle?.recovery && (
+        <section className="mx-auto max-w-2xl space-y-4 border border-yellow-400/30 bg-yellow-400/5 p-6" aria-label="Recuperación de batalla">
+          <h2 className="font-battle text-3xl font-black uppercase">Batalla recuperada · En pausa</h2>
+          <p className="text-white/70">Se conservaron la fase, los votos y los resultados. El organizador debe confirmar la reanudación.</p>
+          <p className="text-sm text-white/60">Ronda {battle.currentRound} · Réplica {battle.replicaCount} · Fase: {battle.roundPhase}</p>
+          <ul className="space-y-1 text-sm">{battle.members.filter(member => member.roles.length > 0).map(member => <li key={member.userId}>{member.alias} · {member.connected ? "Conectado" : "Esperando reconexión"}</li>)}</ul>
+          {battle.recovery.issue ? <p role="alert" className="text-yellow-300">{battle.recovery.issue}</p> : <>
+            <p className="text-sm text-white/60">{battle.phaseDeadline ? `Plazo guardado: ${new Date(battle.phaseDeadline).toLocaleTimeString()}. Si ya venció, reinicia el reloj para continuar.` : "Esta fase no tiene reloj o procede de una partida sin plazo guardado."} Deben volver los MC, los jueces y los votantes del padrón.</p>
+            {canControl ? <div className="flex flex-wrap gap-3">
+              <button className="bg-red-600 px-5 py-3 font-bold" onClick={() => socket?.emit("battle:resume", { action: "continue" })}>Reanudar con el plazo guardado</button>
+              <button className="border border-white/30 px-5 py-3 font-bold" onClick={() => socket?.emit("battle:resume", { action: "restart_clock" })}>Reiniciar reloj de esta fase</button>
+            </div> : <p className="text-sm text-yellow-300">Esperando al organizador.</p>}
+          </>}
+        </section>
+      )}
+      {isInProgress && !battle?.recovery && (
         <div className="space-y-4">
           {/* COUNTDOWN OVERLAY */}
           {countdown !== null && (
@@ -473,7 +559,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <ScoreBoard participants={participants} currentTurn={activeMcId} userId={scoreboardUserId} showScores={showScores} />
+              <ScoreBoard participants={participants} currentTurn={activeMcId} userId={currentUserId} showScores={showScores} />
             </div>
 
             {/* SIDEBAR */}
@@ -579,8 +665,36 @@ export default function BattlePage({ params }: { params: { id: string } }) {
                 </div>
               )}
 
+              {canRoomVote && phase === "voting" && !judgeVoted && mc1 && mc2 && (
+                <div className="border border-red-500/30 p-4 space-y-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-red-400">Voto de sala</p>
+                  <p className="text-xs text-white/40">Elige quién ganó. Los MC activos no participan de esta votación.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[mc1, mc2].map(participant => (
+                      <button
+                        key={participant.userId}
+                        onClick={() => {
+                          socket?.emit("room:vote", { type: "room:vote", battleId: params.id, votedForId: participant.userId });
+                          setJudgeVoted(true);
+                        }}
+                        className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                      >
+                        {participant.alias}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {canRoomVote && judgeVoted && phase === "voting" && (
+                <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
+                  <p className="text-xs font-semibold tracking-[0.25em] uppercase text-green-400">Voto enviado</p>
+                  <p className="text-xs text-white/20 mt-1">Esperando al resto de la sala...</p>
+                </div>
+              )}
+
               {/* Judge already voted */}
-              {isJudge && judgeVoted && phase === "voting" && (
+              {isJudge && battle?.mode.votingSystem !== "room_vote" && judgeVoted && phase === "voting" && (
                 <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
                   <p className="text-xs font-semibold tracking-[0.25em] uppercase text-green-400">Puntuaciones enviadas</p>
                   <p className="text-xs text-white/20 mt-1">Esperando a los demás jueces...</p>

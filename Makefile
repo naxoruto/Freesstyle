@@ -4,9 +4,9 @@
 .DEFAULT_GOAL := help
 
 # ─── Droplet config (for deploy) ─────────────────────────────
-DROPLET_USER := root
-DROPLET_IP   := 159.203.188.143
-DROPLET_DIR  := /app/freestyle
+DROPLET_USER ?= root
+DROPLET_IP   ?=
+DROPLET_DIR  ?= /app/freestyle
 
 # ─── Colors for output ────────────────────────────────────────
 GREEN  := \033[0;32m
@@ -22,7 +22,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-18s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Usage examples:$(NC)"
-	@echo "  make up          → Start dev environment (DB + Redis)"
+	@echo "  make up          → Start dev environment (DB)"
 	@echo "  make up-prod     → Start full production stack"
 	@echo "  make down        → Stop dev environment"
 	@echo "  make down-prod   → Stop production stack"
@@ -31,7 +31,7 @@ help: ## Show this help
 	@echo "  make status      → Show running containers"
 
 # ─── Development environment ──────────────────────────────────
-up: ## Start dev containers (DB + Redis) in background
+up: ## Start dev containers (DB) in background
 	@echo "$(GREEN)▶ Starting dev environment...$(NC)"
 	docker compose -f docker-compose.yml up -d
 	@echo "$(GREEN)✔ Dev environment ready.$(NC)"
@@ -53,14 +53,8 @@ logs-dev: ## Tail logs for all dev services
 logs-db: ## Tail PostgreSQL logs
 	docker logs -f freestyle-db
 
-logs-redis: ## Tail Redis logs
-	docker logs -f freestyle-redis
-
 shell-db: ## Open psql shell in the dev database
 	docker exec -it freestyle-db psql -U freestyle
-
-shell-redis: ## Open redis-cli in the dev Redis container
-	docker exec -it freestyle-redis redis-cli
 
 # ─── Production environment ───────────────────────────────────
 up-prod: ## Start full production stack (rebuilds images)
@@ -111,11 +105,12 @@ clean: down down-prod ## Stop all containers and remove volumes (⚠️ destroys
 
 # ─── Deploy to Droplet ────────────────────────────────────────
 deploy: ## Push to GitHub + update droplet (git pull + rebuild)
+	@test -n "$(DROPLET_IP)" || (echo "$(YELLOW)Define DROPLET_IP: DROPLET_IP=1.2.3.4 make deploy$(NC)" && exit 1)
 	@echo "$(GREEN)▶ Pushing to GitHub...$(NC)"
 	git push origin main
 	@echo "$(GREEN)▶ Updating droplet ($(DROPLET_USER)@$(DROPLET_IP))...$(NC)"
 	ssh $(DROPLET_USER)@$(DROPLET_IP) \
-		'cd $(DROPLET_DIR) && git checkout -- nginx.conf && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build && docker restart freestyle-nginx'
+		'cd $(DROPLET_DIR) && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build && docker restart freestyle-nginx'
 	@echo "$(GREEN)✔ Deploy complete!$(NC)"
 	@echo "$(CYAN)🌐 http://$(DROPLET_IP)$(NC)"
 

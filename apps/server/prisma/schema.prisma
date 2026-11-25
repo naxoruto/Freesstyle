@@ -438,6 +438,8 @@ model LiveBattle {
   roundPhase        String   @default("countdown") @map("round_phase")
   currentTurn       String   @default("") @map("current_turn")
   currentWord       Json?    @map("current_word")
+  pendingEntry      Json?    @map("pending_entry")
+  participantOrder  String[] @default([]) @map("participant_order")
   timeRemaining     Int      @default(0) @map("time_remaining")
   entriesRemaining  Json     @default("{}") @map("entries_remaining")
   totalScores       Json     @default("{}") @map("total_scores")
@@ -447,6 +449,7 @@ model LiveBattle {
   hostId            String?  @map("host_id")
   adminIds          String[] @default([]) @map("admin_ids")
   phaseToken        String?  @map("phase_token")
+  phaseDeadline     DateTime? @map("phase_deadline")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -457,8 +460,68 @@ model LiveBattle {
   entryVotes    LiveBattlePatronEntryVote[]
   extraVotes    LiveBattlePatronExtraVote[]
   roundResults  LiveBattleRoundResult[]
+  sessions      LiveBattleSession[]
+  freeVotes     LiveBattleFreeVote[]
+  roomVotes     LiveBattleRoomVote[]
+  votingRosters LiveBattleVotingRoster[]
 
   @@map("live_battles")
+}
+
+model LiveBattleFreeVote {
+  roomId     String @map("room_id")
+  room       LiveBattle @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  replica    Int
+  round      Int
+  judgeId    String @map("judge_id")
+  judgeName  String @map("judge_name")
+  mc1Id      String @map("mc1_id")
+  mc2Id      String @map("mc2_id")
+  votedForId String @map("voted_for_id")
+
+  @@id([roomId, replica, round, judgeId])
+  @@map("live_battle_free_votes")
+}
+
+model LiveBattleRoomVote {
+  roomId     String @map("room_id")
+  room       LiveBattle @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  replica    Int
+  round      Int
+  voterId    String @map("voter_id")
+  voterName  String @map("voter_name")
+  mc1Id      String @map("mc1_id")
+  mc2Id      String @map("mc2_id")
+  votedForId String @map("voted_for_id")
+
+  @@id([roomId, replica, round, voterId])
+  @@map("live_battle_room_votes")
+}
+
+model LiveBattleVotingRoster {
+  roomId   String @map("room_id")
+  room     LiveBattle @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  replica  Int
+  round    Int
+  voterIds String[] @map("voter_ids")
+
+  @@id([roomId, replica, round])
+  @@map("live_battle_voting_rosters")
+}
+
+model LiveBattleSession {
+  roomId    String     @map("room_id")
+  room      LiveBattle @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tokenHash String     @map("token_hash")
+  userId    String     @map("user_id")
+  alias     String
+  roles     String[]   @default([])
+  expiresAt DateTime   @map("expires_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@id([roomId, tokenHash])
+  @@index([expiresAt])
+  @@map("live_battle_sessions")
 }
 
 model LiveBattleParticipant {
@@ -511,13 +574,14 @@ model LiveBattleRubricVote {
   judgeId   String    @map("judge_id")
   judgeName String    @map("judge_name")
   round     Int
+  replica   Int       @default(0)
   mc1Id     String    @map("mc1_id")
   mc2Id     String    @map("mc2_id")
   mc1Scores Json      @map("mc1_scores")
   mc2Scores Json      @map("mc2_scores")
   createdAt DateTime  @default(now()) @map("created_at")
 
-  @@unique([roomId, round, judgeId])
+  @@unique([roomId, replica, round, judgeId], map: "live_battle_rubric_scope_key")
   @@index([roomId, round])
   @@map("live_battle_rubric_votes")
 }
@@ -529,11 +593,13 @@ model LiveBattlePatronEntryVote {
   judgeId    String    @map("judge_id")
   judgeName  String    @map("judge_name")
   round      Int
+  replica    Int       @default(0)
   entryIndex Int       @map("entry_index")
   mcId       String    @map("mc_id")
   points     Int
   createdAt  DateTime  @default(now()) @map("created_at")
 
+  @@unique([roomId, replica, round, mcId, entryIndex, judgeId], map: "live_battle_entry_scope_key")
   @@index([roomId, round, mcId, entryIndex])
   @@map("live_battle_patron_entry_votes")
 }
@@ -545,13 +611,14 @@ model LiveBattlePatronExtraVote {
   judgeId   String    @map("judge_id")
   judgeName String    @map("judge_name")
   round     Int
+  replica   Int       @default(0)
   mc1Id     String    @map("mc1_id")
   mc2Id     String    @map("mc2_id")
   mc1Extra  Int       @map("mc1_extra")
   mc2Extra  Int       @map("mc2_extra")
   createdAt DateTime  @default(now()) @map("created_at")
 
-  @@unique([roomId, round, judgeId])
+  @@unique([roomId, replica, round, judgeId], map: "live_battle_extra_scope_key")
   @@index([roomId, round])
   @@map("live_battle_patron_extra_votes")
 }
@@ -561,12 +628,13 @@ model LiveBattleRoundResult {
   roomId     String    @map("room_id")
   room       LiveBattle @relation(fields: [roomId], references: [id], onDelete: Cascade)
   round      Int
+  replica    Int       @default(0)
   winnerId   String?   @map("winner_id")
   scores     Json
   judgeVotes Json      @map("judge_votes")
   createdAt  DateTime  @default(now()) @map("created_at")
 
-  @@unique([roomId, round])
+  @@unique([roomId, replica, round], map: "live_battle_result_scope_key")
   @@index([roomId])
   @@map("live_battle_round_results")
 }
