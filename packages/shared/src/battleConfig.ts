@@ -261,3 +261,35 @@ export function createDefaultConfig(mode: BattleMode, format: BattleFormat = "1x
 export function isManualFormat(format: BattleFormat): boolean {
   return FORMAT_DEFAULTS[format].timerMode === "manual";
 }
+
+// --- Presets ---
+
+export type BattlePresetId = "rapida" | "variado" | "por_entradas";
+
+export interface BattlePreset {
+  id: BattlePresetId;
+  name: string;
+  summary: string;
+  config: BattleModeConfig;
+}
+
+export const BATTLE_PRESETS: Record<BattlePresetId, BattlePreset> = {
+  rapida: {
+    id: "rapida",
+    name: "Rápida",
+    summary: "1 ronda · 1 min por MC · se vota al ganador",
+    config: normalizeConfig({ rounds: 1, timePerTurn: 60, votingSystem: "free_vote" }, "libre"),
+  },
+  variado: {
+    id: "variado",
+    name: "Variado",
+    summary: "3 rondas · alterna libre y con concepto · rúbrica",
+    config: normalizeConfig({ rounds: 3, timePerTurn: 60, votingSystem: "rubrica" }, "variado"),
+  },
+  por_entradas: {
+    id: "por_entradas",
+    name: "Por entradas",
+    summary: "4x4 · 4 entradas por MC · se puntúa cada entrada",
+    config: normalizeConfig({ format: "4x4", rounds: 2, votingSystem: "patron" }, "clasico"),
+  },
+};

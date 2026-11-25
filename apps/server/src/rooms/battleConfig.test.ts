@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BattleModeConfig } from "@freestyle/shared";
 import {
+  BATTLE_PRESETS,
   FORMAT_DEFAULTS,
   VOTING_COMPATIBILITY,
   VOTING_METHODS,
@@ -149,7 +150,7 @@ describe("validateConfig", () => {
   });
 
   it("accepts the variado mode", () => {
-    const config = { ...validConfig(), mode: "variado" };
+    const config: BattleModeConfig = { ...validConfig(), mode: "variado" };
     expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
   });
 
@@ -209,5 +210,28 @@ describe("isManualFormat", () => {
   it("returns true for 4x4 and 8x8", () => {
     expect(isManualFormat("4x4")).toBe(true);
     expect(isManualFormat("8x8")).toBe(true);
+  });
+});
+
+describe("BATTLE_PRESETS", () => {
+  it("defines three valid presets", () => {
+    const ids = Object.keys(BATTLE_PRESETS) as (keyof typeof BATTLE_PRESETS)[];
+    expect(ids).toHaveLength(3);
+    for (const id of ids) {
+      expect(validateConfig(BATTLE_PRESETS[id].config)).toEqual({ valid: true, errors: [] });
+    }
+  });
+
+  it("variado alterna libre y concepto", () => {
+    expect(BATTLE_PRESETS.variado.summary).toContain("alterna libre y con concepto");
+    expect(BATTLE_PRESETS.variado.config.mode).toBe("variado");
+  });
+
+  it("rapida es una ronda libre con voto libre", () => {
+    expect(BATTLE_PRESETS.rapida.config).toMatchObject({ mode: "libre", rounds: 1, votingSystem: "free_vote" });
+  });
+
+  it("por_entradas es 4x4 manual con patrón", () => {
+    expect(BATTLE_PRESETS.por_entradas.config).toMatchObject({ mode: "clasico", format: "4x4", timerMode: "manual", votingSystem: "patron" });
   });
 });
