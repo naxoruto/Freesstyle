@@ -74,5 +74,6 @@ La recuperación de batallas no implica recuperar el torneo al que pertenecen. T
 | DEC-018 | Perfil y cuentas: Google o correo, foto, nombre/AKA/crew, nivel general y estadísticas por rol | Confirmado el 25 de noviembre de 2026; detalle en Fase 4 |
 | DEC-019 | Experiencia transversal: modo pantalla, estados vacíos, presencia en vivo, avisos sonoros, compartir cartel, accesibilidad y landing | Confirmado el 25 de noviembre de 2026; detalle en el track técnico |
 | DEC-020 | Plan de trabajo consolidado en [Plan de trabajo](../PLAN_DE_TRABAJO.md); es el plan único y no compite con este registro | Confirmado el 25 de noviembre de 2026 |
+| DEC-021 | Torneo: recorrido guiado «crear → inscribir y confirmar → sortear e iniciar»; reglas fijadas antes de compartir y editables hasta iniciar; el organizador puede mover o quitar inscritos; quien se inscribe ve su estado y reglas vigentes; la inscripción pública se cierra al confirmar titulares | Confirmado el 25 de noviembre de 2026; detalle en [especificación de torneo](specs/torneo.md). Pendiente de implementar |
 
 Al aprobar una decisión nueva, registrarla aquí y desarrollar sus reglas en el documento de producto correspondiente. No abrir otro plan global que compita con este registro; el [Plan de trabajo](../PLAN_DE_TRABAJO.md) lo complementa y no lo sustituye.

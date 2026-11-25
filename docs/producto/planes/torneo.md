@@ -2,7 +2,7 @@
 
 > **For agentic workers:** implementar tarea por tarea, en orden. Cada tarea termina con commit + push (regla de `AGENTS.md`).
 
-**Goal:** Torneo recuperable y claro: identidad, inscripción por enlace/manual, sorteo con auditoría, cuadro en vivo y repesca por suplentes.
+**Goal:** Torneo recuperable y claro: creación con reglas, inscripción guiada por enlace/manual, confirmación de titulares, sorteo con auditoría, cuadro en vivo y repesca por suplentes.
 
 **Architecture:** Next.js (web) + Express/Socket.IO (server) + `@freestyle/shared` (contratos) + Prisma (persistencia del torneo). Se replica el patrón de persistencia ya usado en las batallas.
 
@@ -37,9 +37,9 @@ El plan asumía que la autoinscripción por enlace/código ya estaba soportada. 
 
 - `POST /api/tournaments/:id/join` sin token de admin (valida torneo en `setup`, cupo de titulares y pasa el excedente a suplentes).
 - Una página pública de inscripción (equivalente a `unirse_batalla`), que muestre el nombre y el organizador del torneo.
-- Decidir si la inscripción requiere nombre obligatorio y cuenta opcional (regla común de DEC-004).
+- Presentar la inscripción con nombre de invitado o cuenta, según DEC-004 y DEC-021, y mostrar el estado provisional y las reglas vigentes.
 
-Hasta entonces, el formulario de T9 permite dejar el campo de participantes vacío, pero ese torneo no puede llenarse desde la web. Por eso T10 se limita a mostrar el código/enlace de administración y a cargar participantes a mano.
+Hasta T10b, el formulario de T9 permite dejar el campo de participantes vacío, pero ese torneo no puede llenarse mediante un enlace público. T10 incorpora la inscripción guiada y los controles del organizador; el enlace de autoinscripción solo se comparte cuando T10b funcione.
 
 ## Global Constraints
 
@@ -156,13 +156,13 @@ T9 (form) → T10 (inscripción UI) → T10b (autoinscripción) → T11 (sorteo 
 
 ## T10 — Inscripción (web) ⏳
 
-**Files:** `apps/web/src/app/tournament/page.tsx`
+**Files:** `apps/web/src/app/tournament/page.tsx`, `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`
 
-**Interfaces:** enlace de invitación (solo si T10b existe) + agregar a mano + confirmar titulares/suplentes (A13) + visor de auditoría básico.
+**Interfaces:** etapa de inscripción guiada tras crear; reglas de batalla definidas antes de compartir y editables hasta iniciar; agregar a mano, mover y quitar inscritos; confirmar titulares y cerrar inscripción pública (DEC-021). El enlace de invitación funciona cuando T10b esté implementada.
 
-- [ ] **Paso 1 — Implementar**: mostrar código/enlace del torneo, alta manual con el endpoint existente y lista separada de titulares y suplentes.
-- [ ] **Paso 2 — Verificar**: typecheck + manual.
-- [ ] **Paso 3 — Commit**: `feat(web): inscripción manual y código de torneo`.
+- [ ] **Paso 1 — Implementar**: configuración de reglas antes de crear, alta manual con el endpoint existente, lista separada de titulares y suplentes, y controles de mover/quitar participantes. Añadir los endpoints y estados que falten para confirmar titulares y conservar el cierre de inscripción pública.
+- [ ] **Paso 2 — Verificar**: pruebas del servidor para mover/quitar, confirmar y cerrar la inscripción pública; typecheck web y recorrido manual.
+- [ ] **Paso 3 — Commit**: `feat(torneo): inscripción guiada y confirmación de titulares`.
 
 > Nota: el enlace público de inscripción depende de T10b.
 
@@ -170,9 +170,9 @@ T9 (form) → T10 (inscripción UI) → T10b (autoinscripción) → T11 (sorteo 
 
 **Files:** `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`, `apps/web/src/app/tournament/join/page.tsx` (nuevo)
 
-**Interfaces:** `POST /api/tournaments/:id/join` sin token de admin; página pública que muestra nombre/organizador y confirma la inscripción.
+**Interfaces:** `POST /api/tournaments/:id/join` sin token de admin; página pública que muestra nombre/organizador y reglas vigentes, confirma la inscripción y muestra el estado provisional del inscrito. Tras confirmar titulares, no admite nuevas inscripciones públicas (DEC-021).
 
-- [ ] **Paso 1 — Test que falla**: inscribir por enlace respeta `setup`, capacidad y suplentes; rechaza torneos iniciados.
+- [ ] **Paso 1 — Test que falla**: inscribir por enlace respeta `setup`, capacidad y suplentes; rechaza torneos con inscripción cerrada o ya iniciados; la consulta muestra las reglas vigentes y el estado del inscrito.
 - [ ] **Paso 2 — Implementar** endpoint + página.
 - [ ] **Paso 3 — Ejecutar** → PASS y typecheck.
 - [ ] **Paso 4 — Commit**: `feat: autoinscripción de torneo por enlace`.
