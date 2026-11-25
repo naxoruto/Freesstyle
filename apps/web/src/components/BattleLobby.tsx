@@ -60,12 +60,19 @@ export function BattleLobby({
   const participants: Participant[] = battle.participants;
   const missingParticipants = Math.max(0, 2 - participants.length);
   const exhibition = lobbyConfig.exhibition ?? false;
-  const validJudgeCount = [1, 3, 5].includes(battle.judges.length);
-  const missingJudges = validJudgeCount ? 0 : 1;
+  const judgeCount = battle.judges.length;
+  const validJudgeCount = [1, 3, 5].includes(judgeCount);
   const canStart = missingParticipants === 0 && (exhibition || validJudgeCount);
+  const judgeHint = (() => {
+    if (exhibition) return "";
+    if (judgeCount === 0) return "1, 3 o 5 jueces";
+    if (judgeCount === 2 || judgeCount === 4) return "sobra 1 o falta 1 juez";
+    if (judgeCount > 5) return `sobran ${judgeCount - 5} jueces`;
+    return "";
+  })();
   const missing = [
     missingParticipants ? `${missingParticipants} MC${missingParticipants > 1 ? "s" : ""}` : "",
-    !exhibition && missingJudges ? `${missingJudges} juez` : "",
+    judgeHint,
   ].filter(Boolean).join(" y ");
 
   const inviteLink = invitationToken && typeof window !== "undefined" ? `${window.location.origin}/unirse_batalla/${roomId}?invite=${invitationToken}` : "";
@@ -118,9 +125,9 @@ export function BattleLobby({
 
           <div className="lobby-crew">
             <div>
-              <span className="lobby-kicker">Mesa de jueces · {battle.judges.length}/5</span>
+              <span className="lobby-kicker">{exhibition ? "Exhibición" : `Mesa de jueces · ${battle.judges.length}/5`}</span>
               <div className="lobby-tags">
-                {battle.judges.length ? battle.judges.map(judge => <span key={judge.id}>{judge.alias}</span>) : <span className="lobby-tag-empty">Falta un juez</span>}
+                {exhibition ? <span className="lobby-tag-empty">Sin jueces ni puntaje</span> : battle.judges.length ? battle.judges.map(judge => <span key={judge.id}>{judge.alias}</span>) : <span className="lobby-tag-empty">Falta un juez</span>}
               </div>
             </div>
             <div className="lobby-audience"><strong>{battle.spectators.length}</strong><span>en el público</span></div>
@@ -148,7 +155,7 @@ export function BattleLobby({
             <dl className="lobby-rules">
               <div><dt>Extensión</dt><dd>{battle.mode.rounds} {battle.mode.rounds === 1 ? "ronda" : "rondas"}</dd></div>
               <div><dt>Turnos</dt><dd>{battle.mode.timerMode === "manual" ? `${battle.mode.entriesPerParticipant} entradas` : `${battle.mode.timePerTurn / 60} min · ${battle.mode.turnStructure === "round_trip" ? "ida y vuelta" : "solo ida"}`}</dd></div>
-              <div><dt>Votación</dt><dd>{battle.mode.votingSystem === "patron" ? "Por patrón" : "Por rúbrica"}</dd></div>
+              <div><dt>Votación</dt><dd>{exhibition ? "Sin jueces (exhibición)" : battle.mode.votingSystem === "patron" ? "Por patrón" : "Por rúbrica"}</dd></div>
               <div><dt>Conceptos</dt><dd>{battle.mode.mode === "libre" ? "Tema libre" : battle.mode.category ?? "Aleatorios"}</dd></div>
             </dl>
 
