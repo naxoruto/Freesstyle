@@ -28,7 +28,7 @@ export function ScoreBoard({ participants, currentTurn, userId, showScores = tru
       <div className="grid border border-white/5" style={{ gridTemplateColumns: "1fr 64px 1fr" }}>
         {/* MC1 */}
         <div
-          className="p-5 transition-all"
+          className="p-5 transition-all min-w-0"
           style={{
             background: mc1Active ? "rgba(227,6,19,0.08)" : "transparent",
             borderBottom: mc1Active ? "2px solid #e30613" : "2px solid transparent",
@@ -36,7 +36,7 @@ export function ScoreBoard({ participants, currentTurn, userId, showScores = tru
           }}
         >
           <div
-            className="font-battle font-black italic uppercase leading-none"
+            className="font-battle font-black italic uppercase leading-none truncate"
             style={{ fontSize: 36, color: mc1Active ? "white" : "rgba(255,255,255,0.7)" }}
           >
             {mc1.alias}
@@ -73,7 +73,7 @@ export function ScoreBoard({ participants, currentTurn, userId, showScores = tru
 
         {/* MC2 */}
         <div
-          className="p-5 text-right transition-all"
+          className="p-5 text-right transition-all min-w-0"
           style={{
             background: mc2Active ? "rgba(227,6,19,0.08)" : "transparent",
             borderBottom: mc2Active ? "2px solid #e30613" : "2px solid transparent",
@@ -81,7 +81,7 @@ export function ScoreBoard({ participants, currentTurn, userId, showScores = tru
           }}
         >
           <div
-            className="font-battle font-black italic uppercase leading-none"
+            className="font-battle font-black italic uppercase leading-none truncate"
             style={{ fontSize: 36, color: mc2Active ? "white" : "rgba(255,255,255,0.7)" }}
           >
             {mc2.alias}
