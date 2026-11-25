@@ -13,6 +13,7 @@ export const MODE_DEFAULTS: Record<BattleMode, BattleModeConfig> = {
     votingSystem: "rubrica",
     turnStructure: "one_way",
     liveControlEnabled: true,
+    exhibition: false,
   },
   libre: {
     mode: "libre",
@@ -26,6 +27,7 @@ export const MODE_DEFAULTS: Record<BattleMode, BattleModeConfig> = {
     votingSystem: "rubrica",
     turnStructure: "one_way",
     liveControlEnabled: true,
+    exhibition: false,
   },
   variado: {
     mode: "variado",
@@ -39,6 +41,7 @@ export const MODE_DEFAULTS: Record<BattleMode, BattleModeConfig> = {
     votingSystem: "rubrica",
     turnStructure: "one_way",
     liveControlEnabled: true,
+    exhibition: false,
   },
 };
 

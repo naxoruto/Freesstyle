@@ -243,6 +243,7 @@ export function normalizeConfig(
     votingSystem: partial.votingSystem ?? "rubrica",
     turnStructure: partial.turnStructure ?? fmt.turnStructure,
     liveControlEnabled: partial.liveControlEnabled ?? true,
+    exhibition: partial.exhibition ?? false,
     category: partial.category,
     firstTurnParticipantId: partial.firstTurnParticipantId,
   };

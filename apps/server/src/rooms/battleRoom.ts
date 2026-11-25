@@ -510,12 +510,14 @@ export class BattleRoomManager {
     if (battle.status !== "lobby") return { error: "La batalla ya se ha iniciado" };
     if (!this.isAdmin(socketId, battle)) return { error: "Solo el admin puede iniciar la batalla" };
     if (battle.participants.length < 2) return { error: "Se necesitan al menos 2 participantes" };
-    if (battle.mode.votingSystem === "room_vote") {
-      const participantIds = new Set(battle.participants.map(participant => participant.userId));
-      const hasEligibleVoter = battle.members.some(member => member.connected && member.roles.length > 0 && !participantIds.has(member.userId));
-      if (!hasEligibleVoter) return { error: "El voto de sala necesita al menos un miembro conectado que no esté batallando" };
-    } else if (!VALID_JUDGE_COUNTS.has(battle.judges.length)) {
-      return { error: "La mesa debe tener 1, 3 o 5 jueces" };
+    if (!battle.mode.exhibition) {
+      if (battle.mode.votingSystem === "room_vote") {
+        const participantIds = new Set(battle.participants.map(participant => participant.userId));
+        const hasEligibleVoter = battle.members.some(member => member.connected && member.roles.length > 0 && !participantIds.has(member.userId));
+        if (!hasEligibleVoter) return { error: "El voto de sala necesita al menos un miembro conectado que no esté batallando" };
+      } else if (!VALID_JUDGE_COUNTS.has(battle.judges.length)) {
+        return { error: "La mesa debe tener 1, 3 o 5 jueces" };
+      }
     }
 
     const adminCount = this.battleAdmins.get(battle.id)?.size ?? 0;
@@ -708,6 +710,11 @@ export class BattleRoomManager {
       case "mc2_turn": {
         const sequence = this.getTurnSequence(battle);
         if (battle.turnSequenceIndex >= sequence.length - 1) {
+          if (battle.mode.exhibition) {
+            battle.roundPhase = "round_result";
+            battle.currentTurn = "";
+            return { battle, phase: "round_result", phaseToken: newToken };
+          }
           battle.roundPhase = "voting";
           battle.currentTurn = "";
           if (battle.mode.votingSystem === "room_vote") this.lockRoomVotingRoster(battle);

@@ -44,6 +44,8 @@ export interface BattleModeConfig {
   votingSystem: VotingSystem;
   turnStructure: "one_way" | "round_trip";
   liveControlEnabled: boolean;
+  /** Modalidad exhibición: sin jueces ni puntaje; termina sin ganador. */
+  exhibition: boolean;
 }
 
 export type RoundPhase = "countdown" | "mc1_turn" | "pause" | "mc2_turn" | "entry_voting" | "voting" | "round_result";

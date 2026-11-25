@@ -5,7 +5,7 @@ const optionalText = (value: unknown) => value === undefined || text(value);
 const integer = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value);
 const rubric = (value: unknown) => plain(value) && ["flow", "lirica", "ingenio", "presencia", "tecnica"].every(key => integer(value[key]) && Number(value[key]) >= 0 && Number(value[key]) <= 10);
 const mode = (value: unknown) => plain(value)
-  && ["clasico", "libre"].includes(String(value.mode))
+  && ["clasico", "libre", "variado"].includes(String(value.mode))
   && ["1x1", "4x4", "8x8"].includes(String(value.format))
   && ["countdown", "manual"].includes(String(value.timerMode))
   && ["one_way", "round_trip"].includes(String(value.turnStructure))
@@ -13,6 +13,7 @@ const mode = (value: unknown) => plain(value)
   && ["facil", "medio", "dificil"].includes(String(value.difficulty))
   && integer(value.rounds) && integer(value.timePerTurn) && integer(value.entriesPerParticipant)
   && typeof value.liveControlEnabled === "boolean" && typeof value.showScoresToSpectators === "boolean"
+  && (value.exhibition === undefined || typeof value.exhibition === "boolean")
   && optionalText(value.firstTurnParticipantId);
 
 export function isSocketPayloadValid(event: string, payload: unknown): boolean {

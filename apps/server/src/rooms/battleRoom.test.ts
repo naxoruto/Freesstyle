@@ -388,6 +388,22 @@ describe("BattleRoomManager", () => {
     expect(battle.currentWord).toBeDefined();
   });
 
+  it("inicia y avanza una exhibición sin jueces (salta la votación)", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ mode: "clasico", rounds: 1, timePerTurn: 60, exhibition: true });
+    join(manager, battle.id, "socket-admin", "admin1", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+
+    expect(manager.startBattle("socket-admin")).toHaveProperty("battle");
+
+    expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "mc1_turn" });
+    expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "pause" });
+    expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "mc2_turn" });
+    expect(manager.nextPhase(battle.id)).toMatchObject({ phase: "round_result" });
+    expect(manager.nextPhase(battle.id)).toMatchObject({ battle: { status: "finished" } });
+  });
+
   it("persists a resolved round and its final battle state in one operation", () => {
     const { manager, battle } = setupBattle();
     manager.startBattle("socket-admin");
