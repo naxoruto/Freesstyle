@@ -28,17 +28,19 @@ describe("TournamentPersistence", () => {
     await prisma.tournament.deleteMany({ where: { id: { in: ids } } });
   });
 
-  it("persiste y recupera un torneo activo", async () => {
-    await persistence.create(makeTournament(ids[0]));
+  it("persiste y recupera un torneo activo con su token de admin", async () => {
+    await persistence.create(makeTournament(ids[0]), "token-1");
     const active = await persistence.loadActive();
-    expect(active.some((t) => t.id === ids[0])).toBe(true);
+    const found = active.find((row) => row.tournament.id === ids[0]);
+    expect(found?.tournament.id).toBe(ids[0]);
+    expect(found?.adminToken).toBe("token-1");
   });
 
   it("actualiza el estado de un torneo", async () => {
-    await persistence.create(makeTournament(ids[1]));
+    await persistence.create(makeTournament(ids[1]), "token-2");
     await persistence.update({ ...makeTournament(ids[1]), name: "Actualizado", status: "in_progress" });
     const active = await persistence.loadActive();
-    const found = active.find((t) => t.id === ids[1]);
-    expect(found?.name).toBe("Actualizado");
+    const found = active.find((row) => row.tournament.id === ids[1]);
+    expect(found?.tournament.name).toBe("Actualizado");
   });
 });

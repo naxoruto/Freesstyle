@@ -52,7 +52,7 @@ export class TournamentRoomManager {
     };
     this.tournaments.set(id, tournament);
     this.adminTokens.set(id, adminToken);
-    void this.persistence.create(tournament).catch(error => console.error("No se pudo guardar el torneo", error));
+    void this.persistence.create(tournament, adminToken).catch(error => console.error("No se pudo guardar el torneo", error));
     return { tournament, adminToken };
   }
 
@@ -399,6 +399,14 @@ export class TournamentRoomManager {
     );
     if (!belongsToTournament) return null;
     return this.battleManager.getAdminToken(battleId) ?? null;
+  }
+
+  async loadTournamentsFromDb(): Promise<void> {
+    const rows = await this.persistence.loadActive();
+    for (const { tournament, adminToken } of rows) {
+      this.tournaments.set(tournament.id, tournament);
+      this.adminTokens.set(tournament.id, adminToken);
+    }
   }
 
   private persist(tournament: Tournament): void {

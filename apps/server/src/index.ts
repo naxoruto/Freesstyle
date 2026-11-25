@@ -770,7 +770,10 @@ io.on("connection", (socket) => {
 });
 
 // --- Iniciar servidor ---
-void battleManager.loadActiveBattlesFromDb().then(() => {
+void Promise.all([
+  battleManager.loadActiveBattlesFromDb(),
+  tournamentManager.loadTournamentsFromDb(),
+]).then(() => {
   httpServer.listen(PORT, () => {
     console.log(`🎤 Freestyle Battle Server corriendo en http://localhost:${PORT}`);
     console.log(`   WebSocket listo | REST: http://localhost:${PORT}/api/health`);

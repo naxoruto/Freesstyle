@@ -16,7 +16,7 @@ export class TournamentPersistence {
     return current;
   }
 
-  async create(tournament: Tournament): Promise<void> {
+  async create(tournament: Tournament, adminToken: string): Promise<void> {
     await this.enqueue(tournament.id, () => prisma.tournament.create({
       data: {
         id: tournament.id,
@@ -26,6 +26,7 @@ export class TournamentPersistence {
         type: tournament.type,
         capacity: tournament.capacity,
         status: tournament.status,
+        adminToken,
         data: tournament as unknown as Prisma.InputJsonValue,
       },
     }));
@@ -46,10 +47,10 @@ export class TournamentPersistence {
     }));
   }
 
-  async loadActive(): Promise<Tournament[]> {
+  async loadActive(): Promise<{ tournament: Tournament; adminToken: string }[]> {
     const rows = await prisma.tournament.findMany({
       where: { status: { in: ["setup", "in_progress"] } },
     });
-    return rows.map((row) => row.data as unknown as Tournament);
+    return rows.map((row) => ({ tournament: row.data as unknown as Tournament, adminToken: row.adminToken }));
   }
 }
