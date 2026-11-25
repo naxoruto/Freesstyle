@@ -1,3 +1,5 @@
+> Documento histórico. Sus prioridades y cifras pueden estar desactualizadas. Consultar [el registro central](../producto/CAMBIOS.md) y [el índice del proyecto](../../INDEX.md) para continuar.
+
 # Freestyle Platform Handoff
 
 Fecha: 2026-07-28

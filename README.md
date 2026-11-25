@@ -21,7 +21,7 @@ Plataforma de freestyle competitiva con:
 
 - Frontend: Next.js 14 + React 18.
 - Backend: Express + Socket.IO.
-- Datos: PostgreSQL con Prisma, Redis para estado en tiempo real.
+- Datos: PostgreSQL con Prisma; el estado en tiempo real aún depende en parte de la memoria del servidor.
 - Monorepo: pnpm + Turborepo.
 
 ## Scripts
@@ -45,9 +45,10 @@ pnpm --filter @freestyle/server inventory:promote:participations
 
 ## Docs
 
-- `PLAN.md`: backlog de batalla y torneo.
-- `UPDATES.md`: registro agrupado de requerimientos y decisiones.
-- `EXECUTION_PLAN.md`: tareas tecnicas ordenadas para ejecutar los cambios.
-- `GAMES_PLAN.md`: diseño de juegos diarios.
-- `DATA_SOURCES.md`: reglas de procedencia y prioridad.
-- `HANDOFF.md`: snapshot operativo para retomar trabajo.
+- [INDEX.md](INDEX.md): punto de entrada y mapa del proyecto para personas e IA.
+- [Cambios y prioridades](docs/producto/CAMBIOS.md): registro central de trabajo realizado, pendiente y en definición.
+- [Brainstorming actual](docs/producto/brainstorming/00-estructura-y-perfil.md): experiencias de juego, estructura y perfil.
+- [Entorno local](docs/ENTORNO_LOCAL.md): instalación, base aislada y verificaciones.
+- [Recuperación de batallas](docs/RECUPERACION_BATALLAS.md): estado y contrato de recuperación.
+- [Fuentes de datos](docs/datos/DATA_SOURCES.md): reglas de procedencia y prioridad.
+- [Planes históricos](docs/archivo/): antecedentes; sus prioridades pueden estar desactualizadas.

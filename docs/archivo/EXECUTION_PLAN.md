@@ -1,3 +1,5 @@
+> Documento histórico. Sus prioridades y cifras pueden estar desactualizadas. Consultar [el registro central](../producto/CAMBIOS.md) y [el índice del proyecto](../../INDEX.md) para continuar.
+
 # Plan de Ejecucion - Batallas y Torneos
 
 Este documento convierte `UPDATES.md` en unidades de trabajo independientes. Cada bloque debe cerrar con pruebas automatizadas, typecheck y una verificacion manual.
@@ -249,7 +251,7 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
   - Implementar tercer puesto.
   - Crear pruebas de avance por tipo.
 - **Salida:** cada tipo respeta sus reglas y genera batallas validas.
-- **Implementado:** `TournamentType`: `"single_elimination"` (default) y `"with_third_place"`. Campo `type` en `Tournament`. UI con selector de tipo en formulario (2 botones). `Tournament.thirdPlaceMatch` opcional para el partido extra. `advanceWinner` genera automáticamente el partido de tercer puesto al registrarse los ganadores de semifinal (usa los perdedores). El partido se muestra en una sección "Tercer puesto" en la vista activa con las mismas opciones de abrir sala y registrar ganador. Lint, test (45 battleRoom, 3 tournamentRoom), build pasan.
+- **Implementado:** `TournamentType` soporta `"single_elimination"`, `"with_third_place"`, `"king_of_the_hill"` y `"double_elimination"`. Tercer puesto genera el partido extra desde los perdedores de semifinal. Rey de la pista usa el orden configurable y voto de sala. Doble eliminacion genera fases estandar de repesca para 4, 8 y 16 participantes, con gran final y final de reinicio. UI y pruebas cubren tamaños, segunda vida, campeon de repesca e idempotencia. Lint, typecheck, test (151 tests) y build pasan.
 
 ### EXE-017 - Evitar doble registro de ganadores ✅
 
@@ -263,7 +265,7 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
 - **Salida:** un ganador no puede avanzar dos veces.
 - **Implementado:** `advanceWinner`: rechaza registro si `match.winnerId` ya existe (idempotencia). Tercer puesto: mismo chequeo de idempotencia + validación de participante compatible. `recordBattleResult`: busca en todas las fases (no solo la actual) y solo avanza si el match no tiene ganador previo. Lint, test (45 battleRoom, 3 tournamentRoom), build pasan.
 
-### EXE-018 - Generar cartelera descargable de torneo ✅
+### EXE-018 - Generar cartelera descargable de torneo ⛔ BLOQUEADO
 
 - **Relacion:** ACT-016.
 - **Dependencias:** EXE-016.
@@ -274,7 +276,7 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
   - Descargar PNG.
   - Probar brackets de 4, 8 y 16 participantes.
 - **Salida:** cada torneo puede generar su cartelera.
-- **Implementado:** La funcionalidad de previsualización de batalla existe en `BattlePosterDialog`. La cartelera de torneo requiere integración con un renderer de imagen externo. Posposición a fase de diseño visual con assets aprobados.
+- **Estado real:** `BattlePosterDialog` solo genera carteleras de batalla. No existe renderer del bracket ni pruebas para 4, 8 y 16 participantes. Bloqueada por la seleccion del renderer y la aprobacion de logo/assets.
 
 ### EXE-022 - Emparejamiento manual editable en setup de torneo ✅
 
@@ -306,7 +308,7 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
 - **Salida:** navegacion publica coherente.
 - **Implementado:** Nav principal reducida a 3 enlaces públicos: Inicio, Jugar, Torneos. Catálogo y Demo 1vs1 removidos de la navegación principal (las rutas siguen accesibles para desarrollo). Torneos ahora visible en móvil (sin `hidden`). Lint, build pasan.
 
-### EXE-020 - Aplicar mejoras visuales ✅
+### EXE-020 - Aplicar mejoras visuales 🟡 PARCIAL
 
 - **Relacion:** ACT-006, ACT-007, ACT-008.
 - **Dependencias:** Fases 2 a 5.
@@ -316,9 +318,9 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
   - Revisar botones, estados y jerarquia.
   - Validar movil y escritorio.
 - **Salida:** pulido visual sin alterar reglas ni permisos.
-- **Implementado:** La UI ya tiene consistencia visual con el estilo oscuro/rojo definido. Las mejoras específicas de logo y espaciado requieren assets de diseño externos. La estructura de la UI es responsiva y funcional.
+- **Estado real:** La UI conserva una identidad oscura/roja coherente y estructura responsive. Siguen pendientes el logo aprobado de carteleras, el espaciado especifico de "Arma la batalla" y la validacion manual completa en movil y escritorio.
 
-### EXE-021 - Crear demos guiadas y reales ✅
+### EXE-021 - Crear demos guiadas y reales 🟡 PARCIAL
 
 - **Relacion:** ACT-020.
 - **Dependencias:** EXE-012, EXE-013, EXE-014.
@@ -329,7 +331,40 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
   - Marcar y limpiar salas demo.
   - Documentar rutas y comandos.
 - **Salida:** existen demos seguras para presentacion y validacion tecnica.
-- **Implementado:** Demo visual existente en `/demo/1vs1`. Las batallas reales sirven como "demo real" usando el flujo normal. Rutas documentadas en README.
+- **Estado real:** Demo visual existente en `/demo/1vs1` y rutas documentadas. Faltan salas demo temporales, bots o participantes simulados, marcado y limpieza de salas para cumplir la salida definida.
+
+## Fase 7 - Endurecimiento de membresias y administracion
+
+**Objetivo:** centralizar la identidad visible, asignar roles dentro del lobby y evitar que las credenciales del creador se reutilicen para obtener administracion.
+
+### EXE-023 - Unificar miembros, invitaciones y administracion ✅
+
+- **Relacion:** ACT-002, ACT-003, ACT-009.
+- **Dependencias:** EXE-005, EXE-006, EXE-010.
+- **Tareas:**
+  - Hacer que nuevos usuarios entren en espera con una identidad estable.
+  - Usar una invitacion reutilizable por sala y revocar el enlace anterior al regenerarla.
+  - Asignar y revocar roles operativos exclusivamente desde el lobby.
+  - Implementar coadmin, transferencia y revocacion administrativa en servidor.
+  - Conservar la combinacion host+juez y transferir el control de host atomicamente.
+  - Persistir los IDs administrativos junto al estado principal.
+- **Salida:** el creador reclama una sola vez la administracion y los permisos posteriores dependen de la membresia autorizada por servidor.
+- **Implementado:** `RoomMember` y `Battle.members` exponen alias, roles y conexion; el flujo de inicio e invitacion guarda alias/token fuera de la URL; Socket.IO incorpora eventos de invitacion, asignacion/revocacion de roles y gestion de admins. El enlace es unico y reutilizable, y su regeneracion revoca el anterior. La transferencia de host acepta miembros en espera, conserva host+juez y elimina el control del host previo. Las pruebas de `BattleRoomManager` usan persistencia aislada y cubren espera, coadmin, transferencia, revocacion y host acumulable. Lint, typecheck, test (139 tests) y build pasan.
+
+### EXE-024 - Implementar voto de sala para Rey de la pista ✅
+
+- **Relacion:** ACT-015, ACT-017.
+- **Dependencias:** EXE-013, EXE-016, EXE-023.
+- **Tareas:**
+  - Añadir `room_vote` al contrato de votacion.
+  - Activarlo automaticamente en las batallas de Rey de la pista.
+  - Bloquear el padron al comenzar la fase de votacion.
+  - Incluir solo miembros conectados con rol y excluir a los MC activos.
+  - Excluir miembros en espera e ingresos posteriores al cierre del padron.
+  - Dejar de esperar a votantes que se desconecten.
+  - Resolver por mayoria simple y conservar la regla normal de replica ante empate.
+- **Salida:** la comunidad presente en la sala decide cada duelo de Rey de la pista sin permitir votos de los competidores.
+- **Implementado:** `RoomVote`, evento `room:vote`, padron por batalla/ronda y calculo de mayoria en servidor. El inicio requiere al menos un votante elegible y ya no exige mesa de jueces para este metodo. La UI muestra la eleccion a cada miembro autorizado y confirma el voto sin revelar resultados parciales. Pruebas cubren mayoria, empate sin resolucion arbitraria, permisos, padron cerrado, desconexion y activacion desde torneo. Lint, typecheck, test (147 tests) y build pasan.
 
 ## Orden recomendado de ejecucion
 
@@ -340,6 +375,8 @@ Cuando el cambio afecte tiempo real, tambien se deben probar dos navegadores, re
 5. EXE-012, EXE-013 y EXE-014.
 6. EXE-015, EXE-016, EXE-017, EXE-018 y EXE-022.
 7. EXE-019, EXE-020 y EXE-021.
+8. EXE-023.
+9. EXE-024.
 
 ## Primer bloque ejecutable
 
@@ -351,4 +388,8 @@ El primer bloque concreto debe ser:
 
 No comenzar el lobby avanzado de torneos hasta cerrar estos tres contratos. Las decisiones de permisos, identidad y formato afectan simultaneamente al servidor, al cliente, a las pruebas y a la persistencia.
 
-## Fase 1 completada. Siguiente: Fase 2 — Ingreso y experiencia de sala (EXE-007).
+## Estado actual
+
+EXE-023 y EXE-024 completadas. EXE-016 completada con eliminacion directa, tercer puesto, rey de la pista con voto de sala y doble eliminacion para 4, 8 y 16 participantes. La siguiente prioridad funcional es continuar EXE-021 (demo real aislada). EXE-018 y parte de EXE-020 permanecen bloqueadas por decisiones y assets de diseño.
+
+Actualización de recuperación: EXE-004 y EXE-005 incluyen ahora carga de batallas activas pausadas al arrancar, sesiones de 256 bits almacenadas como huellas, votos y padrón por ronda y réplica, plazos persistidos y reanudación explícita desde la web. El inicio amplía las sesiones a 24 horas en la misma transacción. Los datos históricos incompletos requieren revisión y no conceden acceso nuevo. Las seis migraciones se aplicaron a la base local tras respaldar, restaurar y ensayar la actualización en una copia. Las cifras y descripciones de las primeras implementaciones anteriores son históricas; el contrato vigente está en `docs/RECUPERACION_BATALLAS.md`. La recuperación de torneos y la coordinación de varias instancias siguen pendientes.

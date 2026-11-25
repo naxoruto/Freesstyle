@@ -1,3 +1,5 @@
+> Documento histórico. Sus prioridades y cifras pueden estar desactualizadas. Consultar [el registro central](../producto/CAMBIOS.md) y [el índice del proyecto](../../INDEX.md) para continuar.
+
 # Plan de Trabajo — Freestyle Arena
 
 **Estado actual:** App funcional con catálogo, inventario externo, juego diario, demo 1vs1 y torneos. Este documento queda como backlog de evolución de batalla.

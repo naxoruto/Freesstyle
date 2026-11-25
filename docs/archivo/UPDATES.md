@@ -1,3 +1,5 @@
+> Documento histórico. Sus prioridades y cifras pueden estar desactualizadas. Consultar [el registro central](../producto/CAMBIOS.md) y [el índice del proyecto](../../INDEX.md) para continuar.
+
 # Actualizaciones - Freestyle Arena
 
 Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de batallas y torneos.
@@ -44,10 +46,10 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Prioridad:** Alta.
 - **Estado:** Completado.
 - **Propuesta:** Usar `/unirse_batalla/:id` o `/batalla/:id/unirse`.
-- **Descripcion:** El usuario debe poder abrir un enlace directo, introducir su alias y elegir su rol sin depender de copiar un codigo manual.
+- **Descripcion:** El usuario debe poder abrir un enlace directo e introducir su alias sin depender de copiar un codigo manual; el admin asigna el rol dentro de la sala.
 - **Recomendacion:** No incluir alias ni credenciales en la URL salvo que sea estrictamente necesario.
-- **Criterio de aceptacion:** Un enlace de invitacion abre la pantalla de ingreso, conserva el ID de sala y permite entrar como participante, juez o publico.
-- **Progreso:** EXE-007 completado. Ruta `/unirse_batalla/[id]?invite=TOKEN` implementada. Valida la invitacion via `GET /api/battles/:id/invite` y muestra el rol asignado. Formulario simple: solo alias, Enter para enviar, redirige a `/battle/[id]?role=X&alias=Y`. Maneja errores: invitacion invalida, expirada, sala cerrada y error de conexion. El lobby incluye seccion "Invitar personas" visible solo para el admin, con botones para generar enlaces por rol (participante, juez, publico) y copiar al portapapeles.
+- **Criterio de aceptacion:** Un enlace de invitacion abre la pantalla de ingreso, conserva el ID de sala y permite que el admin asigne participante, juez, publico u host.
+- **Progreso:** EXE-007 y EXE-023 completados. Ruta `/unirse_batalla/[id]?invite=TOKEN` implementada. La invitacion es unica y reutilizable por sala; al regenerarla se revoca el enlace anterior. El invitado escribe su alias, entra en espera y un admin le asigna el rol dentro del lobby. La asignacion y revocacion de roles se valida en servidor.
 
 ### ACT-003 - Eliminar credenciales sensibles de las URLs
 
@@ -55,9 +57,9 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Prioridad:** Critica.
 - **Estado:** Completado.
 - **Descripcion:** El enlace actual expone `adminToken`, rol y alias en query params. Es tolerable solo en desarrollo local, no en produccion.
-- **Recomendacion:** Usar invitaciones de un solo uso, cookies HttpOnly o sesiones firmadas. El rol declarado por el navegador nunca debe ser la unica autorizacion.
+- **Recomendacion:** Usar invitaciones opacas y revocables, cookies HttpOnly o sesiones firmadas. El rol declarado por el navegador nunca debe ser la unica autorizacion.
 - **Criterio de aceptacion:** Ningun enlace publico contiene `adminToken`; las operaciones administrativas se validan en servidor.
-- **Progreso:** EXE-002 y EXE-005 completados. EXE-006 completado. `adminToken` eliminado de URLs: se almacena en `sessionStorage` en cliente. `battle/[id]/page.tsx` lee de `sessionStorage` como fuente primaria, con URL como fallback. `tournament/page.tsx` almacena en `sessionStorage` antes de navegar. Invitaciones de un solo uso implementadas en `BattleRoomManager` (`createInvitation`, `consumeInvitation`) con endpoints REST (`POST /api/battles/:id/invitations`, `GET /api/battles/:id/invite`). `createInvitation` bloquea explicitamente el rol `admin`. Pruebas de acceso no autorizado añadidas (9 tests: creacion/consumo de invitaciones, acceso admin sin token, participantes sin token, inicio no autorizado, cambio de modo no autorizado). Proxima: EXE-007 (flujo de invitacion). Refuerzo posterior: el acceso a batallas de torneo (`/api/tournaments/:id/battles/:battleId/access`) migro de GET con `adminToken` en query param a POST con token en body, eliminando la ultima credencial administrativa presente en una URL.
+- **Progreso:** EXE-002, EXE-005, EXE-006 y EXE-023 completados. `adminToken` no se incluye en enlaces publicos y las acciones administrativas se autorizan en el socket del usuario. El token del creador solo permite reclamar el primer admin; coadministracion, transferencia y revocacion se ejecutan con eventos validados en servidor. El acceso administrativo a batallas de torneo usa POST con el token en el body. Riesgo pendiente: tokens, invitaciones y sesiones siguen en memoria y no se recuperan tras reiniciar el servidor.
 
 ### ACT-004 - Agregar navegacion de retorno en torneos
 
@@ -119,7 +121,7 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Reglas propuestas:** Maximo 2 participantes, 5 jueces, 1 host y 2 admins. Los admins pueden transferir admin. Host y juez pueden ser roles acumulables.
 - **Recomendacion:** Si el host tambien es juez, sus votos deben quedar auditados y el avance de fases debe ser independiente de su voto.
 - **Criterio de aceptacion:** El servidor valida limites, transferencias y permisos sin confiar en el rol enviado por el cliente.
-- **Progreso:** EXE-001 y EXE-010 completados. EXE-010 implementa `battle:change_role` (ClientEvent), `changeRole()` en `BattleRoomManager` con validación de límites y protección del último admin, handler en `index.ts`, y UI en `BattleLobby` con dropdown por usuario para cambiar entre MC, Juez, Público y Host. Pruebas añadidas (5 tests: cambio participante→juez, rechazo no-admin, límite excedido, fuera de lobby, usuario no encontrado).
+- **Progreso:** EXE-001, EXE-010 y EXE-023 completados. Los usuarios entran como miembros en espera; el admin puede asignar o revocar MC, juez, publico y host, otorgar un segundo admin, transferir la administracion y revocarla sin dejar la sala sin admin. Host y juez pueden acumularse y la transferencia de host revoca el control anterior de forma atomica. Limites y permisos se validan en servidor.
 
 ### ACT-010 - Hacer configurable el control en vivo
 
@@ -153,6 +155,8 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Criterio de aceptacion:** Un participante puede recargar o reconectar y volver a su sala; un reinicio del servidor no destruye una partida en curso.
 - **Progreso:** EXE-002 y EXE-004 completados. Modelos Prisma para salas en vivo (`LiveBattle`, participantes, jueces, votos, resultados) creados con migracion aplicada. `BattlePersistence` implementa CRUD completo con PostgreSQL. `BattleRoomManager` sincroniza estado a BD en cada transicion critica (creacion, ingreso, salida, inicio, votos, resultados). Las salas activas se restauran desde BD al iniciar el servidor. Los `Map` en memoria se mantienen como cache de acceso rapido; timers y tokens no se persisten. EXE-005 completado: sesiones de reconexion implementadas. Al desconectarse, el usuario se mantiene en la sala durante una ventana de 5 minutos (`DEFAULT_RECONNECT_WINDOW_MS`). El cliente recibe un `sessionId` via evento `battle:session` y lo persiste en localStorage. Al reconectar, emite `battle:reconnect` con el `sessionId` y recupera todos sus roles y estado. Si la ventana expira, la sesion se limpia automaticamente removiendo al usuario de la batalla.
 
+El estado vigente de ACT-012 está detallado en `docs/RECUPERACION_BATALLAS.md`: sesiones con huellas y caducidad, batallas activas pausadas, plazos y votos persistidos y reanudación explícita del organizador. La descripción anterior refleja la primera implementación.
+
 ### ACT-013 - Reducir el tiempo de entrada a la sala
 
 - **Origen:** punto 10.
@@ -183,16 +187,16 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Estado:** En progreso.
 - **Tipos iniciales:** Rey de la pista, eliminacion directa, eliminacion con repesca, eliminacion sin repesca y torneo con tercer puesto.
 - **Criterio de aceptacion:** Cada tipo tiene reglas de avance, pruebas y representacion visual propia.
-- **Progreso:** EXE-016 completado. `single_elimination` y `with_third_place` implementados con UI y lógica de avance. Rey de la pista y repesca pendientes para futura iteración.
+- **Progreso:** EXE-016 completado. `single_elimination`, `with_third_place`, `king_of_the_hill` y `double_elimination` implementados con UI y logica de avance. La doble eliminacion genera el cuadro estandar de perdedores para 4, 8 y 16 participantes, con gran final y final de reinicio. Rey de la pista respeta el orden configurable y usa voto de sala.
 
 ### ACT-016 - Generar cartelera descargable de torneos
 
 - **Origen:** punto 8.
 - **Prioridad:** Media.
-- **Estado:** Completado.
+- **Estado:** Bloqueado.
 - **Descripcion:** Crear una imagen del bracket con nombre, participantes, fases, logo y enlaces utiles.
 - **Criterio de aceptacion:** El torneo permite previsualizar y descargar su cartelera en PNG.
-- **Progreso:** Funcionalidad base existe en `BattlePosterDialog`. La cartelera de torneo completa requiere integración con renderer de imagen externo y assets de diseño aprobados.
+- **Progreso:** `BattlePosterDialog` cubre carteleras de batalla, no el bracket de torneo solicitado. EXE-018 esta bloqueado hasta definir renderer y assets de identidad aprobados.
 
 ---
 
@@ -206,7 +210,7 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 - **Descripcion:** Separar el formato de batalla del metodo de votacion. Los jueces deben poder trabajar con rubrica, patron o voto libre segun las reglas habilitadas.
 - **Recomendacion:** Todos los jueces de una ronda deben usar el mismo metodo para evitar resultados incomparables.
 - **Criterio de aceptacion:** El servidor registra el metodo utilizado, valida los votos y calcula correctamente rubrica, patron y voto libre.
-- **Progreso:** EXE-003 y EXE-013 completados. `free_vote` añadido como tercer sistema de votación. Cada juez elige directamente al ganador de la ronda. Gana el MC con más votos. UI con botones por MC. Voto libre compatible con countdown y manual. Pruebas: ronda completa free_vote (3 jueces, 2-1), rechazo en sistema incorrecto, rechazo voto inválido.
+- **Progreso:** EXE-003, EXE-013 y EXE-024 completados. Ademas de rubrica, patron y voto libre del jurado, Rey de la pista usa `room_vote`: votan los miembros conectados con rol asignado, excepto los dos MC activos. El padron se bloquea al comenzar la votacion, no admite ingresos tardios y deja de esperar a miembros desconectados. Empates siguen la configuracion normal de replica.
 
 ### ACT-018 - Implementar formatos 1x1, 4x4 y 8x8
 
@@ -239,11 +243,11 @@ Registro de requerimientos funcionales, tecnicos y visuales para la evolucion de
 
 - **Origen:** punto 22.
 - **Prioridad:** Media.
-- **Estado:** Completado.
+- **Estado:** En progreso.
 - **Descripcion:** Mantener la demo visual actual y crear una demo real temporal que utilice la logica de servidor.
 - **Tipos:** Demo guiada para presentacion y demo real con bots o participantes simulados.
 - **Criterio de aceptacion:** Las demos no contaminan partidas publicas, pueden reiniciarse y tienen documentado su modo de ejecucion.
-- **Progreso:** Demo visual en `/demo/1vs1` mantenida. Batallas reales funcionan como "demo real" usando flujo normal sin persistencia forzada.
+- **Progreso:** Demo visual en `/demo/1vs1` mantenida. Faltan salas temporales identificables, bots o participantes simulados y limpieza especifica para cumplir EXE-021.
 
 ---
 

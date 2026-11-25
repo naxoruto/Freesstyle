@@ -1,0 +1,311 @@
+# Plan de Trabajo — Freestyle Arena
+
+> **Estado:** Plan consolidado (noviembre 2026). Integra producto y técnica, con jerarquía y dependencias.
+>
+> **Origen:** auditoría de código + brainstorming de producto. Todas las recomendaciones fueron confirmadas por el usuario.
+>
+> **Regla de oro:** este plan complementa el [registro central](../producto/CAMBIOS.md), no compite con él. La prioridad de producto (batalla individual → torneo → Rey de la pista → perfil → niveles) sigue mandando; el trabajo técnico se intercala como habilitador.
+
+## 1. Cómo leer este plan
+
+- **Fases 0–5** son entregas verificables, en el orden acordado de producto.
+- **Track técnico** (§10) agrupa el trabajo de ingeniería (refactor, consistencia, DX) y dice en qué fase se ejecuta y qué habilita.
+- Cada fase termina con un entregable comprobable; ninguna avanza sin cerrar sus **decisiones previas**.
+- IDs referenciados: `C` (cambiar), `A` (agregar), `Q` (quitar) para producto; `LIM`, `SEG`, `SRV`, `WEB`, `DX` para técnica.
+
+## 2. Global Constraints
+
+- No exponer `.env` ni credenciales. No borrar secretos ni migraciones.
+- Preservar los cambios existentes del usuario.
+- Pruebas que crean/eliminan registros → base **descartable** (ver [ENTORNO_LOCAL.md](ENTORNO_LOCAL.md)).
+- Las decisiones abiertas no autorizan implementación hasta registrarse en `CAMBIOS.md`.
+- Línea base verificable: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+
+## 3. Resumen de fases
+
+| Fase | Nombre | Objetivo | Depende de | Entrega verificable |
+|---|---|---|---|---|
+| 0 | Cimientos | Higiene, seguridad y consistencia | — | `pnpm check` verde + residuos limpios |
+| 1 | Batalla individual | Rediseñar el flujo 1vs1 | Fase 0 + decisiones de batalla | Recorrido completo 1vs1 (crear→lobby→jugar→cerrar) |
+| 2 | Torneo | Torneo recuperable, claro y en vivo | Fase 1 + decisiones de torneo | Torneo de 4 y 8 recuperable tras recargar |
+| 3 | Rey de la pista | Sesión abierta con voto de concursantes | Fase 2 + decisiones de Rey | Sesión abierta con entradas/salidas y voto correcto |
+| 4 | Perfil y cuentas | Identidad persistente (Google/correo + foto) | Fases 1–3 + decisiones de perfil | Registro + perfil con foto e historial |
+| 5 | Niveles y progresión | Nivel general + estadísticas por rol | Fase 4 + decisiones de XP | XP y stats por rol calculados |
+| T | Track técnico transversal | Refactor, DX y CI | Intercalado (ver §10) | — |
+
+---
+
+## 4. Fase 0 — Cimientos
+
+> Higiene de bajo riesgo + correcciones de seguridad/consistencia que son **prerrequisito** del resto. Sin cambios visibles de comportamiento (salvo SEG que solo hace *detectar* fallos que hoy se silencian).
+
+### 4.1 Higiene (LIM)
+
+| ID | Tarea | Esfuerzo |
+|---|---|---|
+| LIM-01 | Sacar `apps/web/tsconfig.tsbuildinfo` de git (`git rm --cached`) | S |
+| LIM-02 | Eliminar `.local-backups/` del disco (dump con credenciales) | S |
+| LIM-03 | Terminar y verificar la reorganización de docs (rutas viejas) | M |
+| LIM-04 | Limpiar Makefile (Redis fantasma, IP hardcodeada, `git checkout -- nginx.conf`) | S |
+| LIM-05 | Externalizar secretos de docker-compose (`freestyle123` → env) | S |
+| LIM-06 | ESLint real en el servidor (hoy `lint` = `typecheck`) | M |
+
+### 4.2 Seguridad y consistencia
+
+| ID | Tarea | Nota |
+|---|---|---|
+| SEG-01 | Eliminar deriva memoria↔BD (fire-and-forget → durable con bloqueo) | Prerrequisito de SRV-01 |
+| SEG-05 | Mayor entropía del ID de batalla (8 hex → base36, sin lowercase) | |
+
+### 4.3 Criterios de aceptación
+- `git status` limpio de artefactos; `git grep` sin rutas viejas; `make help` sin Redis.
+- `pnpm check` verde; server con ESLint corriendo.
+
+---
+
+## 5. Fase 1 — Batalla individual (primera entrega)
+
+**Objetivo:** recorrido de 1vs1 sin fricciones: crear rápido, lobby claro, requisitos según modo, exhibición, cierre con revancha.
+
+### 5.1 Decisiones por cerrar (menores)
+- Nombres definitivos de presets (A9) y redacción del resumen de reglas (C7).
+
+### 5.2 Entregables de producto
+
+| ID | Entregable | Estado |
+|---|---|---|
+| C1 | «Crear batalla» → elección 1vs1 / torneo / Rey de la pista | ✅ DEC-005 |
+| C2 | Perfil en la navegación | ✅ |
+| C3 | Entrar directo al lobby (sin pantalla «Sala creada») | ✅ |
+| C4 | Bloque «Invitar» unificado (enlace + código + QR) | ✅ |
+| C5 | Nickname después de elegir 1vs1 | ✅ DEC-006 |
+| C6 | «Tu AKA o nombre visible» (quien crea entra como admin) | ✅ |
+| C7 | Resumen de reglas legible antes de crear | ✅ |
+| C8 | Selector «Batalla con jueces / Exhibición» en el lobby | ✅ DEC-008/010/011 |
+| C9 | Requisitos de inicio según modo/votación | ✅ |
+| C10 | Mensaje de jueces «1, 3 o 5» + si hay 2: «sobra 1 o falta 1» | ✅ |
+| C11 | Distinguir «rol» de «permisos de organización» | ✅ |
+| C12 | Resumen real de réplica («Hasta N · diferencia X · formato Y») | ✅ |
+| C13 | Cierre con «Revancha» y «Repetir formato» | ✅ |
+| C14 | Alinear opciones de tiempo (1/2 min y validación 30/45/90) | ✅ |
+| C15 | Indicar «Formato personalizado» al salir de un preset | ✅ |
+| C32 | Eliminar entrada por query params (identidad/rol) | ✅ = SEG-02 |
+| C33 | `adminToken` fuera de `sessionStorage` | ✅ = SEG-03 |
+| A8 | Cierre de Exhibición sin ganador ni puntaje | ✅ DEC-009 |
+| A9 | Presets: «Rápida», «Con conceptos», «Por entradas» | ✅ |
+| A10 | QR de invitación (posterior) | ✅ |
+| Q2 | Quitar pantalla intermedia «Sala creada» | ✅ |
+| Q4 | Quitar entrada por query params | ✅ |
+
+### 5.3 Habilitadores técnicos (se ejecutan en esta fase)
+- **WEB-03** capa de cliente compartida → luego **WEB-01** split de `battle/[id]/page.tsx`.
+- **SEG-02** y **SEG-03** (flujo de entrada por invitación + token seguro).
+- **SRV-02** extracción de handlers de socket (los nuevos eventos de batalla entran ordenados).
+
+### 5.4 Criterios de aceptación
+- Una persona sin conocer la app crea, comparte y completa el cartel sin ayuda; registra tiempo hasta compartir e iniciar.
+- Exhibición: dos MC pueden iniciar sin juez y el cierre no muestra ganador.
+- Sin `role`/`alias`/`userId` en URLs; `adminToken` no accesible desde JS.
+
+---
+
+## 6. Fase 2 — Torneo
+
+**Objetivo:** torneo recuperable y claro: identidad del evento, sorteo revisable, cuadro en vivo y retorno desde cada batalla.
+
+### 6.1 Decisiones por cerrar
+- Logo/organizador: ¿obligatorios? (C17)
+- Repesca: ¿reserva o eliminado?, quién confirma la ausencia, cuándo se cubre (C25)
+- Fila/orden: ¿inscripción, sorteo u organizador? (C21)
+- Inscripción: ¿nombres por organizador, por enlace, o ambos? (A12)
+- ¿Un escenario único o varias salas simultáneas? (no en la primera entrega)
+
+### 6.2 Entregables de producto
+
+| ID | Entregable | Estado |
+|---|---|---|
+| C16 | Sacar «Rey de la pista» del formulario de torneo | ✅ DEC-013 |
+| C17 | Logo + organizador (persona o asociación) | ✅ DEC-012 |
+| C18 | Campo de participantes vacío + botón «Cargar ejemplo» | ✅ |
+| C19 | Elegir tipo primero y adaptar los pasos | ✅ |
+| C20 | Tamaños soportados coherentes por tipo | ✅ |
+| C21 | Separar «Sortear y revisar» de «Iniciar» | ✅ |
+| C22 | Página de torneo recuperable (recargar no la pierde) | ✅ TOR-01 |
+| C23 | Cuadro actualizado en vivo | ✅ |
+| C24 | Configuración de batalla visible al iniciar | ✅ |
+| C25 | Repesca por inasistencia | ✅ DEC-014 |
+| A11 | Panel «Ahora / Después» + cuadro consultable | ✅ |
+| A12 | Inscripción al evento (perfil/invitado ↔ puesto ↔ siguientes batallas) | ✅ |
+| A13 | Confirmar participantes antes del inicio | ✅ |
+| Q1 | Quitar Rey de la pista del formulario | ✅ |
+| Q3 | Quitar los 4 aliases de ejemplo precargados | ✅ |
+
+### 6.3 Habilitadores técnicos
+- **TOR-01** persistencia y recuperación del torneo (modelo, credenciales, relación con batallas, resultados idempotentes).
+- **WEB-02** split de `tournament/page.tsx`.
+- **SEG-04** expiración/rotación de invitaciones (para inscripción por enlace).
+
+### 6.4 Criterios de aceptación
+- Recorrer torneo de 4 y 8, volver desde una sala, recargar y consultar desde otro dispositivo.
+- Todos ven los mismos resultados; el organizador identifica la siguiente acción sin ayuda.
+- Cierre correcto de tercer puesto y empate (reproducir antes de corregir).
+
+---
+
+## 7. Fase 3 — Rey de la pista
+
+**Objetivo:** sesión abierta con entradas/salidas, voto de concursantes (no público), dos formas de elegir rival y dos duraciones.
+
+### 7.1 Decisiones por cerrar
+- Significado del «límite»: racha / victorias acumuladas / duelos / tiempo (A15)
+- Reincorporación del perdedor: automática vs «Volver a batallar» (A16)
+- Empate / ausencia de votos: desempate acordado + estado pendiente (A16)
+- Margen de reconexión y definición de «sesión vacía» (A17)
+
+### 7.2 Entregables de producto
+
+| ID | Entregable | Estado |
+|---|---|---|
+| C26 | Entrada propia desde Inicio, con explicación de una frase | ✅ |
+| C27 | Admitir 3, 5, 6… participantes (sin potencias de 2) | ✅ |
+| C28 | No exigir jurado externo (votan concursantes ajenos al duelo) | ✅ |
+| C29 | Mostrar «Voto de concursantes» y quién puede votar | ✅ |
+| C30 | Destacar ocupante / retador / siguiente / fila | ✅ |
+| C31 | Continuidad de sesión entre duelos (sin sala nueva por duelo) | ✅ |
+| A14 | «El vencedor elige» y «Fila determinada» | ✅ |
+| A15 | «Con límite» / «Infinito» | ✅ |
+| A16 | Estados visibles (en fila, disponible, batallando, en descanso, público, desconectado, salió) | ✅ |
+| A17 | Campeón solo en modo con límite; en infinito «Rey actual» + rachas | ✅ |
+
+### 7.3 Habilitadores técnicos
+- Vínculo **padrón de votación ↔ inscripción al evento** (hoy el voto de sala no comprueba que el votante esté inscrito).
+- Sesión abierta: inscripción, disponibilidad y presencia como datos distintos.
+
+### 7.4 Criterios de aceptación
+- Simular ambas variantes (elección y fila) con 5 participantes: cambio de ganador, empate, retador ausente, desconexión de votante.
+- Quienes perdieron siguen votando si permanecen; el público externo no vota.
+- Infinito no cierra mientras quede alguien; con límite, el objetivo se aplica una sola vez.
+
+---
+
+## 8. Fase 4 — Perfil y cuentas
+
+**Objetivo:** identidad persistente entre salas y dispositivos: registro con Google o correo, foto, nombre, AKA y crew.
+
+### 8.1 Decisiones por cerrar
+- Campos obligatorios/opcionales, visibilidad y edición (A3)
+- Registro por correo: contraseña vs enlace de acceso; vínculo con Google (A1)
+- Tratamiento del historial previo como invitado (migración a cuenta)
+
+### 8.2 Entregables de producto
+
+| ID | Entregable | Estado |
+|---|---|---|
+| A1 | Registro con Google o correo | ✅ DEC-002 |
+| A2 | Foto de perfil (subir, recortar, quitar; iniciales si no hay) | ✅ |
+| A3 | Nombre + AKA + crew (crew como texto libre) | ✅ |
+| A4 | Nivel general + estadísticas por rol (MC, juez, host, viewer) | ✅ |
+| A5 | Historial de batallas/eventos (resultado, fecha, papel) | ✅ |
+| A6 | Invitado con nombre (regla común a los 3 modos) | ✅ DEC-004 |
+| A7 | Identificador público único (AKAs repetidos) | ✅ |
+
+### 8.3 Habilitadores técnicos
+- Autenticación (Google/correo) y esquema de cuentas (Prisma).
+- Subida y procesamiento de imagen.
+- Separación conceptual: **cuenta / perfil / participación / progreso / estadísticas**.
+
+### 8.4 Criterios de aceptación
+- Crear/editar perfil, dos personas con el mismo AKA, cambio de crew, una cuenta en dos dispositivos, uso como invitado.
+- Cada persona puede explicar qué XP recibió y por qué (en Fase 5).
+
+---
+
+## 9. Fase 5 — Niveles y progresión
+
+**Objetivo:** nivel general + estadísticas por rol, motivando continuidad sin confundir nivel con habilidad competitiva.
+
+### 9.1 Decisiones por cerrar
+- Curva y valores de XP (los de `04-perfiles-y-niveles.md` son hipótesis sin aprobar)
+- Reglas de contabilización (réplicas, torneos, Rey de pista, reconexión, máximos diarios)
+
+### 9.2 Entregables
+- Nivel general con barra y «Te faltan X XP».
+- Contadores por rol (batallas como MC, juzgadas, hosteadas, seguidas).
+- Historial con motivo de cada XP (concesión/ajuste) y versión de regla.
+
+### 9.3 Criterios de aceptación
+- Una réplica no duplica XP; un encuentro de torneo cuenta una vez; reconectar no vuelve a premiar.
+- Viewer no se presenta como «minutos vistos» si solo se conoce conexión.
+
+---
+
+## 10. Track técnico transversal
+
+> Trabajo de ingeniería que no pertenece a una sola fase de producto; se ejecuta en la fase indicada y habilita lo que se indica.
+
+| ID | Tarea | Fase | Habilita |
+|---|---|---|---|
+| LIM-01..06 | Higiene (git, backups, Makefile, docker, ESLint) | 0 | base para todo |
+| SEG-01 | Deriva memoria↔BD → durable con bloqueo | 0 | SRV-01, consistencia |
+| SEG-05 | Entropía del ID de batalla | 0 | IDs estables |
+| SEG-02 | Entrada solo por invitación (sin query params) | 1 | C32 |
+| SEG-03 | `adminToken` → cookie httpOnly / token corto | 1 | C33 + Fase 4 |
+| SEG-04 | Expiración/rotación de invitaciones | 2 | A12 |
+| SRV-01 | Dividir `battleRoom.ts` (state/phaseMachine/voting/roles/recovery) | 0–1 | cambios de batalla seguros |
+| SRV-02 | Extraer handlers de socket de `index.ts` | 1 | nuevos eventos ordenados |
+| SRV-03 | Consolidar `submitX`/`submitXDurably` | 0–1 | menos duplicación |
+| WEB-03 | Capa de cliente compartida (fetch + socket) | 1 | WEB-01/02 |
+| WEB-01 | Dividir `battle/[id]/page.tsx` | 1 | mantenibilidad |
+| WEB-02 | Dividir `tournament/page.tsx` | 2 | mantenibilidad |
+| WEB-04 | Unificar estilos (`globals.css` vs Tailwind) | 1–2 | VIS-01 |
+| DX-01 | Tests en frontend (vitest + testing-library) | continuo | |
+| DX-02 | Logging estructurado (pino) | continuo | |
+| DX-03 | CI mínima | continuo | |
+| DX-04 | Limpiar `FIX Bug N` y logs residuales | 1–3 | |
+
+**Nota:** SEG-02/03/04 cambian comportamiento; se implementan cuando la decisión de producto correspondiente esté registrada (ver §12).
+
+---
+
+## 11. Mapa de dependencias
+
+```
+Fase 0 (LIM + SEG-01 + SEG-05)  ──►  SRV-01/03  ──►  SRV-02  ──►  WEB-03  ──►  WEB-01
+                                        │
+Fase 1 (Batalla)  ──►  SEG-02, SEG-03  ─┘
+        │
+        ▼
+Fase 2 (Torneo)  ──►  TOR-01, WEB-02, SEG-04
+        │
+        ▼
+Fase 3 (Rey de la pista)  ──►  padrón↔inscripción, sesión abierta
+        │
+        ▼
+Fase 4 (Perfil)  ──►  auth, cuentas, foto  (aprovecha SEG-03)
+        │
+        ▼
+Fase 5 (Niveles)  ──►  XP, stats
+
+DX-01..04 y WEB-04: intercalados desde Fase 0
+```
+
+**Regla de avance:** cada fase se congela antes de iniciar la siguiente. Los refactors (SRV/WEB) no se adelantan a las decisiones de producto que habilitan.
+
+---
+
+## 12. Registro en CAMBIOS.md
+
+Al ejecutar, registrar en `docs/producto/CAMBIOS.md`:
+
+- Fases 1–5 como iniciativas con estado **Pendiente técnico** (o **En definición** mientras haya decisiones abiertas).
+- Las decisiones nuevas confirmadas como `DEC-*`: conjunto de batalla (C1–C15, A8–A10, C32–C33), torneo (C16–C25, A11–A13), Rey de la pista (C26–C31, A14–A17), perfil (A1–A7) y transversal (A18–A24).
+- No abrir un plan global que compita con este documento.
+
+---
+
+## 13. Qué NO hacer
+
+- No iniciar una fase sin cerrar sus decisiones previas.
+- No usar la base de desarrollo para pruebas que creen/eliminen registros.
+- No borrar migraciones ni secretos.
+- No mezclar un refactor con un cambio de producto: primero la decisión, luego el código.
