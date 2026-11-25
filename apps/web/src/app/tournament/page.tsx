@@ -96,8 +96,9 @@ export default function TournamentPage() {
     if (!response.ok) { setError("No se pudo abrir la sala"); return; }
     const access = await response.json();
     sessionStorage.setItem(`battle_admin_${battleId}`, access.adminToken);
+    sessionStorage.setItem(`battle_pending_${battleId}`, JSON.stringify({ alias: "Host" }));
     sessionStorage.setItem(`battle_return_${battleId}`, JSON.stringify({ returnTo: "tournament", tournamentId: tournament.id }));
-    router.push(`/battle/${battleId}?role=admin&alsoAs=judge&alias=Host&returnTo=tournament&tournamentId=${tournament.id}`);
+    router.push(`/battle/${battleId}`);
   };
 
   const registerWinner = async (battleId: string, winnerId: string) => {
@@ -122,12 +123,7 @@ export default function TournamentPage() {
         {match.battleId && (
           <button onClick={() => openBattle(match.battleId!)} className="mt-3 block text-xs uppercase tracking-wider text-red-400">Abrir sala {match.battleId}</button>
         )}
-        {match.battleId && p1 && p2 && (
-          <div className="mt-2 flex gap-3 text-xs text-white/30">
-            <a href={`/battle/${match.battleId}?role=participant&alias=${encodeURIComponent(p1.alias)}&userId=${encodeURIComponent(p1.userId)}&returnTo=tournament&tournamentId=${tournament!.id}`}>Link {p1.alias}</a>
-            <a href={`/battle/${match.battleId}?role=participant&alias=${encodeURIComponent(p2.alias)}&userId=${encodeURIComponent(p2.userId)}&returnTo=tournament&tournamentId=${tournament!.id}`}>Link {p2.alias}</a>
-          </div>
-        )}
+
         {match.battleId && !match.winnerId && p1 && p2 && (
           <div className="mt-3 flex gap-2">
             <button onClick={() => registerWinner(match.battleId!, p1.userId)} className="border border-white/10 px-2 py-1 text-xs">Ganó {p1.alias}</button>

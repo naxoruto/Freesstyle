@@ -39,10 +39,9 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       return raw ? JSON.parse(raw) as { alias?: string; role?: UserRole; inviteToken?: string } : null;
     } catch { return null; }
   })();
-  const legacyRole = searchParams.get("role") as UserRole | null;
-  const alias = pendingJoin?.alias || searchParams.get("alias") || "Anónimo";
-  const adminToken = searchParams.get("adminToken") || getSessionItem(`battle_admin_${params.id}`) || undefined;
-  const requestedRole: UserRole | undefined = adminToken ? "admin" : searchParams.get("returnTo") === "tournament" ? legacyRole ?? undefined : pendingJoin?.role;
+  const alias = pendingJoin?.alias || "Anónimo";
+  const adminToken = getSessionItem(`battle_admin_${params.id}`) || undefined;
+  const requestedRole: UserRole | undefined = adminToken ? "admin" : pendingJoin?.role;
   const inviteToken = pendingJoin?.inviteToken;
   const returnToParam = searchParams.get("returnTo");
   const tournamentIdParam = searchParams.get("tournamentId");
@@ -54,7 +53,6 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   })();
   const returnTo = returnToParam || storedReturn?.returnTo || undefined;
   const tournamentId = tournamentIdParam || storedReturn?.tournamentId || undefined;
-  const requestedUserId = searchParams.get("userId");
 
   useEffect(() => {
     if (!returnTo || !tournamentId) return;
@@ -64,7 +62,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   }, [params.id, returnTo, tournamentId]);
 
   // FIX Bug 2: Stable userId that doesn't change between renders
-  const [userId] = useState(() => requestedUserId || getSessionItem(`battle_user_${params.id}`) || crypto.randomUUID());
+  const [userId] = useState(() => getSessionItem(`battle_user_${params.id}`) || crypto.randomUUID());
   const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
   const currentUserId = authenticatedUserId ?? userId;
 
