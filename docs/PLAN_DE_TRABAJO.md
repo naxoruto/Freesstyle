@@ -4,13 +4,14 @@
 >
 > **Origen:** auditoría de código + brainstorming de producto. Todas las recomendaciones fueron confirmadas por el usuario.
 >
-> **Regla de oro:** este plan complementa el [registro central](../producto/CAMBIOS.md), no compite con él. La prioridad de producto (batalla individual → torneo → Rey de la pista → perfil → niveles) sigue mandando; el trabajo técnico se intercala como habilitador.
+> **Regla de oro:** este plan complementa el [registro central](producto/CAMBIOS.md), no compite con él. La prioridad de producto (batalla individual → torneo → Rey de la pista → perfil → niveles) sigue mandando; el trabajo técnico se intercala como habilitador.
 
 ## 1. Cómo leer este plan
 
 - **Fases 0–5** son entregas verificables, en el orden acordado de producto.
 - **Track técnico** (§10) agrupa el trabajo de ingeniería (refactor, consistencia, DX) y dice en qué fase se ejecuta y qué habilita.
-- Cada fase termina con un entregable comprobable; ninguna avanza sin cerrar sus **decisiones previas**.
+- Cada fase termina con un entregable comprobable. Se puede avanzar en tareas con decisiones cerradas aunque queden detalles de otras tareas por definir; esos detalles se resuelven antes de implementar el comportamiento afectado.
+- En las tablas de producto, ✅ significa **alcance confirmado**, no implementación terminada. El avance real se consulta en el [registro central](producto/CAMBIOS.md) y en los planes de implementación de cada fase.
 - IDs referenciados: `C` (cambiar), `A` (agregar), `Q` (quitar) para producto; `LIM`, `SEG`, `SRV`, `WEB`, `DX` para técnica.
 
 ## 2. Global Constraints
@@ -67,12 +68,14 @@
 
 **Objetivo:** recorrido de 1vs1 sin fricciones: crear rápido, lobby claro, requisitos según modo, exhibición, cierre con revancha.
 
-### 5.1 Decisiones por cerrar (menores)
-- Nombres definitivos de presets (A9) y redacción del resumen de reglas (C7).
+**Avance (25 de noviembre de 2026):** producto T1–T11 y pulido entregados; T12 (refactor WEB-01) sigue pendiente. Ver [plan de implementación](producto/planes/batalla-individual.md).
+
+### 5.1 Decisiones resueltas
+- Los nombres de presets (A9) y el resumen de reglas (C7) quedaron definidos e implementados en la entrega de batalla individual.
 
 ### 5.2 Entregables de producto
 
-| ID | Entregable | Estado |
+| ID | Entregable | Alcance de producto |
 |---|---|---|
 | C1 | «Crear batalla» → elección 1vs1 / torneo / Rey de la pista | ✅ DEC-005 |
 | C2 | Perfil en la navegación | ✅ |
@@ -113,16 +116,17 @@
 
 **Objetivo:** torneo recuperable y claro: identidad del evento, sorteo revisable, cuadro en vivo y retorno desde cada batalla.
 
-### 6.1 Decisiones por cerrar
-- Logo/organizador: ¿obligatorios? (C17)
-- Repesca: ¿reserva o eliminado?, quién confirma la ausencia, cuándo se cubre (C25)
-- Fila/orden: ¿inscripción, sorteo u organizador? (C21)
-- Inscripción: ¿nombres por organizador, por enlace, o ambos? (A12)
-- ¿Un escenario único o varias salas simultáneas? (no en la primera entrega)
+**Avance (25 de noviembre de 2026):** T1–T8 (servidor) y T9 (formulario web) entregados; T10, T10b y T11–T13 (operación web) pendientes. TOR-01 cubre el núcleo de persistencia, no la página de torneo recuperable. Ver [plan de implementación](producto/planes/torneo.md).
+
+### 6.1 Decisiones y límites de esta entrega
+- La [especificación de torneo](producto/specs/torneo.md) define nombre obligatorio, logo y organizador opcionales, inscripción manual y por enlace, suplentes por orden de inscripción, sorteo ajustable por el organizador y ausencia confirmada por este. La autoinscripción por enlace sigue pendiente de implementación (T10b).
+- Antes de T10b, concretar cómo se presenta el nombre obligatorio del invitado y cómo se vincula una cuenta opcional a su inscripción.
+- Sin suplentes disponibles, el tratamiento de una ausencia requiere una decisión del organizador; no se supone un pase automático.
+- Varias salas simultáneas quedan fuera de la primera entrega; definir su operación antes de incorporarlas.
 
 ### 6.2 Entregables de producto
 
-| ID | Entregable | Estado |
+| ID | Entregable | Alcance de producto |
 |---|---|---|
 | C16 | Sacar «Rey de la pista» del formulario de torneo | ✅ DEC-013 |
 | C17 | Logo + organizador (persona o asociación) | ✅ DEC-012 |
@@ -130,7 +134,7 @@
 | C19 | Elegir tipo primero y adaptar los pasos | ✅ |
 | C20 | Tamaños soportados coherentes por tipo | ✅ |
 | C21 | Separar «Sortear y revisar» de «Iniciar» | ✅ |
-| C22 | Página de torneo recuperable (recargar no la pierde) | ✅ TOR-01 |
+| C22 | Página de torneo recuperable (recargar no la pierde) | ✅; TOR-01 cubre solo el núcleo |
 | C23 | Cuadro actualizado en vivo | ✅ |
 | C24 | Configuración de batalla visible al iniciar | ✅ |
 | C25 | Repesca por inasistencia | ✅ DEC-014 |
@@ -164,7 +168,7 @@
 
 ### 7.2 Entregables de producto
 
-| ID | Entregable | Estado |
+| ID | Entregable | Alcance de producto |
 |---|---|---|
 | C26 | Entrada propia desde Inicio, con explicación de una frase | ✅ |
 | C27 | Admitir 3, 5, 6… participantes (sin potencias de 2) | ✅ |
@@ -199,7 +203,7 @@
 
 ### 8.2 Entregables de producto
 
-| ID | Entregable | Estado |
+| ID | Entregable | Alcance de producto |
 |---|---|---|
 | A1 | Registro con Google o correo | ✅ DEC-002 |
 | A2 | Foto de perfil (subir, recortar, quitar; iniciales si no hay) | ✅ |
@@ -289,7 +293,7 @@ Fase 5 (Niveles)  ──►  XP, stats
 DX-01..04 y WEB-04: intercalados desde Fase 0
 ```
 
-**Regla de avance:** cada fase se congela antes de iniciar la siguiente. Los refactors (SRV/WEB) no se adelantan a las decisiones de producto que habilitan.
+**Regla de avance:** el orden de fases marca la prioridad de producto, no exige terminar cada refactor antes de empezar la siguiente fase. T12/WEB-01 de batalla sigue pendiente mientras el torneo está en curso. Cada tarea que cambia comportamiento requiere sus decisiones concretas registradas antes de implementarse; los refactors (SRV/WEB) se intercalan según las dependencias reales.
 
 ---
 

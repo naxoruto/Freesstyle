@@ -12,14 +12,14 @@ Registro central para continuar el proyecto sin depender del historial del chat.
 
 ## Prioridad actual
 
-Antes de continuar con la recuperación de torneos: afinar las mejoras de las tres experiencias de juego y el perfil; ordenar la documentación y registrar las decisiones. La reorganización de documentos no modifica las reglas de juego.
+La batalla individual ya tiene su recorrido de producto entregado; queda T12 (refactor de la página). El torneo tiene el backend y el formulario web entregados; siguen T10, T10b y T11–T13 para la operación web. Las decisiones pendientes se cierran antes de implementar el comportamiento al que afectan. La reorganización de documentos no modifica las reglas de juego.
 
 | ID | Iniciativa | Estado | Referencia / siguiente paso |
 |---|---|---|---|
 | ORG-01 | Índice y orientación para IA | Implementado | [INDEX](../../INDEX.md), [AGENTS](../../AGENTS.md) |
 | ORG-02 | Reunir documentación y separar antecedentes | Implementado | [Organización](../ORGANIZACION.md) |
 | UX-01 | Mejorar batalla individual | Flujo inicial, roles, exhibición, selector y estabilidad de modalidad confirmados | [Decisiones de batalla](brainstorming/01-batalla-individual.md); preparar especificación tras revisar las demás experiencias |
-| UX-02 | Mejorar torneos | Backend implementado; web en curso (T10–T13) | [Decisiones de torneo](brainstorming/02-torneo.md); [plan](planes/torneo.md) |
+| UX-02 | Mejorar torneos | Backend y formulario web implementados; operación web pendiente (T10, T10b, T11–T13) | [Especificación de torneo](specs/torneo.md); [plan](planes/torneo.md) |
 | UX-03 | Mejorar Rey de la pista | En definición | [Notas previas](brainstorming/03-rey-de-pista.md); confirmar reglas de sesión abierta |
 | PERF-01 | Perfil y registro con Google o correo | En definición; solicitado por el usuario | [Estructura y perfil](brainstorming/00-estructura-y-perfil.md); invitados con nombre o cuenta para guardar perfil e historial, confirmado |
 | PERF-02 | Foto y datos personales del perfil | En definición | Determinar campos, visibilidad y edición |
@@ -41,7 +41,7 @@ Antes de continuar con la recuperación de torneos: afinar las mejoras de las tr
 | TEC-06 | Migraciones de recuperación en la base local | Aplicadas después de respaldo, restauración de prueba y ensayo de migración; otros entornos requieren su propia actualización |
 | TEC-07 | Generación de Prisma bloqueada en Windows | Resuelto cerrando el servidor que ocupaba la DLL; procedimiento en la guía de entorno |
 | TEC-08 | Fase 0 del plan: higiene (artefacto de git, Makefile, docker, respaldos) y consistencia (IDs de mayor entropía y bloqueo ante fallos de persistencia) | Implementado; 229 pruebas verdes; detalle en [Plan de trabajo](../PLAN_DE_TRABAJO.md) |
-| TEC-09 | Fase 1 (batalla individual) — completa: T1–T11 + pulido (C7/C11/C12/C15); T12 (refactor) pendiente | Implementado; 242 pruebas; [especificación](specs/batalla-individual.md) y [plan](planes/batalla-individual.md) |
+| TEC-09 | Fase 1 (batalla individual) — recorrido de producto entregado: T1–T11 + pulido (C7/C11/C12/C15); T12 (refactor) pendiente | Implementado; 242 pruebas al cierre de la entrega; [especificación](specs/batalla-individual.md) y [plan](planes/batalla-individual.md) |
 | TEC-10 | Fase 2 (torneo) — backend T1–T8 y formulario web T9 | Implementado; 246 pruebas verdes y typecheck limpio; [plan](planes/torneo.md). Falta T10–T13 (operación web) y T10b (autoinscripción por enlace, no prevista en el plan original) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
