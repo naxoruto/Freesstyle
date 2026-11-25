@@ -22,6 +22,7 @@ import { validateProductionConfig } from "./config/production";
 import { RateLimiter } from "./security/rateLimit";
 import { createOriginPolicy } from "./security/origins";
 import { isSocketPayloadValid } from "./security/socketPayload";
+import { parseCookies } from "./security/cookies";
 import type { ClientEvent, ServerEvent } from "@freestyle/shared";
 import { DEFAULT_RECONNECT_WINDOW_MS } from "@freestyle/shared";
 
@@ -31,7 +32,7 @@ validateProductionConfig(process.env);
 const app = express();
 if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 const originAllowed = createOriginPolicy(process.env.ALLOWED_ORIGINS);
-app.use(cors({ origin: (origin, callback) => callback(null, originAllowed(origin)) }));
+app.use(cors({ origin: (origin, callback) => callback(null, originAllowed(origin)), credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 
 const inventoryLimiter = new RateLimiter(30, 60_000);
@@ -61,7 +62,7 @@ app.use("/api/games/freestyler/today", (req, res, next) => {
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: (origin, callback) => callback(null, originAllowed(origin)), methods: ["GET", "POST"] },
+  cors: { origin: (origin, callback) => callback(null, originAllowed(origin)), methods: ["GET", "POST"], credentials: true },
   allowRequest: (req, callback) => callback(null, originAllowed(req.headers.origin)),
   transports: ["websocket", "polling"],
   maxHttpBufferSize: 32 * 1024,
@@ -236,7 +237,9 @@ app.post("/api/battles", async (req, res) => {
   const { mode } = req.body;
   try {
     const battle = await battleManager.createBattleDurably(mode);
-    res.json({ ...battle, adminToken: battleManager.getAdminToken(battle.id) });
+    const adminToken = battleManager.getAdminToken(battle.id);
+    if (adminToken) res.cookie(`battle_admin_${battle.id}`, adminToken, { httpOnly: true, sameSite: "lax", path: "/" });
+    res.json(battle);
   } catch (error) {
     console.error("No se pudo crear la batalla", error);
     res.status(503).json({ error: "No se pudo guardar la batalla. Inténtalo de nuevo." });
@@ -432,12 +435,14 @@ io.on("connection", (socket) => {
   const handleEvent = async (event: ClientEvent): Promise<void> => {
     switch (event.type) {
       case "battle:join": {
-        const requestedRole: "admin" | undefined = event.user.role === "admin" ? "admin" : undefined;
+        const cookieToken = parseCookies(socket.handshake.headers.cookie)[`battle_admin_${event.battleId.toLowerCase()}`];
+        const adminToken = cookieToken ?? event.adminToken;
+        const requestedRole: "admin" | undefined = adminToken ? "admin" : event.user.role === "admin" ? "admin" : undefined;
         const joiningUser = { ...event.user, role: requestedRole };
-        const joinError = battleManager.getJoinError(event.battleId, joiningUser, event.adminToken, event.inviteToken);
+        const joinError = battleManager.getJoinError(event.battleId, joiningUser, adminToken, event.inviteToken);
         if (joinError) { socket.emit("battle:error", { message: joinError }); return; }
         if (battleManager.hasMember(event.battleId, joiningUser.id)) { socket.emit("battle:error", { message: "Esta identidad ya está en la sala; vuelve a conectarte con tu sesión." }); return; }
-        const battle = battleManager.joinBattle(event.battleId, socket.id, joiningUser, event.adminToken, event.inviteToken);
+        const battle = battleManager.joinBattle(event.battleId, socket.id, joiningUser, adminToken, event.inviteToken);
         if (!battle) { socket.emit("battle:error", { message: "Batalla no encontrada" }); return; }
         const sessionId = battleManager.getSessionId(socket.id);
         try {

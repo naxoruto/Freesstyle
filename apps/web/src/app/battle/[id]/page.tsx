@@ -125,7 +125,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   useEffect(() => setEntryVoteSubmitted(false), [pendingEntryKey]);
 
   useEffect(() => {
-    const s = io(WS_URL, { transports: ["websocket", "polling"], reconnectionAttempts: 10, reconnectionDelay: 1000 });
+    const s = io(WS_URL, { transports: ["websocket", "polling"], withCredentials: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
 
     const clearEntryTimers = () => {
       if (timersRef.current.connect) { clearTimeout(timersRef.current.connect); timersRef.current.connect = undefined; }

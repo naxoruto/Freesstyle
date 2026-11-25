@@ -27,13 +27,13 @@ export default function HomePage() {
     try {
       const res = await fetch(`${WS_URL}/api/battles`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: modeConfig }),
       });
       if (!res.ok) throw new Error("Error del servidor");
       const battle = await res.json();
       setCreatedId(battle.id);
-      sessionStorage.setItem(`battle_admin_${battle.id}`, battle.adminToken);
       setStep("created");
       showToast("¡Batalla creada!", "success");
     } catch {
