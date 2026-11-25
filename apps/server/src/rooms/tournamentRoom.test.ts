@@ -23,9 +23,17 @@ describe("TournamentRoomManager", () => {
     expect(manager.createTournamentWithParticipants("Copa", "manual", "single_elimination", ["A", "B", "C", " "])).toBeNull();
     expect(manager.createTournamentWithParticipants("Copa", "manual", "single_elimination", ["A", "B", "C"])).toBeNull();
   });
+
+  it("rechaza capacidad y tipo inválidos", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    expect(manager.createTournament("Copa", "random", "single_elimination", { capacity: 3 })).toBeNull();
+    expect(manager.createTournament("Copa", "random", "single_elimination", { capacity: 7 })).toBeNull();
+    expect(manager.createTournament("Copa", "random", "king_of_the_hill")).toBeNull();
+    expect(manager.createTournament("Copa", "random", "single_elimination", { capacity: 16 })).not.toBeNull();
+  });
   it("builds a bracket and advances winners to the final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
 
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
@@ -45,14 +53,14 @@ describe("TournamentRoomManager", () => {
 
   it("requires a power-of-two participant count", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C"]) manager.addParticipant(tournament.id, adminToken, alias);
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBeNull();
   });
 
   it("accepts automatic results from completed battle rooms", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const match = tournament.phases[0].battles[0];
@@ -63,7 +71,7 @@ describe("TournamentRoomManager", () => {
 
   it("reorders participants during setup and the bracket respects the new order", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const [a, b, c, d] = tournament.participants;
 
@@ -79,7 +87,7 @@ describe("TournamentRoomManager", () => {
 
   it("rejects reorder with an invalid admin token", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const ids = tournament.participants.map(participant => participant.userId);
 
@@ -89,7 +97,7 @@ describe("TournamentRoomManager", () => {
 
   it("rejects reorder once the tournament has started", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const ids = tournament.participants.map(participant => participant.userId);
@@ -100,7 +108,7 @@ describe("TournamentRoomManager", () => {
 
   it("rejects reorder with missing, duplicate or unknown ids", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const ids = tournament.participants.map(participant => participant.userId);
 
@@ -110,48 +118,9 @@ describe("TournamentRoomManager", () => {
     expect(tournament.participants.map(participant => participant.userId)).toEqual(ids);
   });
 
-  it("runs king of the hill in participant order until one champion remains", () => {
-    const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("La pista", "manual", "king_of_the_hill");
-    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
-    const [a, b, c, d] = tournament.participants;
-
-    expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
-    expect(tournament.phases).toHaveLength(1);
-    expect(tournament.phases[0].modeConfig.votingSystem).toBe("room_vote");
-    expect(tournament.phases[0].battles[0]).toMatchObject({ mc1Id: a.userId, mc2Id: b.userId });
-
-    const first = tournament.phases[0].battles[0];
-    expect(manager.recordWinner(tournament.id, adminToken, first.battleId!, a.userId)).toBe(tournament);
-    expect(b.eliminated).toBe(true);
-    expect(tournament.phases[0].battles[1]).toMatchObject({ mc1Id: a.userId, mc2Id: c.userId });
-
-    const second = tournament.phases[0].battles[1];
-    expect(manager.recordWinner(tournament.id, adminToken, second.battleId!, c.userId)).toBe(tournament);
-    expect(a.eliminated).toBe(true);
-    expect(tournament.phases[0].battles[2]).toMatchObject({ mc1Id: c.userId, mc2Id: d.userId });
-
-    const final = tournament.phases[0].battles[2];
-    expect(manager.recordWinner(tournament.id, adminToken, final.battleId!, c.userId)).toBe(tournament);
-    expect(tournament).toMatchObject({ status: "finished", winnerId: c.userId });
-    expect(d.eliminated).toBe(true);
-  });
-
-  it("rejects duplicate king of the hill results without creating another challenger", () => {
-    const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("La pista", "manual", "king_of_the_hill");
-    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
-    manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
-    const first = tournament.phases[0].battles[0];
-
-    expect(manager.recordWinner(tournament.id, adminToken, first.battleId!, first.mc1Id!)).toBe(tournament);
-    expect(manager.recordWinner(tournament.id, adminToken, first.battleId!, first.mc1Id!)).toBeNull();
-    expect(tournament.phases[0].battles).toHaveLength(2);
-  });
-
   it("runs a four-player double-elimination bracket and reaches the grand final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination");
+    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const [a, b, c, d] = tournament.participants;
 
@@ -180,7 +149,7 @@ describe("TournamentRoomManager", () => {
 
   it("creates a reset final when the repesca champion beats the undefeated champion", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination");
+    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const [first, second] = tournament.phases[0].battles;
@@ -203,7 +172,7 @@ describe("TournamentRoomManager", () => {
   it("generates the standard loser bracket sizes for 8 and 16 participants", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     for (const [count, expected] of [[8, [2, 2, 1, 1]], [16, [4, 4, 2, 2, 1, 1]]] as const) {
-      const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination");
+      const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination")!;
       for (let index = 0; index < count; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
       expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
       expect(tournament.losersPhases?.map(phase => phase.battles.length)).toEqual(expected);
@@ -212,7 +181,7 @@ describe("TournamentRoomManager", () => {
 
   it("advances an 8-player loser bracket into the grand final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Repesca 8", "manual", "double_elimination");
+    const { tournament, adminToken } = manager.createTournament("Repesca 8", "manual", "double_elimination")!;
     for (let index = 0; index < 8; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
 

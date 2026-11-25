@@ -249,17 +249,24 @@ app.post("/api/battles", async (req, res) => {
 app.post("/api/tournaments", (req, res) => {
   const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
   const bracketMode = req.body.bracketMode === "random" ? "random" : "manual";
-  const type = req.body.type === "with_third_place" || req.body.type === "king_of_the_hill" || req.body.type === "double_elimination"
+  const type = req.body.type === "with_third_place" || req.body.type === "double_elimination"
     ? req.body.type
     : "single_elimination";
+  const options = {
+    logo: typeof req.body.logo === "string" && req.body.logo.trim() ? req.body.logo.trim() : undefined,
+    organizer: typeof req.body.organizer === "string" && req.body.organizer.trim() ? req.body.organizer.trim() : undefined,
+    capacity: typeof req.body.capacity === "number" ? req.body.capacity : undefined,
+  };
   if (!name || name.length > 100) { res.status(400).json({ error: "El nombre es obligatorio y debe tener hasta 100 caracteres" }); return; }
   if (req.body.participants !== undefined) {
-    const created = tournamentManager.createTournamentWithParticipants(name, bracketMode, type, req.body.participants);
+    const created = tournamentManager.createTournamentWithParticipants(name, bracketMode, type, req.body.participants, options);
     if (!created) { res.status(400).json({ error: "La lista debe tener 4, 8, 16... participantes con alias válidos" }); return; }
     res.status(201).json(created);
     return;
   }
-  res.status(201).json(tournamentManager.createTournament(name, bracketMode, type));
+  const created = tournamentManager.createTournament(name, bracketMode, type, options);
+  if (!created) { res.status(400).json({ error: "Capacidad inválida (debe ser 4, 8 o 16)" }); return; }
+  res.status(201).json(created);
 });
 
 app.post("/api/tournaments/:id/participants", (req, res) => {

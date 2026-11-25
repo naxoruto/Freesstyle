@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import type { BattleModeConfig, ReplicaConfig, Tournament, TournamentPhase, TournamentType } from "@freestyle/shared";
+import type { BattleModeConfig, ReplicaConfig, Tournament, TournamentCapacity, TournamentPhase, TournamentType } from "@freestyle/shared";
 import { BattleRoomManager } from "./battleRoom";
 import { generateShortId } from "./id";
 import { TournamentPersistence } from "./tournamentPersistence";
@@ -19,15 +19,19 @@ export class TournamentRoomManager {
 
   constructor(private battleManager: BattleRoomManager) {}
 
-  createTournamentWithParticipants(name: string, bracketMode: "manual" | "random", type: TournamentType, aliases: unknown): { tournament: Tournament; adminToken: string } | null {
+  createTournamentWithParticipants(name: string, bracketMode: "manual" | "random", type: TournamentType, aliases: unknown, options?: { logo?: string; organizer?: string; capacity?: number }): { tournament: Tournament; adminToken: string } | null {
     if (!Array.isArray(aliases) || aliases.length < 4 || aliases.length > 128 || (aliases.length & (aliases.length - 1)) !== 0) return null;
     if (!aliases.every(alias => typeof alias === "string" && alias.trim().length > 0 && alias.trim().length <= 40)) return null;
-    const created = this.createTournament(name, bracketMode, type);
+    const created = this.createTournament(name, bracketMode, type, options);
+    if (!created) return null;
     created.tournament.participants = aliases.map(alias => ({ userId: uuid(), alias: (alias as string).trim(), eliminated: false }));
     return created;
   }
 
-  createTournament(name: string, bracketMode: "manual" | "random", type: TournamentType = "single_elimination"): { tournament: Tournament; adminToken: string } {
+  createTournament(name: string, bracketMode: "manual" | "random", type: TournamentType = "single_elimination", options?: { logo?: string; organizer?: string; capacity?: number }): { tournament: Tournament; adminToken: string } | null {
+    const capacity = options?.capacity ?? 8;
+    if (![4, 8, 16].includes(capacity)) return null;
+    if (type === "king_of_the_hill") return null;
     const id = generateShortId();
     const adminToken = uuid();
     const tournament: Tournament = {
@@ -39,7 +43,9 @@ export class TournamentRoomManager {
       currentPhaseIndex: 0,
       bracketMode,
       type,
-      capacity: 8,
+      logo: options?.logo,
+      organizer: options?.organizer,
+      capacity: capacity as TournamentCapacity,
       suplentes: [],
       auditLog: [],
       createdAt: new Date().toISOString(),
