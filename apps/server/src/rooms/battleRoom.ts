@@ -695,7 +695,8 @@ export class BattleRoomManager {
         battle.roundPhase = participantId === mc1.userId ? "mc1_turn" : "mc2_turn";
         battle.currentTurn = participantId;
         battle.timeRemaining = battle.mode.timerMode === "countdown" ? battle.mode.timePerTurn : 0;
-        if (battle.mode.mode === "libre") {
+        const usesConcept = battle.mode.mode === "clasico" || (battle.mode.mode === "variado" && battle.currentRound % 2 === 0);
+        if (!usesConcept) {
           battle.currentWord = undefined;
           return { battle, phase: battle.roundPhase, participantId, timeRemaining: battle.timeRemaining, phaseToken: newToken };
         }

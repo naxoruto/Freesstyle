@@ -360,6 +360,34 @@ describe("BattleRoomManager", () => {
     expect(manager.nextPhase(battle.id)).toMatchObject({ battle: { status: "finished" } });
   });
 
+  it("genera palabra solo en las rondas con concepto en modo variado (L→C→L)", () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ mode: "variado", rounds: 3, timePerTurn: 60 });
+    join(manager, battle.id, "socket-admin", "admin1", "admin", manager.getAdminToken(battle.id));
+    join(manager, battle.id, "socket-mc1", "mc1", "participant");
+    join(manager, battle.id, "socket-mc2", "mc2", "participant");
+    join(manager, battle.id, "socket-judge", "judge1", "judge");
+    manager.startBattle("socket-admin");
+
+    // Ronda 1 (libre): sin palabra
+    const r1 = manager.nextPhase(battle.id);
+    expect(r1).toMatchObject({ phase: "mc1_turn" });
+    expect(battle.currentWord).toBeUndefined();
+
+    // Cerrar ronda 1
+    manager.nextPhase(battle.id); // mc1_turn → pause
+    manager.nextPhase(battle.id); // pause → mc2_turn
+    manager.nextPhase(battle.id); // mc2_turn → voting
+    manager.submitRubricVote(battle.id, "judge1", 1, battle.participants[0].userId, battle.participants[1].userId, scores(8), scores(5));
+    manager.nextPhase(battle.id); // voting → round_result
+    manager.nextPhase(battle.id); // round_result → countdown (ronda 2)
+
+    // Ronda 2 (concepto): con palabra
+    const r2 = manager.nextPhase(battle.id);
+    expect(r2).toMatchObject({ phase: "mc1_turn" });
+    expect(battle.currentWord).toBeDefined();
+  });
+
   it("persists a resolved round and its final battle state in one operation", () => {
     const { manager, battle } = setupBattle();
     manager.startBattle("socket-admin");
