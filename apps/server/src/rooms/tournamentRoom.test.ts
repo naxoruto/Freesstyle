@@ -39,6 +39,20 @@ describe("TournamentRoomManager", () => {
     expect(tournament.participants.map(participant => participant.alias)).toEqual(["A", "B", "C", "D"]);
     expect(tournament.suplentes.map(participant => participant.alias)).toEqual(["E", "F"]);
   });
+
+  it("registra el sorteo y el reorden en la auditoría", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination")!;
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+
+    manager.sortParticipants(tournament.id, adminToken);
+    expect(tournament.auditLog.some(entry => entry.action === "sort")).toBe(true);
+
+    const ids = tournament.participants.map(participant => participant.userId);
+    manager.reorderParticipants(tournament.id, adminToken, [ids[1], ids[0], ids[2], ids[3]]);
+    expect(tournament.participants.map(participant => participant.userId)).toEqual([ids[1], ids[0], ids[2], ids[3]]);
+    expect(tournament.auditLog.some(entry => entry.action === "reorder")).toBe(true);
+  });
   it("builds a bracket and advances winners to the final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;

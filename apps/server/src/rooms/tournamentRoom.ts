@@ -69,6 +69,20 @@ export class TournamentRoomManager {
     return tournament;
   }
 
+  sortParticipants(tournamentId: string, adminToken: string): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup") return null;
+    const participants = [...tournament.participants];
+    for (let index = participants.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [participants[index], participants[swapIndex]] = [participants[swapIndex], participants[index]];
+    }
+    tournament.participants = participants;
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "sort", detail: "Sorteó el orden de los titulares" });
+    this.persist(tournament);
+    return tournament;
+  }
+
   reorderParticipants(tournamentId: string, adminToken: string, orderedIds: string[]): Tournament | null {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup" || !Array.isArray(orderedIds)) return null;
@@ -77,6 +91,7 @@ export class TournamentRoomManager {
     const byId = new Map(current.map(participant => [participant.userId, participant]));
     if (!orderedIds.every(id => byId.has(id))) return null;
     tournament.participants = orderedIds.map(id => byId.get(id)!);
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "reorder", detail: "Reordenó los titulares del cuadro" });
     this.persist(tournament);
     return tournament;
   }
