@@ -175,7 +175,7 @@ export function BattleLobby({
               <div id="lobby-config" className="lobby-config">
                 <BattleModeSelector value={lobbyConfig} onChange={onConfigChange} />
                 <label className="lobby-toggle">
-                  <span><strong>Réplica automática</strong><small>Una ronda si el resultado termina empatado</small></span>
+                  <span><strong>Réplica automática</strong><small>{replicaConfig?.enabled ? `Hasta ${replicaConfig.maxReplicas} réplica${replicaConfig.maxReplicas !== 1 ? "s" : ""} · ${replicaConfig.tieRange === 0 ? "empate exacto" : `diferencia ≤ ${replicaConfig.tieRange} pts`} · ${replicaConfig.mode.format}` : "Sin réplica automática"}</small></span>
                   <input type="checkbox" checked={replicaConfig?.enabled ?? false} onChange={onReplicaToggle} />
                 </label>
                 <label className="lobby-toggle">
@@ -204,16 +204,16 @@ export function BattleLobby({
               <div className="lobby-card-heading">
                 <div><span className="lobby-kicker">Gestionar</span><h2>Personas y roles</h2></div>
               </div>
-              <p>Quienes entran quedan en espera hasta que un admin les asigne un rol.</p>
+              <p>Quienes entran quedan en espera. Asigná un rol (MC, Juez, Público u Host); «Organizador» es un permiso aparte.</p>
               <div className="lobby-role-list">
                 {battle.members.map(member => {
                   const isAdminCandidate = member.roles.includes("admin");
                   const currentRole = operationalRoles.find(role => member.roles.includes(role));
-                  const roleSummary = member.roles.map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : "Admin").join(" + ") || "En espera";
+                  const roleSummary = member.roles.filter(role => operationalRoles.includes(role)).map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : role).join(" + ") || "En espera";
                   return (
                     <div key={member.userId} className="lobby-role-row">
                       <span>{member.alias}{member.userId === currentUserId ? " (tú)" : ""}</span>
-                      <strong>{roleSummary}{member.connected ? "" : " · desconectado"}</strong>
+                      <strong>{roleSummary}{isAdminCandidate && <span className="text-red-400"> · Organizador</span>}{member.connected ? "" : " · desconectado"}</strong>
                       <select
                         className="bg-black border border-white/10 text-xs p-2 rounded"
                         value=""

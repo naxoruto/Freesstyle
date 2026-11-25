@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toaster, showToast } from "@/lib/utils";
-import { BATTLE_PRESETS, type BattlePresetId } from "@freestyle/shared";
+import { BATTLE_PRESETS, matchPreset, type BattlePresetId, type BattleModeConfig } from "@freestyle/shared";
 import { createBattle } from "@/lib/api";
 import HeroSection from "@/components/HeroSection";
+import { BattleModeSelector } from "@/components/BattleModeSelector";
 
 type Step = "menu" | "choose" | "create" | "join";
 
@@ -17,14 +18,16 @@ export default function HomePage() {
   const [step, setStep] = useState<Step>("menu");
   const [battleId, setBattleId] = useState("");
   const [alias, setAlias] = useState("");
-  const [presetId, setPresetId] = useState<BattlePresetId>("rapida");
+  const [config, setConfig] = useState<BattleModeConfig>(BATTLE_PRESETS.rapida.config);
+  const [customOpen, setCustomOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const matchedPreset = matchPreset(config);
 
   const handleCreate = async () => {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
     setLoading(true);
     try {
-      const battle = await createBattle(BATTLE_PRESETS[presetId].config);
+      const battle = await createBattle(config);
       sessionStorage.setItem(`battle_pending_${battle.id}`, JSON.stringify({ alias: alias.trim(), role: "admin" }));
       router.push(`/battle/${battle.id}`);
     } catch {
@@ -38,6 +41,14 @@ export default function HomePage() {
     if (!alias.trim()) { showToast("Escribe tu alias primero", "error"); return; }
     sessionStorage.setItem(`battle_pending_${battleId.toLowerCase()}`, JSON.stringify({ alias: alias.trim() }));
     router.push(`/battle/${battleId.toLowerCase()}`);
+  };
+
+  const handlePresetSelect = (id: BattlePresetId) => {
+    setConfig(BATTLE_PRESETS[id].config);
+  };
+
+  const handleConfigChange = (partial: Partial<BattleModeConfig>) => {
+    setConfig(prev => ({ ...prev, ...partial }));
   };
 
   return (
@@ -84,12 +95,15 @@ export default function HomePage() {
           </div>
 
           <div className="mb-6">
-            <p className="text-sm text-gray-400 mb-3">Formato</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-400">Formato</p>
+              <button type="button" onClick={() => setCustomOpen(open => !open)} className="text-xs text-red-400 hover:text-red-300 transition">{customOpen ? "Cerrar" : "Cambiar formato"}</button>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {PRESET_IDS.map((id) => {
                 const preset = BATTLE_PRESETS[id];
                 return (
-                  <button key={id} type="button" onClick={() => setPresetId(id)} aria-pressed={presetId === id} className={`p-3 rounded-xl border-2 text-left transition ${presetId === id ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}>
+                  <button key={id} type="button" onClick={() => handlePresetSelect(id)} aria-pressed={matchedPreset === id} className={`p-3 rounded-xl border-2 text-left transition ${matchedPreset === id ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}>
                     <span className="block font-bold text-white text-sm">{preset.name}</span>
                   </button>
                 );
@@ -97,9 +111,15 @@ export default function HomePage() {
             </div>
           </div>
 
+          {customOpen && (
+            <div className="mb-6 p-4 rounded-xl border border-gray-800 bg-black/40">
+              <BattleModeSelector value={config} onChange={handleConfigChange} />
+            </div>
+          )}
+
           <div className="mb-8 p-4 rounded-xl border border-gray-800 bg-black/40">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Resumen</p>
-            <p className="text-sm text-white">{BATTLE_PRESETS[presetId].summary}</p>
+            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">{matchedPreset ? "Resumen" : "Formato personalizado"}</p>
+            <p className="text-sm text-white">{matchedPreset ? BATTLE_PRESETS[matchedPreset].summary : "Ajustaste las reglas a tu medida."}</p>
           </div>
 
           <button onClick={handleCreate} disabled={loading || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">
