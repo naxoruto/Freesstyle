@@ -102,7 +102,7 @@ Guardar el respaldo fuera del servidor y protegerlo como dato privado. Para ensa
 docker compose -f docker-compose.prod.yml run --rm server ./node_modules/.bin/prisma migrate deploy
 ```
 
-`/api/health` indica que el proceso responde; `/api/ready` devuelve 503 si no puede consultar PostgreSQL. Las batallas activas se recuperan pausadas y requieren la reanudación del organizador; los torneos todavía no se recuperan tras reinicios. Consultar `RECUPERACION_BATALLAS.md` para el contrato y las limitaciones.
+`/api/health` indica que el proceso responde; `/api/ready` devuelve 503 si no puede consultar PostgreSQL. Las batallas activas se recuperan pausadas y requieren la reanudación del organizador. El núcleo de torneos activos también se restaura al arrancar; la operación web del torneo sigue en desarrollo. Consultar `RECUPERACION_BATALLAS.md` para el contrato y las limitaciones de batallas.
 
 ## Línea base de la auditoría
 

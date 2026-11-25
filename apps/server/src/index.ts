@@ -256,16 +256,17 @@ app.post("/api/tournaments", (req, res) => {
     logo: typeof req.body.logo === "string" && req.body.logo.trim() ? req.body.logo.trim() : undefined,
     organizer: typeof req.body.organizer === "string" && req.body.organizer.trim() ? req.body.organizer.trim() : undefined,
     capacity: typeof req.body.capacity === "number" ? req.body.capacity : undefined,
+    modeConfig: req.body.modeConfig,
   };
   if (!name || name.length > 100) { res.status(400).json({ error: "El nombre es obligatorio y debe tener hasta 100 caracteres" }); return; }
   if (req.body.participants !== undefined) {
     const created = tournamentManager.createTournamentWithParticipants(name, bracketMode, type, req.body.participants, options);
-    if (!created) { res.status(400).json({ error: "La lista debe tener 4, 8, 16... participantes con alias válidos" }); return; }
+    if (!created) { res.status(400).json({ error: "Revisa la lista, la capacidad y las reglas del torneo" }); return; }
     res.status(201).json(created);
     return;
   }
   const created = tournamentManager.createTournament(name, bracketMode, type, options);
-  if (!created) { res.status(400).json({ error: "Capacidad inválida (debe ser 4, 8 o 16)" }); return; }
+  if (!created) { res.status(400).json({ error: "Revisa la capacidad y las reglas del torneo" }); return; }
   res.status(201).json(created);
 });
 
@@ -276,6 +277,32 @@ app.post("/api/tournaments/:id/participants", (req, res) => {
   }
   const tournament = tournamentManager.addParticipant(req.params.id, req.body.adminToken, req.body.alias);
   if (!tournament) { res.status(400).json({ error: "No se pudo agregar el participante" }); return; }
+  res.json(tournament);
+});
+
+app.delete("/api/tournaments/:id/participants/:participantId", (req, res) => {
+  const tournament = tournamentManager.removeParticipant(req.params.id, req.body?.adminToken, req.params.participantId);
+  if (!tournament) { res.status(400).json({ error: "No se pudo quitar la inscripción" }); return; }
+  res.json(tournament);
+});
+
+app.post("/api/tournaments/:id/participants/move", (req, res) => {
+  const destination = req.body?.destination;
+  if (destination !== "titular" && destination !== "suplente") { res.status(400).json({ error: "Destino inválido" }); return; }
+  const tournament = tournamentManager.moveParticipant(req.params.id, req.body.adminToken, req.body.participantId, destination);
+  if (!tournament) { res.status(400).json({ error: "No se pudo mover la inscripción" }); return; }
+  res.json(tournament);
+});
+
+app.post("/api/tournaments/:id/participants/confirm", (req, res) => {
+  const tournament = tournamentManager.confirmParticipants(req.params.id, req.body?.adminToken);
+  if (!tournament) { res.status(400).json({ error: "Completa el cupo de titulares antes de confirmar" }); return; }
+  res.json(tournament);
+});
+
+app.put("/api/tournaments/:id/rules", (req, res) => {
+  const tournament = tournamentManager.updateRules(req.params.id, req.body?.adminToken, req.body?.modeConfig);
+  if (!tournament) { res.status(400).json({ error: "No se pudieron actualizar las reglas" }); return; }
   res.json(tournament);
 });
 
@@ -293,7 +320,7 @@ app.post("/api/tournaments/:id/start", (req, res) => {
     req.body.modeConfig ?? getDefaultModeConfig("clasico"),
     req.body.replicaConfig,
   );
-  if (!tournament) { res.status(400).json({ error: "El torneo requiere 4, 8, 16... participantes" }); return; }
+  if (!tournament) { res.status(400).json({ error: "Confirma los titulares y completa el cupo antes de iniciar" }); return; }
   res.json(tournament);
 });
 

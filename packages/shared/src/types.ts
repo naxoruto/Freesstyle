@@ -145,6 +145,9 @@ export interface Tournament {
   organizer?: string;
   capacity: TournamentCapacity;
   suplentes: TournamentParticipant[];
+  registrationClosed?: boolean;
+  modeConfig?: BattleModeConfig;
+  rulesUpdatedAt?: string;
   auditLog: TournamentAuditEntry[];
   thirdPlaceMatch?: TournamentBattle;
   losersPhases?: TournamentPhase[];

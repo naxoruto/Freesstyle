@@ -18,6 +18,13 @@ describe("TournamentRoomManager", () => {
     expect(result?.adminToken).toBeTruthy();
   });
 
+  it("separa la carga inicial entre titulares y suplentes según la capacidad", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const result = manager.createTournamentWithParticipants("Copa", "manual", "single_elimination", ["A", "B", "C", "D", "E", "F", "G", "H"], { capacity: 4 });
+    expect(result?.tournament.participants.map(participant => participant.alias)).toEqual(["A", "B", "C", "D"]);
+    expect(result?.tournament.suplentes.map(participant => participant.alias)).toEqual(["E", "F", "G", "H"]);
+  });
+
   it("rejects an invalid participant list without creating a tournament", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     expect(manager.createTournamentWithParticipants("Copa", "manual", "single_elimination", ["A", "B", "C", " "])).toBeNull();
@@ -38,6 +45,62 @@ describe("TournamentRoomManager", () => {
     for (const alias of ["A", "B", "C", "D", "E", "F"]) manager.addParticipant(tournament.id, adminToken, alias);
     expect(tournament.participants.map(participant => participant.alias)).toEqual(["A", "B", "C", "D"]);
     expect(tournament.suplentes.map(participant => participant.alias)).toEqual(["E", "F"]);
+  });
+
+  it("requiere confirmar el cupo antes de iniciar y cierra la inscripción pública", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C"]) manager.addParticipant(tournament.id, adminToken, alias);
+    expect(manager.confirmParticipants(tournament.id, adminToken)).toBeNull();
+    expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBeNull();
+    manager.addParticipant(tournament.id, adminToken, "D");
+    expect(manager.confirmParticipants(tournament.id, "incorrecto")).toBeNull();
+    expect(manager.confirmParticipants(tournament.id, adminToken)).toBe(tournament);
+    expect(tournament.registrationClosed).toBe(true);
+    expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
+  });
+
+  it("permite mover titulares y suplentes y quitar una inscripción con autorización", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E"]) manager.addParticipant(tournament.id, adminToken, alias);
+    const a = tournament.participants[0].userId;
+    const e = tournament.suplentes[0].userId;
+    expect(manager.moveParticipant(tournament.id, "incorrecto", e, "titular")).toBeNull();
+    expect(manager.moveParticipant(tournament.id, adminToken, e, "titular")).toBe(tournament);
+    expect(tournament.participants.map(participant => participant.alias)).toEqual(["A", "B", "C", "E"]);
+    expect(tournament.suplentes.map(participant => participant.alias)).toEqual(["D"]);
+    expect(manager.removeParticipant(tournament.id, adminToken, a)).toBe(tournament);
+    expect(tournament.participants.map(participant => participant.alias)).toEqual(["B", "C", "E", "D"]);
+    expect(manager.removeParticipant(tournament.id, adminToken, "desconocido")).toBeNull();
+  });
+
+  it("conserva las reglas elegidas y permite editarlas solo antes de iniciar", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const libre = getDefaultModeConfig("libre");
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4, modeConfig: libre })!;
+    expect(tournament.modeConfig?.mode).toBe("libre");
+    const clasico = getDefaultModeConfig("clasico");
+    expect(manager.updateRules(tournament.id, "incorrecto", clasico)).toBeNull();
+    expect(manager.updateRules(tournament.id, adminToken, clasico)).toBe(tournament);
+    expect(tournament.modeConfig?.mode).toBe("clasico");
+    expect(tournament.rulesUpdatedAt).toBeTruthy();
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
+    manager.startTournament(tournament.id, adminToken, clasico);
+    expect(manager.updateRules(tournament.id, adminToken, libre)).toBeNull();
+    expect(tournament.phases[0].modeConfig.mode).toBe("clasico");
+  });
+
+  it("deja una auditoría de las correcciones de inscripción y reglas", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.moveParticipant(tournament.id, adminToken, tournament.suplentes[0].userId, "titular");
+    manager.removeParticipant(tournament.id, adminToken, tournament.suplentes[0].userId);
+    manager.updateRules(tournament.id, adminToken, getDefaultModeConfig("libre"));
+    manager.confirmParticipants(tournament.id, adminToken);
+    expect(tournament.auditLog.map(entry => entry.action)).toEqual(["move", "remove", "rules", "confirm"]);
   });
 
   it("registra el sorteo y el reorden en la auditoría", () => {
@@ -67,9 +130,10 @@ describe("TournamentRoomManager", () => {
   });
   it("builds a bracket and advances winners to the final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
 
+    manager.confirmParticipants(tournament.id, adminToken);
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
     expect(tournament.phases).toHaveLength(2);
     expect(tournament.phases[0].battles).toHaveLength(2);
@@ -94,8 +158,9 @@ describe("TournamentRoomManager", () => {
 
   it("accepts automatic results from completed battle rooms", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const match = tournament.phases[0].battles[0];
 
@@ -105,7 +170,7 @@ describe("TournamentRoomManager", () => {
 
   it("reorders participants during setup and the bracket respects the new order", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const [a, b, c, d] = tournament.participants;
 
@@ -113,6 +178,7 @@ describe("TournamentRoomManager", () => {
     expect(reordered).toBe(tournament);
     expect(tournament.participants.map(participant => participant.alias)).toEqual(["D", "A", "B", "C"]);
 
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const [first, second] = tournament.phases[0].battles;
     expect(first).toMatchObject({ mc1Id: d.userId, mc2Id: a.userId });
@@ -131,8 +197,9 @@ describe("TournamentRoomManager", () => {
 
   it("rejects reorder once the tournament has started", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
+    const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const ids = tournament.participants.map(participant => participant.userId);
 
@@ -154,10 +221,11 @@ describe("TournamentRoomManager", () => {
 
   it("runs a four-player double-elimination bracket and reaches the grand final", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination")!;
+    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const [a, b, c, d] = tournament.participants;
 
+    manager.confirmParticipants(tournament.id, adminToken);
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
     expect(tournament.losersPhases).toHaveLength(2);
     const [first, second] = tournament.phases[0].battles;
@@ -183,8 +251,9 @@ describe("TournamentRoomManager", () => {
 
   it("creates a reset final when the repesca champion beats the undefeated champion", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
-    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination")!;
+    const { tournament, adminToken } = manager.createTournament("Repesca", "manual", "double_elimination", { capacity: 4 })!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const [first, second] = tournament.phases[0].battles;
     manager.recordWinner(tournament.id, adminToken, first.battleId!, first.mc1Id!);
@@ -208,6 +277,7 @@ describe("TournamentRoomManager", () => {
     for (const [count, expected] of [[8, [2, 2, 1, 1]], [16, [4, 4, 2, 2, 1, 1]]] as const) {
       const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination", { capacity: count })!;
       for (let index = 0; index < count; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
+      manager.confirmParticipants(tournament.id, adminToken);
       expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
       expect(tournament.losersPhases?.map(phase => phase.battles.length)).toEqual(expected);
     }
@@ -217,6 +287,7 @@ describe("TournamentRoomManager", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const { tournament, adminToken } = manager.createTournament("Repesca 8", "manual", "double_elimination")!;
     for (let index = 0; index < 8; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
 
     for (const match of tournament.phases[0].battles) manager.recordWinner(tournament.id, adminToken, match.battleId!, match.mc1Id!);

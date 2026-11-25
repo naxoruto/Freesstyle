@@ -1,8 +1,16 @@
 import { v4 as uuid } from "uuid";
-import type { BattleModeConfig, ReplicaConfig, Tournament, TournamentCapacity, TournamentPhase, TournamentType } from "@freestyle/shared";
+import { validateConfig, type BattleModeConfig, type ReplicaConfig, type Tournament, type TournamentCapacity, type TournamentPhase, type TournamentType } from "@freestyle/shared";
 import { BattleRoomManager } from "./battleRoom";
 import { generateShortId } from "./id";
 import { TournamentPersistence } from "./tournamentPersistence";
+import { getDefaultModeConfig } from "../modes/modes";
+
+interface TournamentCreateOptions {
+  logo?: string;
+  organizer?: string;
+  capacity?: number;
+  modeConfig?: BattleModeConfig;
+}
 
 function phaseName(size: number): string {
   if (size === 2) return "Final";
@@ -19,19 +27,23 @@ export class TournamentRoomManager {
 
   constructor(private battleManager: BattleRoomManager) {}
 
-  createTournamentWithParticipants(name: string, bracketMode: "manual" | "random", type: TournamentType, aliases: unknown, options?: { logo?: string; organizer?: string; capacity?: number }): { tournament: Tournament; adminToken: string } | null {
+  createTournamentWithParticipants(name: string, bracketMode: "manual" | "random", type: TournamentType, aliases: unknown, options?: TournamentCreateOptions): { tournament: Tournament; adminToken: string } | null {
     if (!Array.isArray(aliases) || aliases.length < 4 || aliases.length > 128 || (aliases.length & (aliases.length - 1)) !== 0) return null;
     if (!aliases.every(alias => typeof alias === "string" && alias.trim().length > 0 && alias.trim().length <= 40)) return null;
     const created = this.createTournament(name, bracketMode, type, options);
     if (!created) return null;
-    created.tournament.participants = aliases.map(alias => ({ userId: uuid(), alias: (alias as string).trim(), eliminated: false }));
+    const participants = aliases.map(alias => ({ userId: uuid(), alias: (alias as string).trim(), eliminated: false }));
+    created.tournament.participants = participants.slice(0, created.tournament.capacity);
+    created.tournament.suplentes = participants.slice(created.tournament.capacity);
     return created;
   }
 
-  createTournament(name: string, bracketMode: "manual" | "random", type: TournamentType = "single_elimination", options?: { logo?: string; organizer?: string; capacity?: number }): { tournament: Tournament; adminToken: string } | null {
+  createTournament(name: string, bracketMode: "manual" | "random", type: TournamentType = "single_elimination", options?: TournamentCreateOptions): { tournament: Tournament; adminToken: string } | null {
     const capacity = options?.capacity ?? 8;
     if (![4, 8, 16].includes(capacity)) return null;
     if (type === "king_of_the_hill") return null;
+    const modeConfig = options?.modeConfig ?? getDefaultModeConfig("clasico");
+    if (!this.validRules(modeConfig)) return null;
     const id = generateShortId();
     const adminToken = uuid();
     const tournament: Tournament = {
@@ -47,6 +59,8 @@ export class TournamentRoomManager {
       organizer: options?.organizer,
       capacity: capacity as TournamentCapacity,
       suplentes: [],
+      registrationClosed: false,
+      modeConfig,
       auditLog: [],
       createdAt: new Date().toISOString(),
     };
@@ -65,6 +79,70 @@ export class TournamentRoomManager {
     } else {
       tournament.suplentes.push(participant);
     }
+    this.persist(tournament);
+    return tournament;
+  }
+
+  removeParticipant(tournamentId: string, adminToken: string, participantId: string): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup") return null;
+    const titularIndex = tournament.participants.findIndex(participant => participant.userId === participantId);
+    const suplenteIndex = tournament.suplentes.findIndex(participant => participant.userId === participantId);
+    if (titularIndex < 0 && suplenteIndex < 0) return null;
+    const removed = titularIndex >= 0 ? tournament.participants[titularIndex] : tournament.suplentes[suplenteIndex];
+    if (titularIndex >= 0) {
+      tournament.participants.splice(titularIndex, 1);
+      const next = tournament.suplentes.shift();
+      if (next) tournament.participants.push(next);
+    } else {
+      tournament.suplentes.splice(suplenteIndex, 1);
+    }
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "remove", detail: `Quitó a ${removed.alias}` });
+    this.persist(tournament);
+    return tournament;
+  }
+
+  moveParticipant(tournamentId: string, adminToken: string, participantId: string, destination: "titular" | "suplente"): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup") return null;
+    let movedAlias: string;
+    if (destination === "titular") {
+      const index = tournament.suplentes.findIndex(participant => participant.userId === participantId);
+      if (index < 0) return null;
+      const [promoted] = tournament.suplentes.splice(index, 1);
+      movedAlias = promoted.alias;
+      if (tournament.participants.length >= tournament.capacity) {
+        const displaced = tournament.participants.pop()!;
+        tournament.suplentes.unshift(displaced);
+      }
+      tournament.participants.push(promoted);
+    } else {
+      const index = tournament.participants.findIndex(participant => participant.userId === participantId);
+      if (index < 0) return null;
+      const [demoted] = tournament.participants.splice(index, 1);
+      movedAlias = demoted.alias;
+      tournament.suplentes.unshift(demoted);
+    }
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "move", detail: `Movió a ${movedAlias} a ${destination}` });
+    this.persist(tournament);
+    return tournament;
+  }
+
+  confirmParticipants(tournamentId: string, adminToken: string): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup" || tournament.participants.length !== tournament.capacity) return null;
+    tournament.registrationClosed = true;
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "confirm", detail: `Confirmó ${tournament.capacity} titulares` });
+    this.persist(tournament);
+    return tournament;
+  }
+
+  updateRules(tournamentId: string, adminToken: string, modeConfig: BattleModeConfig): Tournament | null {
+    const tournament = this.authorize(tournamentId, adminToken);
+    if (!tournament || tournament.status !== "setup" || !this.validRules(modeConfig)) return null;
+    tournament.modeConfig = modeConfig;
+    tournament.rulesUpdatedAt = new Date().toISOString();
+    tournament.auditLog.push({ at: tournament.rulesUpdatedAt, actorId: "admin", action: "rules", detail: `Actualizó las reglas: ${modeConfig.mode}, ${modeConfig.format}` });
     this.persist(tournament);
     return tournament;
   }
@@ -124,7 +202,8 @@ export class TournamentRoomManager {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup") return null;
     const participantCount = tournament.participants.length;
-    if (participantCount < 4 || (participantCount & (participantCount - 1)) !== 0) return null;
+    if (!tournament.registrationClosed || participantCount !== tournament.capacity) return null;
+    modeConfig = tournament.modeConfig ?? modeConfig;
 
     const participants = [...tournament.participants];
     if (tournament.bracketMode === "random") {
@@ -419,5 +498,13 @@ export class TournamentRoomManager {
     const id = tournamentId.toLowerCase();
     if (this.adminTokens.get(id) !== adminToken) return null;
     return this.tournaments.get(id) ?? null;
+  }
+
+  private validRules(modeConfig: BattleModeConfig): boolean {
+    try {
+      return !!modeConfig && typeof modeConfig === "object" && validateConfig(modeConfig).valid;
+    } catch {
+      return false;
+    }
   }
 }

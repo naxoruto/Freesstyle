@@ -23,13 +23,13 @@
 | T7 · Repesca por suplente | ✅ Implementado | `ca5a732` |
 | T8 · Recuperación tras reinicio | ✅ Implementado | `6838fd8` |
 | T9 · Formulario web | ✅ Implementado | `546bbcb` |
-| T10 · Inscripción web (manual + código) | ⏳ Pendiente | — |
+| T10 · Inscripción guiada y confirmación de titulares | ✅ Implementado | Esta entrega |
 | T10b · Autoinscripción por enlace (API + página) | ⏳ Pendiente; no estaba en el plan original | — |
 | T11 · Sorteo y auditoría (web) | ⏳ Pendiente | — |
 | T12 · Cuadro en vivo (web) | ⏳ Pendiente | — |
 | T13 · Repesca (web) | ⏳ Pendiente | — |
 
-**Evidencia:** 246 pruebas del servidor en verde y `typecheck` limpio en server y web al cerrar T9. El backend (T1–T8) está completo y persistido; falta toda la capa web de operación (T10–T13) y la autoinscripción.
+**Evidencia:** al cerrar T10, 251 pruebas del servidor en verde, lint y typecheck limpios, compilaciones de web y servidor correctas; recorrido HTTP y de navegador con base descartable. La inscripción manual y la confirmación están disponibles; la autoinscripción por enlace y T11–T13 siguen pendientes.
 
 ### Hallazgo abierto: la inscripción por enlace no existe todavía
 
@@ -154,15 +154,15 @@ T9 (form) → T10 (inscripción UI) → T10b (autoinscripción) → T11 (sorteo 
 - [x] **Paso 2 — Verificar**: `pnpm --filter @freestyle/web typecheck` + recorrido manual pendiente.
 - [x] **Paso 3 — Commit**: `546bbcb` `feat(web): formulario de torneo (tipo, identidad, capacidad)`.
 
-## T10 — Inscripción (web) ⏳
+## T10 — Inscripción (web) ✅
 
 **Files:** `apps/web/src/app/tournament/page.tsx`, `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`
 
 **Interfaces:** etapa de inscripción guiada tras crear; reglas de batalla definidas antes de compartir y editables hasta iniciar; agregar a mano, mover y quitar inscritos; confirmar titulares y cerrar inscripción pública (DEC-021). El enlace de invitación funciona cuando T10b esté implementada.
 
-- [ ] **Paso 1 — Implementar**: configuración de reglas antes de crear, alta manual con el endpoint existente, lista separada de titulares y suplentes, y controles de mover/quitar participantes. Añadir los endpoints y estados que falten para confirmar titulares y conservar el cierre de inscripción pública.
-- [ ] **Paso 2 — Verificar**: pruebas del servidor para mover/quitar, confirmar y cerrar la inscripción pública; typecheck web y recorrido manual.
-- [ ] **Paso 3 — Commit**: `feat(torneo): inscripción guiada y confirmación de titulares`.
+- [x] **Paso 1 — Implementar**: configuración de reglas antes de crear, alta manual, listas separadas de titulares y suplentes, controles de mover/quitar, auditoría básica y confirmación que cierra la inscripción pública.
+- [x] **Paso 2 — Verificar**: pruebas del servidor, lint/typecheck/build y recorrido HTTP y de navegador con base descartable.
+- [x] **Paso 3 — Commit**: `feat(torneo): inscripción guiada y confirmación de titulares`.
 
 > Nota: el enlace público de inscripción depende de T10b.
 

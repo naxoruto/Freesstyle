@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Tournament, TournamentType } from "@freestyle/shared";
+import { createDefaultConfig, normalizeConfig, validateConfig, type BattleModeConfig, type Tournament, type TournamentType } from "@freestyle/shared";
+import { BattleModeSelector } from "../../components/BattleModeSelector";
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -22,6 +23,13 @@ export default function TournamentPage() {
   const [error, setError] = useState("");
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [adminToken, setAdminToken] = useState("");
+  const [participantAlias, setParticipantAlias] = useState("");
+  const [modeConfig, setModeConfig] = useState<BattleModeConfig>(() => createDefaultConfig("clasico"));
+  const [editingRules, setEditingRules] = useState(false);
+
+  const changeRules = (partial: Partial<BattleModeConfig>) => {
+    setModeConfig(normalizeConfig(partial, partial.mode ?? "clasico"));
+  };
 
   const loadExample = () => {
     setAliases("MC Uno\nMC Dos\nMC Tres\nMC Cuatro");
@@ -29,15 +37,16 @@ export default function TournamentPage() {
 
   const handleCreate = async () => {
     if (!name.trim()) { setError("Escribe un nombre para el torneo"); return; }
+    if (!validateConfig(modeConfig).valid) { setError("Revisa las reglas de las batallas antes de crear el torneo"); return; }
     const participants = aliases.split("\n").map(alias => alias.trim()).filter(Boolean);
     if (participants.length > 0 && (participants.length < 4 || (participants.length & (participants.length - 1)) !== 0)) {
-      setError("Los participantes deben ser 4, 8 o 16, uno por línea (o dejá el campo vacío para inscribir por enlace).");
+      setError("La carga inicial debe tener 4, 8 o 16 participantes. También puedes dejarla vacía y agregarlos después de crear.");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const body: Record<string, unknown> = { name, bracketMode: random ? "random" : "manual", type, logo: logo.trim() || undefined, organizer: organizer.trim() || undefined, capacity };
+      const body: Record<string, unknown> = { name, bracketMode: random ? "random" : "manual", type, logo: logo.trim() || undefined, organizer: organizer.trim() || undefined, capacity, modeConfig };
       if (participants.length > 0) body.participants = participants;
       const createResponse = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
@@ -55,6 +64,42 @@ export default function TournamentPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateSetup = async (path: string, method: "POST" | "PUT" | "DELETE", values: Record<string, unknown> = {}) => {
+    if (!tournament) return false;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...values, adminToken }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "No se pudo actualizar el torneo");
+      setTournament(result as Tournament);
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Error inesperado");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddParticipant = async () => {
+    const alias = participantAlias.trim();
+    if (!alias) { setError("Escribe el nombre del participante"); return; }
+    if (await updateSetup("/participants", "POST", { alias })) setParticipantAlias("");
+  };
+
+  const handleRemoveParticipant = (participantId: string) => updateSetup(`/participants/${participantId}`, "DELETE");
+  const handlePlacement = (participantId: string, destination: "titular" | "suplente") => updateSetup("/participants/move", "POST", { participantId, destination });
+
+  const handleSaveRules = async () => {
+    if (!validateConfig(modeConfig).valid) { setError("Revisa las reglas de las batallas"); return; }
+    if (await updateSetup("/rules", "PUT", { modeConfig })) setEditingRules(false);
   };
 
   const handleStart = async () => {
@@ -76,7 +121,7 @@ export default function TournamentPage() {
     }
   };
 
-  const handleMove = async (index: number, direction: -1 | 1) => {
+  const handleReorder = async (index: number, direction: -1 | 1) => {
     if (!tournament) return;
     const target = index + direction;
     if (target < 0 || target >= tournament.participants.length) return;
@@ -154,7 +199,7 @@ export default function TournamentPage() {
       <h1 className="mt-2 font-battle text-5xl font-black uppercase italic">Torneos</h1>
 
       {step === "form" && (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 space-y-6">
           <div className="space-y-4 border border-white/10 p-5">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Tipo de torneo</p>
@@ -187,12 +232,17 @@ export default function TournamentPage() {
               </div>
             </div>
 
+            <div className="border-t border-white/10 pt-4">
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-3">Reglas de las batallas</p>
+              <BattleModeSelector value={modeConfig} onChange={changeRules} disabled={loading} />
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-gray-400 uppercase tracking-widest">Participantes (opcional)</p>
                 <button type="button" onClick={loadExample} className="text-xs text-red-400 hover:text-red-300">Cargar ejemplo</button>
               </div>
-              <textarea value={aliases} onChange={e => setAliases(e.target.value)} rows={6} placeholder="Un alias por línea. Dejalo vacío para inscribir por enlace." className="w-full border border-white/10 bg-black p-3 font-mono text-sm" />
+              <textarea value={aliases} onChange={e => setAliases(e.target.value)} rows={6} placeholder="Un alias por línea. También puedes agregar participantes después de crear." className="w-full border border-white/10 bg-black p-3 font-mono text-sm" />
             </div>
 
             <label className="flex items-center gap-3 text-sm text-white/50">
@@ -207,7 +257,7 @@ export default function TournamentPage() {
           </div>
           <div className="border border-white/5 p-5 text-sm leading-7 text-white/40">
             <p>Cuadros de 4, 8 o 16 participantes. La repesca soporta 4, 8 y 16.</p>
-            <p>Podés cargar participantes a mano o dejar el campo vacío y compartir el enlace de inscripción.</p>
+            <p>Después de crear, podrás completar y confirmar la lista de titulares. El enlace público de inscripción estará disponible en una próxima entrega.</p>
             <p>Cada enfrentamiento crea una sala de batalla normal.</p>
           </div>
         </div>
@@ -215,6 +265,79 @@ export default function TournamentPage() {
 
       {step === "setup" && tournament && (
         <div className="mt-8 space-y-6">
+          <div className="border border-red-500/30 bg-red-950/10 p-5 space-y-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-red-400">{tournament.registrationClosed ? "Inscripción confirmada · paso 2 de 2" : "Inscripción · paso 1 de 2"}</p>
+              <h2 className="mt-2 font-battle text-2xl font-black uppercase">{tournament.name}</h2>
+              <p className="mt-2 text-sm text-white/50">Identificador del torneo: <span className="font-mono text-white">{tournament.id}</span></p>
+              <p className="mt-1 text-sm text-white/50">El enlace público de inscripción estará disponible cuando se habilite la autoinscripción.</p>
+            </div>
+            <div className="border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold">Reglas de las batallas</p>
+                <button type="button" onClick={() => { setModeConfig(tournament.modeConfig ?? createDefaultConfig("clasico")); setEditingRules(!editingRules); }} className="text-sm text-red-400 hover:text-red-300">
+                  {editingRules ? "Cerrar edición" : "Cambiar reglas"}
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-white/60">{tournament.modeConfig?.format ?? "1x1"} · {tournament.modeConfig?.mode ?? "clasico"} · {tournament.modeConfig?.rounds ?? 3} rondas · {tournament.modeConfig?.timePerTurn ?? 45}s por turno</p>
+              {editingRules && (
+                <div className="mt-4 space-y-4">
+                  <BattleModeSelector value={modeConfig} onChange={changeRules} disabled={loading} />
+                  <button type="button" onClick={handleSaveRules} disabled={loading} className="bg-red-600 px-4 py-2 text-sm font-bold disabled:opacity-40">Guardar reglas</button>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-white/10 pt-4">
+              <label htmlFor="participant-alias" className="block text-sm font-bold mb-2">Agregar participante a mano</label>
+              <div className="flex gap-2">
+                <input id="participant-alias" value={participantAlias} onChange={event => setParticipantAlias(event.target.value)} maxLength={40} placeholder="AKA o nombre" className="min-w-0 flex-1 border border-white/10 bg-black p-3 text-sm" />
+                <button type="button" onClick={handleAddParticipant} disabled={loading || !participantAlias.trim()} className="bg-red-600 px-4 text-sm font-bold disabled:opacity-40">Agregar</button>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-bold mb-2">Titulares ({tournament.participants.length}/{tournament.capacity})</h3>
+                {tournament.participants.length === 0 && <p className="text-sm text-white/40">Aún no hay titulares.</p>}
+                <div className="space-y-2">
+                  {tournament.participants.map(participant => (
+                    <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate">{participant.alias}</span>
+                      <button type="button" onClick={() => handlePlacement(participant.userId, "suplente")} disabled={loading} className="text-xs text-white/60 hover:text-white">A suplentes</button>
+                      <button type="button" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`} className="text-xs text-red-400 hover:text-red-300">Quitar</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold mb-2">Suplentes ({tournament.suplentes.length})</h3>
+                {tournament.suplentes.length === 0 && <p className="text-sm text-white/40">Aún no hay suplentes.</p>}
+                <div className="space-y-2">
+                  {tournament.suplentes.map(participant => (
+                    <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate">{participant.alias}</span>
+                      <button type="button" onClick={() => handlePlacement(participant.userId, "titular")} disabled={loading} className="text-xs text-white/60 hover:text-white">A titulares</button>
+                      <button type="button" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`} className="text-xs text-red-400 hover:text-red-300">Quitar</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {!tournament.registrationClosed ? (
+              <button type="button" onClick={() => updateSetup("/participants/confirm", "POST")} disabled={loading || tournament.participants.length !== tournament.capacity} className="bg-red-600 px-6 py-3 font-battle font-black uppercase disabled:opacity-40">Confirmar titulares</button>
+            ) : <p className="text-sm text-green-400">Titulares confirmados. Inscripción pública cerrada; puedes corregir la lista antes de iniciar.</p>}
+            {tournament.auditLog.length > 0 && (
+              <details className="border-t border-white/10 pt-4 text-sm">
+                <summary className="cursor-pointer font-bold text-white/70">Actividad reciente</summary>
+                <ol className="mt-3 space-y-2 text-white/50">
+                  {[...tournament.auditLog].reverse().slice(0, 8).map((entry, index) => (
+                    <li key={`${entry.at}-${index}`}>{entry.detail}</li>
+                  ))}
+                </ol>
+              </details>
+            )}
+            {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
+          </div>
+          {tournament.registrationClosed && <>
           <div className="border border-white/10 p-5">
             <h2 className="font-battle text-2xl font-black uppercase mb-4">{tournament.name}</h2>
             <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-4">Participantes ({tournament.participants.length})</p>
@@ -226,7 +349,7 @@ export default function TournamentPage() {
                     <span className="flex-1">{participant.alias}</span>
                     <button
                       type="button"
-                      onClick={() => handleMove(index, -1)}
+                      onClick={() => handleReorder(index, -1)}
                       disabled={index === 0}
                       aria-label={`Subir a ${participant.alias}`}
                       className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
@@ -235,7 +358,7 @@ export default function TournamentPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleMove(index, 1)}
+                      onClick={() => handleReorder(index, 1)}
                       disabled={index === tournament.participants.length - 1}
                       aria-label={`Bajar a ${participant.alias}`}
                       className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
@@ -291,12 +414,12 @@ export default function TournamentPage() {
             </p>
             {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
             <div className="flex gap-3">
-              <button onClick={handleStart} disabled={loading} className="bg-red-600 px-6 py-3 font-battle font-black uppercase disabled:opacity-40">
+              <button onClick={handleStart} disabled={loading || tournament.participants.length !== tournament.capacity} className="bg-red-600 px-6 py-3 font-battle font-black uppercase disabled:opacity-40">
                 {loading ? "Iniciando..." : "Iniciar torneo"}
               </button>
-              <button onClick={() => { setStep("form"); setTournament(null); }} className="border border-white/10 px-6 py-3 text-sm text-white/50 hover:text-white">Cancelar</button>
             </div>
           </div>
+          </>}
         </div>
       )}
 
