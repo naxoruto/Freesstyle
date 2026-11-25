@@ -787,26 +787,30 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       {/* FINISHED */}
       {battle?.status === "finished" && (
         <div className="text-center py-20 space-y-8 animate-fade-in">
-          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-white/20">Batalla finalizada</p>
-          <div className="flex justify-center gap-16">
-            {participants.map(p => (
-              <div key={p.userId} className="text-center">
-                <span
-                  className="font-battle font-black italic uppercase block"
-                  style={{ fontSize: 48, color: "rgba(255,255,255,0.8)", lineHeight: 1 }}
-                >
-                  {p.alias}
-                </span>
-                {showScores && <span
-                  className="font-battle font-black italic block mt-2"
-                  style={{ fontSize: 80, color: "#f59e0b", lineHeight: 1 }}
-                >
-                  {p.roundsWon}
-                </span>}
-                {showScores && <span className="text-xs text-white/20 tracking-widest uppercase">rondas</span>}
-              </div>
-            ))}
-          </div>
+          <p className="text-xs font-semibold tracking-[0.4em] uppercase text-white/20">{battle.mode.exhibition ? "Exhibición finalizada" : "Batalla finalizada"}</p>
+          {battle.mode.exhibition ? (
+            <p className="text-white/60">La exhibición terminó sin ganador oficial.</p>
+          ) : (
+            <div className="flex justify-center gap-16">
+              {participants.map(p => (
+                <div key={p.userId} className="text-center">
+                  <span
+                    className="font-battle font-black italic uppercase block"
+                    style={{ fontSize: 48, color: "rgba(255,255,255,0.8)", lineHeight: 1 }}
+                  >
+                    {p.alias}
+                  </span>
+                  {showScores && <span
+                    className="font-battle font-black italic block mt-2"
+                    style={{ fontSize: 80, color: "#f59e0b", lineHeight: 1 }}
+                  >
+                    {p.roundsWon}
+                  </span>}
+                  {showScores && <span className="text-xs text-white/20 tracking-widest uppercase">rondas</span>}
+                </div>
+              ))}
+            </div>
+          )}
           {returnTo === "tournament" && tournamentId ? (
             <div className="flex justify-center gap-3">
               <a

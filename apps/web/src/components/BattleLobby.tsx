@@ -59,12 +59,13 @@ export function BattleLobby({
   const [configOpen, setConfigOpen] = useState(false);
   const participants: Participant[] = battle.participants;
   const missingParticipants = Math.max(0, 2 - participants.length);
+  const exhibition = lobbyConfig.exhibition ?? false;
   const validJudgeCount = [1, 3, 5].includes(battle.judges.length);
   const missingJudges = validJudgeCount ? 0 : 1;
-  const canStart = missingParticipants === 0 && validJudgeCount;
+  const canStart = missingParticipants === 0 && (exhibition || validJudgeCount);
   const missing = [
     missingParticipants ? `${missingParticipants} MC${missingParticipants > 1 ? "s" : ""}` : "",
-    missingJudges ? `${missingJudges} juez` : "",
+    !exhibition && missingJudges ? `${missingJudges} juez` : "",
   ].filter(Boolean).join(" y ");
 
   const inviteLink = invitationToken && typeof window !== "undefined" ? `${window.location.origin}/unirse_batalla/${roomId}?invite=${invitationToken}` : "";
@@ -150,6 +151,17 @@ export function BattleLobby({
               <div><dt>Votación</dt><dd>{battle.mode.votingSystem === "patron" ? "Por patrón" : "Por rúbrica"}</dd></div>
               <div><dt>Conceptos</dt><dd>{battle.mode.mode === "libre" ? "Tema libre" : battle.mode.category ?? "Aleatorios"}</dd></div>
             </dl>
+
+            {isAdmin && (
+              <div className="lobby-modality mt-4">
+                <p className="lobby-kicker">Modalidad</p>
+                <div className="lobby-segments">
+                  <button type="button" aria-pressed={!exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: false })}>Batalla con jueces</button>
+                  <button type="button" aria-pressed={exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: true })}>Exhibición</button>
+                </div>
+              </div>
+            )}
+
             <BattlePosterDialog battle={battle} variant="pre" triggerLabel="Previsualizar cartelera" triggerClassName="lobby-download" />
 
             {isAdmin && configOpen && (
