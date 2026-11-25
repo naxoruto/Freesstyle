@@ -166,7 +166,7 @@ const COUNTDOWN_TIMES = [30, 45, 60, 90, 120];
 export function validateConfig(config: BattleModeConfig): ConfigValidationResult {
   const errors: string[] = [];
 
-  if (!["clasico", "libre"].includes(config.mode)) {
+  if (!["clasico", "libre", "variado"].includes(config.mode)) {
     errors.push(`Modo inválido: ${config.mode}`);
   }
 

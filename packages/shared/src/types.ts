@@ -23,7 +23,7 @@ export interface Word {
   id: string; text: string; category: WordCategory; difficulty: WordDifficulty;
 }
 
-export type BattleMode = "clasico" | "libre";
+export type BattleMode = "clasico" | "libre" | "variado";
 
 /** Formato de batalla: determina cuántas entradas tiene cada MC y la estructura de turnos. */
 export type BattleFormat = "1x1" | "4x4" | "8x8";

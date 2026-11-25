@@ -148,6 +148,11 @@ describe("validateConfig", () => {
     expect(result.errors.some((e) => e.includes("Modo"))).toBe(true);
   });
 
+  it("accepts the variado mode", () => {
+    const config = { ...validConfig(), mode: "variado" };
+    expect(validateConfig(config)).toEqual({ valid: true, errors: [] });
+  });
+
   it("rejects invalid format", () => {
     const config = { ...validConfig(), format: "2x2" as any };
     const result = validateConfig(config);
