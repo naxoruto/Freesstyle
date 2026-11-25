@@ -293,3 +293,21 @@ export const BATTLE_PRESETS: Record<BattlePresetId, BattlePreset> = {
     config: normalizeConfig({ format: "4x4", rounds: 2, votingSystem: "patron" }, "clasico"),
   },
 };
+
+/** Devuelve el preset que coincide con una configuración, o `null` si es personalizada. */
+export function matchPreset(config: BattleModeConfig): BattlePresetId | null {
+  for (const [id, preset] of Object.entries(BATTLE_PRESETS) as [BattlePresetId, BattlePreset][]) {
+    const p = preset.config;
+    if (
+      config.mode === p.mode &&
+      config.format === p.format &&
+      config.rounds === p.rounds &&
+      config.timePerTurn === p.timePerTurn &&
+      config.timerMode === p.timerMode &&
+      config.votingSystem === p.votingSystem &&
+      config.turnStructure === p.turnStructure &&
+      config.entriesPerParticipant === p.entriesPerParticipant
+    ) return id;
+  }
+  return null;
+}

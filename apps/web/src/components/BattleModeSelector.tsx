@@ -15,7 +15,10 @@ const FORMATS: { value: BattleFormat; label: string; desc: string }[] = [
 ];
 
 const TIME_OPTIONS = [
+  { value: 30, label: "30s" },
+  { value: 45, label: "45s" },
   { value: 60, label: "1 min" },
+  { value: 90, label: "90s" },
   { value: 120, label: "2 min" },
 ];
 

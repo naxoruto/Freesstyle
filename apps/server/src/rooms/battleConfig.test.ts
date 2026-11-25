@@ -8,6 +8,7 @@ import {
   REPLICA_RULES,
   createDefaultConfig,
   isManualFormat,
+  matchPreset,
   normalizeConfig,
   validateConfig,
 } from "@freestyle/shared";
@@ -233,5 +234,18 @@ describe("BATTLE_PRESETS", () => {
 
   it("por_entradas es 4x4 manual con patrón", () => {
     expect(BATTLE_PRESETS.por_entradas.config).toMatchObject({ mode: "clasico", format: "4x4", timerMode: "manual", votingSystem: "patron" });
+  });
+});
+
+describe("matchPreset", () => {
+  it("reconoce cada preset por su configuración", () => {
+    expect(matchPreset(BATTLE_PRESETS.rapida.config)).toBe("rapida");
+    expect(matchPreset(BATTLE_PRESETS.variado.config)).toBe("variado");
+    expect(matchPreset(BATTLE_PRESETS.por_entradas.config)).toBe("por_entradas");
+  });
+
+  it("devuelve null cuando la configuración es personalizada", () => {
+    const personalizada: BattleModeConfig = { ...BATTLE_PRESETS.rapida.config, rounds: 5 };
+    expect(matchPreset(personalizada)).toBeNull();
   });
 });
