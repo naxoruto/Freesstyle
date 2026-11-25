@@ -80,7 +80,7 @@ export default function HomePage() {
 
           <div className="mb-6">
             <label className="block text-sm text-gray-400 mb-2">Tu AKA o nombre visible</label>
-            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: MC Lírico, Dtoke, Aczino..." className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" autoFocus />
+            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico, Dtoke, Aczino..." className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" autoFocus />
           </div>
 
           <div className="mb-6">
@@ -118,7 +118,7 @@ export default function HomePage() {
           </div>
           <div className="mb-8">
             <label className="block text-sm text-gray-400 mb-2">Tu alias</label>
-            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: MC Lírico" className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" />
+            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico" className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" />
           </div>
           <button onClick={handleJoinBattle} disabled={!battleId.trim() || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">🎧 Unirse a la Batalla</button>
         </div>

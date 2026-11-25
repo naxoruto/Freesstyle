@@ -102,6 +102,7 @@ export default function JoinBattlePage({ params }: { params: { id: string } }) {
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleJoin(); }}
+              maxLength={24}
               placeholder="Ej: MC Lírico, Dtoke, Aczino..."
               className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg"
               autoFocus

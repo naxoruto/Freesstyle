@@ -259,7 +259,7 @@ export function BattleLobby({
                 ) : (
                   <>
                     <span className="text-xs text-white/30 truncate font-mono flex-1">{inviteLink}</span>
-                    <button type="button" onClick={() => copy(inviteLink)} className="text-xs px-2 py-1 border border-white/10 text-white/50 hover:text-white hover:border-white/30 rounded transition shrink-0">{copied ? "Copiado" : "Copiar"}</button>
+                    <button type="button" onClick={() => copy(inviteLink)} className="text-xs px-2 py-1 border border-white/10 text-white/50 hover:text-white hover:border-white/30 rounded transition shrink-0"><span className="inline-block min-w-14">{copied ? "Copiado" : "Copiar"}</span></button>
                     <button type="button" onClick={() => onCreateInvitation(true)} className="text-xs px-2 py-1 border border-red-500/30 text-red-400 rounded transition disabled:opacity-40">Regenerar</button>
                   </>
                 )}
