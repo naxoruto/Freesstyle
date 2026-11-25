@@ -19,12 +19,12 @@ Antes de continuar con la recuperación de torneos: afinar las mejoras de las tr
 | ORG-01 | Índice y orientación para IA | Implementado | [INDEX](../../INDEX.md), [AGENTS](../../AGENTS.md) |
 | ORG-02 | Reunir documentación y separar antecedentes | Implementado | [Organización](../ORGANIZACION.md) |
 | UX-01 | Mejorar batalla individual | Flujo inicial, roles, exhibición, selector y estabilidad de modalidad confirmados | [Decisiones de batalla](brainstorming/01-batalla-individual.md); preparar especificación tras revisar las demás experiencias |
-| UX-02 | Mejorar torneos | Nombre, logo y organizador solicitados; repesca y fila en definición | [Decisiones de torneo](brainstorming/02-torneo.md); aclarar reemplazos por inasistencia y orden de entrada |
+| UX-02 | Mejorar torneos | Backend implementado; web en curso (T10–T13) | [Decisiones de torneo](brainstorming/02-torneo.md); [plan](planes/torneo.md) |
 | UX-03 | Mejorar Rey de la pista | En definición | [Notas previas](brainstorming/03-rey-de-pista.md); confirmar reglas de sesión abierta |
 | PERF-01 | Perfil y registro con Google o correo | En definición; solicitado por el usuario | [Estructura y perfil](brainstorming/00-estructura-y-perfil.md); invitados con nombre o cuenta para guardar perfil e historial, confirmado |
 | PERF-02 | Foto y datos personales del perfil | En definición | Determinar campos, visibilidad y edición |
 | PERF-03 | Estadísticas por rol y nivel general | Dirección registrada en notas previas | [Perfiles y niveles](brainstorming/04-perfiles-y-niveles.md); reconciliar con el nuevo alcance |
-| TOR-01 | Persistencia y recuperación de torneos | Pendiente técnico | Modelo, credenciales, cuadro, relación con batallas y resultados idempotentes; retomar después de definir producto |
+| TOR-01 | Persistencia y recuperación de torneos | Implementado (núcleo) | Modelo `Tournament`, persistencia por torneo y recuperación en arranque con su `adminToken`; falta la capa web de operación |
 | DEMO-01 | Demo completa y aislada | Pendiente técnico | Revisar alcance de la demo existente antes de sustituirla |
 | VIS-01 | Pulido móvil, espaciado e identidad visual | Propuesta / parcialmente pendiente | Derivar del diseño acordado; revisar assets de cartelera |
 | JUEGOS-01 | Evolución de juegos diarios | Backlog especializado | [Plan de juegos](GAMES_PLAN.md); no adelantarse a la prioridad actual |
@@ -42,6 +42,7 @@ Antes de continuar con la recuperación de torneos: afinar las mejoras de las tr
 | TEC-07 | Generación de Prisma bloqueada en Windows | Resuelto cerrando el servidor que ocupaba la DLL; procedimiento en la guía de entorno |
 | TEC-08 | Fase 0 del plan: higiene (artefacto de git, Makefile, docker, respaldos) y consistencia (IDs de mayor entropía y bloqueo ante fallos de persistencia) | Implementado; 229 pruebas verdes; detalle en [Plan de trabajo](../PLAN_DE_TRABAJO.md) |
 | TEC-09 | Fase 1 (batalla individual) — completa: T1–T11 + pulido (C7/C11/C12/C15); T12 (refactor) pendiente | Implementado; 242 pruebas; [especificación](specs/batalla-individual.md) y [plan](planes/batalla-individual.md) |
+| TEC-10 | Fase 2 (torneo) — backend T1–T8 y formulario web T9 | Implementado; 246 pruebas verdes y typecheck limpio; [plan](planes/torneo.md). Falta T10–T13 (operación web) y T10b (autoinscripción por enlace, no prevista en el plan original) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 
