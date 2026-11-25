@@ -12,7 +12,10 @@ export default function TournamentPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("form");
   const [name, setName] = useState("");
-  const [aliases, setAliases] = useState("MC Uno\nMC Dos\nMC Tres\nMC Cuatro");
+  const [aliases, setAliases] = useState("");
+  const [logo, setLogo] = useState("");
+  const [organizer, setOrganizer] = useState("");
+  const [capacity, setCapacity] = useState<number>(8);
   const [random, setRandom] = useState(true);
   const [type, setType] = useState<TournamentType>("single_elimination");
   const [loading, setLoading] = useState(false);
@@ -20,19 +23,26 @@ export default function TournamentPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [adminToken, setAdminToken] = useState("");
 
+  const loadExample = () => {
+    setAliases("MC Uno\nMC Dos\nMC Tres\nMC Cuatro");
+  };
+
   const handleCreate = async () => {
+    if (!name.trim()) { setError("Escribe un nombre para el torneo"); return; }
     const participants = aliases.split("\n").map(alias => alias.trim()).filter(Boolean);
-    if (!name.trim() || participants.length < 4 || (participants.length & (participants.length - 1)) !== 0) {
-      setError("Escribe un nombre y 4, 8, 16... participantes, uno por línea.");
+    if (participants.length > 0 && (participants.length < 4 || (participants.length & (participants.length - 1)) !== 0)) {
+      setError("Los participantes deben ser 4, 8 o 16, uno por línea (o dejá el campo vacío para inscribir por enlace).");
       return;
     }
     setLoading(true);
     setError("");
     try {
+      const body: Record<string, unknown> = { name, bracketMode: random ? "random" : "manual", type, logo: logo.trim() || undefined, organizer: organizer.trim() || undefined, capacity };
+      if (participants.length > 0) body.participants = participants;
       const createResponse = await fetch(`${API_URL}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, bracketMode: random ? "random" : "manual", type, participants }),
+        body: JSON.stringify(body),
       });
       if (!createResponse.ok) throw new Error("No se pudo crear el torneo");
       const created = await createResponse.json();
@@ -146,12 +156,6 @@ export default function TournamentPage() {
       {step === "form" && (
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <div className="space-y-4 border border-white/10 p-5">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del torneo" className="w-full border border-white/10 bg-black p-3" />
-            <textarea value={aliases} onChange={e => setAliases(e.target.value)} rows={10} className="w-full border border-white/10 bg-black p-3 font-mono text-sm" />
-            <label className="flex items-center gap-3 text-sm text-white/50">
-              <input type="checkbox" checked={random} onChange={e => setRandom(e.target.checked)} className="accent-red-600" />
-              Emparejamientos aleatorios
-            </label>
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Tipo de torneo</p>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -163,25 +167,48 @@ export default function TournamentPage() {
                   <span className="block font-bold">Con tercer puesto</span>
                   <span className="text-xs text-gray-500">Partido extra por el 3er lugar</span>
                 </button>
-                <button type="button" onClick={() => setType("king_of_the_hill")} aria-pressed={type === "king_of_the_hill"} className={`p-3 border text-sm text-left ${type === "king_of_the_hill" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
-                  <span className="block font-bold">Rey de la pista</span>
-                  <span className="text-xs text-gray-500">El ganador permanece contra la fila</span>
-                </button>
                 <button type="button" onClick={() => setType("double_elimination")} aria-pressed={type === "double_elimination"} className={`p-3 border text-sm text-left ${type === "double_elimination" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
                   <span className="block font-bold">Con repesca</span>
                   <span className="text-xs text-gray-500">Dos derrotas eliminan</span>
                 </button>
               </div>
             </div>
+
+            <input value={name} onChange={e => setName(e.target.value)} maxLength={100} placeholder="Nombre del torneo" className="w-full border border-white/10 bg-black p-3" />
+            <input value={organizer} onChange={e => setOrganizer(e.target.value)} maxLength={60} placeholder="Organizador (opcional, persona o asociación)" className="w-full border border-white/10 bg-black p-3" />
+            <input value={logo} onChange={e => setLogo(e.target.value)} placeholder="Logo (URL, opcional)" className="w-full border border-white/10 bg-black p-3" />
+
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Capacidad del cuadro</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[4, 8, 16].map(n => (
+                  <button key={n} type="button" onClick={() => setCapacity(n)} aria-pressed={capacity === n} className={`p-3 border text-sm ${capacity === n ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-gray-400 uppercase tracking-widest">Participantes (opcional)</p>
+                <button type="button" onClick={loadExample} className="text-xs text-red-400 hover:text-red-300">Cargar ejemplo</button>
+              </div>
+              <textarea value={aliases} onChange={e => setAliases(e.target.value)} rows={6} placeholder="Un alias por línea. Dejalo vacío para inscribir por enlace." className="w-full border border-white/10 bg-black p-3 font-mono text-sm" />
+            </div>
+
+            <label className="flex items-center gap-3 text-sm text-white/50">
+              <input type="checkbox" checked={random} onChange={e => setRandom(e.target.checked)} className="accent-red-600" />
+              Emparejamientos aleatorios (podés reordenar después)
+            </label>
+
             {error && <p className="text-sm text-red-400">{error}</p>}
             <button onClick={handleCreate} disabled={loading} className="w-full bg-red-600 py-3 font-battle font-black uppercase disabled:opacity-40">
               {loading ? "Creando..." : "Crear torneo"}
             </button>
           </div>
           <div className="border border-white/5 p-5 text-sm leading-7 text-white/40">
-            <p>Participantes permitidos: 4, 8, 16 o 32. La repesca soporta cuadros de 4, 8 y 16.</p>
+            <p>Cuadros de 4, 8 o 16 participantes. La repesca soporta 4, 8 y 16.</p>
+            <p>Podés cargar participantes a mano o dejar el campo vacío y compartir el enlace de inscripción.</p>
             <p>Cada enfrentamiento crea una sala de batalla normal.</p>
-            <p>Podrás revisar el bracket antes de iniciar el torneo.</p>
           </div>
         </div>
       )}
