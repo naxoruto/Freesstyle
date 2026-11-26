@@ -79,6 +79,8 @@
 
 ### 5.2 Entregables de producto
 
+Rúbrica individual en definición: tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa, confirmada con imagen del usuario. Pendientes escalas, pesos y conversión a veredicto; especificación en §13. La nueva tabla no está implementada.
+
 | ID | Entregable | Alcance de producto |
 |---|---|---|
 | C1 | «Crear batalla» → elección 1vs1 / torneo / Rey de la pista | ✅ DEC-005 |
