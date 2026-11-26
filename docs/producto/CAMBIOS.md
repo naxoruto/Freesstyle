@@ -58,6 +58,8 @@ El 26 de noviembre de 2026 se añadió `Iniciar Freestyle.cmd` para iniciar web 
 
 ## Registro de decisiones nuevas
 
+El usuario denomina «Votación clásica FMS» a la nueva tabla descrita como rúbrica, y confirma puntuación por patrón de 0 a 4 en pasos de 0,5. Escena/Flow y el umbral de réplica siguen en definición. Es una decisión de producto registrada, todavía sin cambio del selector ni del cálculo en la aplicación; detalle en [especificación §13](specs/batalla-individual.md).
+
 Ejemplo de rúbrica del 26/11: se confirma tabla por ronda, filas de MC, tantas casillas de patrones como entradas y agregados Escena/Flow para la ronda completa. Se diferencia del voto libre al cierre. Las escalas y la conversión de puntos a veredicto siguen en definición; no se ha implementado esta tabla. La imagen es referencia de estructura, no aprobación de añadir sus modos de ronda. Detalle en [especificación §13](specs/batalla-individual.md).
 
 Pulido posterior del 26/11: se compactan las tarjetas de personas (140 px sin expansión). Se confirma que el método de votación lo elige cada juez y debe separarse del formato de batalla; cada juez aporta un único voto final (MC1, MC2 o réplica) al terminar todas las rondas, con igual peso y decisión por mayoría. Se confirma que los puntos de rúbrica/patrón calculan automáticamente ese voto; falta concretar las tablas con ejemplos del usuario. Se solicita preparación de jueces antes de activar el «3, 2, 1», con mecanismo todavía por definir. El cambio funcional de votación aún no está implementado; reglas en [especificación §13](specs/batalla-individual.md).

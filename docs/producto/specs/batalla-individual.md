@@ -136,11 +136,13 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Pendiente de definir:** elección/cambio del método, reglas concretas de cada tabla y casos sin mayoría antes de implementar el nuevo cálculo. Repasar rúbrica, patrón y voto libre uno por uno, con ejemplos del usuario.
 - **Estado técnico:** la votación individual aún no está implementada. El cálculo y el selector global existentes se mantienen mientras se termina de definir esta revisión.
 
-### Rúbrica: ejemplo del usuario y estructura confirmada
+### Votación clásica FMS: ejemplo del usuario y estructura confirmada
 
+- **Nombre confirmado por el usuario:** «Votación clásica FMS» para este estilo de tabla, descrito antes como rúbrica. Esta denominación se aplicará a la nueva experiencia; el selector actual todavía no se ha renombrado ni sustituido.
+- **Escala confirmada por patrón:** de 0 a 4 inclusive, admitiendo medios puntos; valores permitidos: 0, 0,5, 1, 1,5, 2, 2,5, 3, 3,5 y 4.
 - El juez puntúa las rimas durante la batalla, ronda a ronda y patrón/entrada a patrón/entrada. Se distingue del voto libre, donde escucha y emite su veredicto al final.
 - Cada ronda presenta una tabla con una fila por MC. «Gallo» en la imagen de referencia corresponde al nombre del MC.
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente de definir:** escala y pasos de puntuación por patrón; escala y peso de Escena/Flow; acumulación entre rondas y umbral de réplica para convertir la tabla en voto final automático. No trasladar los valores actuales de la aplicación a esta tabla como si estuvieran confirmados.
+- **Pendiente de definir:** escala y peso de Escena/Flow; acumulación entre rondas y umbral de réplica para convertir la tabla en voto final automático. No trasladar los valores actuales de la aplicación a esta tabla como si estuvieran confirmados.

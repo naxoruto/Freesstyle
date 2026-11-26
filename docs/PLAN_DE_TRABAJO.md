@@ -79,7 +79,7 @@
 
 ### 5.2 Entregables de producto
 
-Rúbrica individual en definición: tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa, confirmada con imagen del usuario. Pendientes escalas, pesos y conversión a veredicto; especificación en §13. La nueva tabla no está implementada.
+Votación clásica FMS (antes descrita como rúbrica) en definición: tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa. Nombre y escala por patrón confirmados: de 0 a 4 en pasos de 0,5. Pendientes escala y peso de agregados y conversión a veredicto; especificación en §13. La nueva tabla no está implementada.
 
 | ID | Entregable | Alcance de producto |
 |---|---|---|
