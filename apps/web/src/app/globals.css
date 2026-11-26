@@ -21,6 +21,8 @@
   --red-dim: rgba(227, 6, 19, 0.12);
 }
 
+html { scrollbar-gutter: stable; }
+
 body {
   background: var(--color-canvas);
   color: #ffffff;
@@ -941,6 +943,7 @@ body {
 .lobby-code span, .lobby-code small { display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
 .lobby-code strong { display: block; margin: 0.45rem 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.7rem; letter-spacing: 0.15em; }
 .lobby-code small { color: rgba(255, 255, 255, 0.7); }
+.lobby-code small { min-height: 2em; }
 
 .lobby-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap: 1rem; margin-top: 1rem; }
 .lobby-card { border: 1px solid var(--lobby-line); background: var(--lobby-panel); }
@@ -979,16 +982,8 @@ body {
 .lobby-rules div { padding: 0.85rem; border-right: 1px solid var(--lobby-line); border-bottom: 1px solid var(--lobby-line); }
 .lobby-rules dt { color: var(--lobby-muted); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; }
 .lobby-rules dd { margin-top: 0.35rem; color: #e5ebed; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; }
-.lobby-config { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed #34414c; }
-.lobby-config button { border-radius: 0; }
 .lobby-download { width: 100%; margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid #3c4a55; color: #dce8e6; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .lobby-download:hover { border-color: var(--lobby-paper); background: rgba(220, 232, 230, 0.06); }
-.poster-modal { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(2, 4, 7, 0.88); backdrop-filter: blur(10px); }
-.poster-dialog { width: min(940px, 100%); max-height: calc(100svh - 2rem); overflow: hidden; border: 1px solid #35414c; background: #0b1016; box-shadow: 0 30px 100px rgba(0, 0, 0, 0.65); }
-.poster-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #29333c; text-align: left; }
-.poster-dialog-head span { color: #84939d; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
-.poster-dialog-head h2 { margin-top: 0.2rem; font-family: var(--font-battle), Impact, sans-serif; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; }
-.poster-dialog-head button { color: #a9b4bb; font-size: 0.75rem; }
 .poster-preview { display: grid; min-height: 360px; max-height: calc(100svh - 12rem); place-items: center; overflow: auto; padding: 1.25rem; background: #05080c; }
 .poster-preview img { width: auto; max-width: 100%; height: auto; max-height: calc(100svh - 15rem); box-shadow: 0 15px 50px rgba(0, 0, 0, 0.45); }
 .poster-preview p, .poster-loading { color: #84939d; font-size: 0.8rem; }
@@ -1000,17 +995,17 @@ body {
 .lobby-toggle { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding: 1rem; border: 1px solid #34414c; }
 .lobby-toggle span, .lobby-toggle small { display: block; }
 .lobby-toggle strong { font-size: 0.85rem; }
-.lobby-toggle small { margin-top: 0.2rem; color: var(--lobby-muted); font-size: 0.7rem; }
-.lobby-toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--lobby-signal); }
+.lobby-toggle small { margin-top: 0.2rem; color: var(--lobby-muted, #8996a3); font-size: 0.7rem; }
+.lobby-toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--lobby-signal, #f04432); }
 .lobby-control { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .lobby-control p { max-width: 28rem; margin-top: 0.4rem; color: var(--lobby-muted); font-size: 0.75rem; line-height: 1.5; }
 .lobby-role-card { padding: clamp(1.1rem, 3vw, 1.75rem); }
 .lobby-role-card > p { max-width: 28rem; margin-top: 0.75rem; color: var(--lobby-muted); font-size: 0.75rem; line-height: 1.5; }
-.lobby-role-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
-.lobby-role-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(8rem, 10rem) minmax(8rem, auto); align-items: center; gap: 0.8rem; font-size: 0.85rem; }
-.lobby-role-row > span { min-width: 0; overflow: hidden; color: #dce8e6; text-overflow: ellipsis; white-space: nowrap; }
-.lobby-role-row strong { color: var(--lobby-muted); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.12em; text-align: right; text-transform: uppercase; }
-.lobby-role-row select { width: 100%; color: #eef4f6; }
+.lobby-people-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.lobby-person-tile { min-width: 0; aspect-ratio: 1; align-items: center; text-align: center; }
+.lobby-person-tile strong { max-width: 100%; overflow-wrap: anywhere; }
+.lobby-person-tile small { font-size: 0.7rem; color: var(--lobby-muted); }
+.lobby-person-emoji { font-size: 2.25rem; line-height: 1.2; }
 
 .lobby-startbar { position: sticky; z-index: 20; bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding: 0.85rem 0.85rem 0.85rem 1.25rem; border: 1px solid #36414b; background: rgba(11, 16, 22, 0.94); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px); }
 .lobby-startbar div span, .lobby-startbar div small { display: block; }
@@ -1048,15 +1043,11 @@ body {
   .lobby-mc strong { font-size: clamp(1.55rem, 9vw, 2.35rem); }
   .lobby-versus { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); }
   .lobby-crew, .lobby-control { align-items: flex-start; flex-direction: column; }
-  .lobby-role-row { grid-template-columns: 1fr; align-items: stretch; }
-  .lobby-role-row strong { text-align: left; }
   .lobby-audience { text-align: left; }
   .lobby-startbar { bottom: 0; margin-right: -1rem; margin-left: -1rem; padding: 0.75rem 1rem; }
   .lobby-startbar div small { display: none; }
   .lobby-startbar > button { min-width: 145px; }
   .lobby-waiting { text-align: right; }
-  .poster-modal { padding: 0; }
-  .poster-dialog { max-height: 100svh; border: 0; }
   .poster-preview { max-height: calc(100svh - 11rem); padding: 0.75rem; }
   .poster-preview img { max-height: calc(100svh - 13rem); }
   .poster-dialog-actions { align-items: stretch; flex-direction: column; }

@@ -178,6 +178,7 @@ export type ClientEvent =
   | { type: "judge:vote_rubric"; battleId: string; round: number; mc1Id: string; mc2Id: string; mc1Scores: ScoreRubric; mc2Scores: ScoreRubric }
   | { type: "battle:set_mode"; mode: BattleModeConfig }
   | { type: "battle:set_host"; targetUserId: string }
+  | { type: "battle:set_local_participant"; slot: number; alias: string; expectedUserId: string | null }
   | { type: "battle:complete_entry" }
   | { type: "judge:vote_entry"; battleId: string; points: number }
   | { type: "judge:vote_patron_extra"; battleId: string; mc1Extra: number; mc2Extra: number }

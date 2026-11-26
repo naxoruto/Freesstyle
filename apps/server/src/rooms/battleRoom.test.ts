@@ -24,10 +24,17 @@ vi.mock("./battlePersistence", () => ({
     saveRoundResult = vi.fn().mockResolvedValue(undefined);
     commitBattleAndResult = vi.fn().mockResolvedValue(undefined);
     loadActiveBattles = vi.fn().mockResolvedValue([]);
+    getRubricVotes = vi.fn().mockResolvedValue([]);
+    getPatronEntryVotes = vi.fn().mockResolvedValue([]);
+    getPatronExtraVotes = vi.fn().mockResolvedValue([]);
+    getFreeVotes = vi.fn().mockResolvedValue([]);
+    getRoomVotes = vi.fn().mockResolvedValue([]);
+    getRoomVotingRoster = vi.fn().mockResolvedValue(null);
     saveSession = vi.fn().mockResolvedValue(undefined);
     deleteSession = vi.fn().mockResolvedValue(undefined);
     commitMemberRoles = vi.fn().mockResolvedValue(undefined);
     commitBattleStart = vi.fn().mockResolvedValue(undefined);
+    commitLocalParticipants = vi.fn().mockResolvedValue(undefined);
     findSession = vi.fn().mockResolvedValue(null);
     listSessionMembers = vi.fn().mockResolvedValue([]);
   },
@@ -88,6 +95,107 @@ describe("BattleRoomManager — persistencia y bloqueo ante fallos", () => {
 });
 
 describe("BattleRoomManager", () => {
+  it("rechaza una edición de casilla obsoleta tras cambiar la composición", async () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle();
+    join(manager, battle.id, "admin", "admin", "admin", manager.getAdminToken(battle.id));
+    await manager.setLocalParticipant("admin", 0, "MC Uno");
+    await manager.setLocalParticipant("admin", 1, "MC Dos");
+    const [first, second] = battle.participants;
+    await manager.setLocalParticipant("admin", 0, "", first.userId);
+    expect(await manager.setLocalParticipant("admin", 1, "MC Dos Editado", second.userId)).toHaveProperty("error");
+    expect(await manager.setLocalParticipant("admin", 0, "MC Uno Editado", first.userId)).toHaveProperty("error");
+    expect(await manager.setLocalParticipant("admin", 0, "Nuevo", null)).toHaveProperty("error");
+    expect(battle.participants).toHaveLength(1);
+    expect(battle.participants[0]).toMatchObject({ userId: second.userId, alias: "MC Dos" });
+  });
+  it("recupera MC presenciales y exige reconectar jueces, pero no dispositivos de los MC", async () => {
+    const original = new BattleRoomManager();
+    const battle = original.createBattle({ timePerTurn: 60, rounds: 1 });
+    join(original, battle.id, "admin", "admin", "admin", original.getAdminToken(battle.id));
+    await original.setLocalParticipant("admin", 0, "MC Uno");
+    await original.setLocalParticipant("admin", 1, "MC Dos");
+    join(original, battle.id, "juez", "judge", "judge");
+    original.startBattle("admin");
+    original.nextPhase(battle.id);
+    const stored = structuredClone(battle);
+    const repository = original["persistence"];
+    vi.spyOn(repository, "loadActiveBattles").mockResolvedValue([stored]);
+    vi.spyOn(repository, "findSession").mockImplementation(async (_roomId, token) => token === "admin-session" ? { userId: "admin", alias: "Admin", roles: ["admin"] } : { userId: "judge", alias: "Judge", roles: ["judge"] });
+    const restored = new BattleRoomManager(repository);
+    await restored.loadActiveBattlesFromDb();
+    expect(stored.participants.map(mc => mc.alias)).toEqual(battle.participants.map(mc => mc.alias));
+    expect(stored.recovery?.issue).toBeUndefined();
+    await restored.reconnectPersisted(battle.id, "admin-session", "new-admin");
+    expect(await restored.resumeBattleDurably("new-admin", "restart_clock")).toHaveProperty("error");
+    await restored.reconnectPersisted(battle.id, "judge-session", "new-judge");
+    expect(await restored.resumeBattleDurably("new-admin", "restart_clock")).toHaveProperty("battle.id", battle.id);
+    expect(stored.members).toHaveLength(2);
+  });
+
+  it("permite quitar el host conectado o desconectado sin exigir otro", () => {
+    const { manager, battle } = setupBattle();
+    manager.transferHost("socket-admin", "judge1");
+    expect(manager.revokeRole("socket-admin", "judge1", "host")).toBe(battle);
+    expect(battle.hostId).toBeUndefined();
+    manager.transferHost("socket-admin", "judge1");
+    const session = manager.getSessionId("socket-judge")!;
+    manager.handleDisconnect("socket-judge");
+    expect(manager.revokeRole("socket-admin", "judge1", "host")).toBe(battle);
+    expect(battle.hostId).toBeUndefined();
+    manager.reconnect(battle.id, session, "socket-judge-new");
+    expect(manager.getSocketMember("socket-judge-new")?.roles).toEqual(["judge"]);
+    expect(manager.canControlBattle("socket-judge-new", battle)).toBe(false);
+  });
+  it("permite dos MC presenciales, editar sus nombres y puntuar sin dispositivo", async () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle({ timePerTurn: 60, rounds: 1 });
+    join(manager, battle.id, "organizador", "admin", "admin", manager.getAdminToken(battle.id));
+    expect(await manager.setLocalParticipant("organizador", 0, "  MC Uno  ")).toEqual({ battle });
+    expect(await manager.setLocalParticipant("organizador", 1, "MC Dos")).toEqual({ battle });
+    const firstId = battle.participants[0].userId;
+    await manager.setLocalParticipant("organizador", 0, "MC Renombrado", firstId);
+    expect(battle.participants[0]).toMatchObject({ alias: "MC Renombrado", userId: firstId });
+    expect(battle.members).toHaveLength(1);
+    expect(manager.joinBattle(battle.id, "impostor", { id: firstId, name: "Intruso", alias: "Intruso" })).toBeNull();
+    join(manager, battle.id, "juez", "judge", "judge");
+    expect(manager.startBattle("organizador")).toHaveProperty("battle");
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    manager.nextPhase(battle.id);
+    const [mc1, mc2] = battle.participants;
+    expect(manager.submitRubricVote(battle.id, "judge", 1, mc1.userId, mc2.userId, scores(8), scores(4))).not.toHaveProperty("error");
+    expect(await manager.setLocalParticipant("organizador", 0, "Otro")).toHaveProperty("error");
+  });
+
+  it("solo el organizador cambia MC presenciales y no reemplaza participantes conectados", async () => {
+    const { manager, battle } = setupBattle();
+    expect(await manager.setLocalParticipant("socket-mc1", 0, "Otro")).toHaveProperty("error");
+    expect(await manager.setLocalParticipant("socket-admin", 0, "Otro")).toHaveProperty("error");
+    expect(battle.participants[0].alias).toBe("mc1");
+    expect(await manager.setLocalParticipant("socket-admin", 2, "Otro")).toHaveProperty("error");
+  });
+
+  it("quitar un MC presencial limpia la elección del primer turno", async () => {
+    const manager = new BattleRoomManager();
+    const battle = manager.createBattle();
+    join(manager, battle.id, "admin", "admin", "admin", manager.getAdminToken(battle.id));
+    await manager.setLocalParticipant("admin", 0, "MC Uno");
+    manager.setMode("admin", { ...battle.mode, firstTurnParticipantId: battle.participants[0].userId });
+    await manager.setLocalParticipant("admin", 0, "", battle.participants[0].userId);
+    expect(battle.participants).toEqual([]);
+    expect(battle.mode.firstTurnParticipantId).toBeUndefined();
+  });
+
+  it("no publica MC presenciales si la persistencia rechaza el cambio", async () => {
+    const persistence = { create: vi.fn().mockResolvedValue(undefined), commitLocalParticipants: vi.fn().mockRejectedValue(new Error("fallo de escritura")) } as unknown as BattlePersistence;
+    const manager = new BattleRoomManager(persistence);
+    const battle = manager.createBattle();
+    join(manager, battle.id, "admin", "admin", "admin", manager.getAdminToken(battle.id));
+    await expect(manager.setLocalParticipant("admin", 0, "MC Uno")).rejects.toThrow("fallo de escritura");
+    expect(battle.participants).toEqual([]);
+  });
   it("resumes a recovered phase only after authorization, a time decision and a durable save", async () => {
     const { manager, battle } = setupBattle();
     manager.startBattle("socket-admin");

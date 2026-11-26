@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Battle } from "@freestyle/shared";
 import { createPostBattlePoster, createPreBattlePoster, downloadBattlePoster, type BattlePosterPreview } from "@/lib/battlePoster";
-import { Alert, Button } from "./ui";
+import { Alert, Button, Dialog } from "./ui";
 
 interface BattlePosterDialogProps {
   battle: Battle;
@@ -17,15 +17,6 @@ export function BattlePosterDialog({ battle, variant, triggerLabel, triggerClass
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<BattlePosterPreview | null>(null);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
 
   const showPreview = async () => {
     setOpen(true);
@@ -45,30 +36,17 @@ export function BattlePosterDialog({ battle, variant, triggerLabel, triggerClass
   return (
     <>
       <Button type="button" variant="secondary" className={triggerClassName} onClick={showPreview}>{triggerLabel}</Button>
-      {open && (
-        <div className="poster-modal" role="dialog" aria-modal="true" aria-labelledby="poster-title" onMouseDown={event => {
-          if (event.target === event.currentTarget) setOpen(false);
-        }}>
-          <div className="poster-dialog">
-            <div className="poster-dialog-head">
-              <div>
-                <span>Vista previa</span>
-                <h2 id="poster-title">{variant === "pre" ? "Cartelera previa" : "Resultado de batalla"}</h2>
-              </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} aria-label="Cerrar vista previa" autoFocus>Cerrar</Button>
-            </div>
-            <div className="poster-preview">
-              {!preview && !error && <span className="poster-loading">Generando cartelera...</span>}
-              {error && <Alert variant="error">{error}</Alert>}
-              {preview && <Image src={preview.dataUrl} alt="Vista previa de la cartelera que se descargará" width={540} height={675} unoptimized priority />}
-            </div>
-            <div className="poster-dialog-actions">
-              <p>La imagen incluirá <strong>{process.env.NEXT_PUBLIC_SITE_URL || "el dominio de esta página"}</strong>.</p>
-              <Button type="button" size="lg" disabled={!preview} onClick={() => preview && downloadBattlePoster(preview)}>Descargar PNG</Button>
-            </div>
-          </div>
+      <Dialog open={open} onClose={() => setOpen(false)} title={variant === "pre" ? "Cartelera previa" : "Resultado de batalla"} className="max-w-[940px]">
+        <div className="poster-preview">
+          {!preview && !error && <span className="poster-loading">Generando cartelera...</span>}
+          {error && <Alert variant="error">{error}</Alert>}
+          {preview && <Image src={preview.dataUrl} alt="Vista previa de la cartelera que se descargará" width={540} height={675} unoptimized priority />}
         </div>
-      )}
+        <div className="poster-dialog-actions">
+          <p>La imagen incluirá <strong>{process.env.NEXT_PUBLIC_SITE_URL || "el dominio de esta página"}</strong>.</p>
+          <Button type="button" size="lg" disabled={!preview} onClick={() => preview && downloadBattlePoster(preview)}>Descargar PNG</Button>
+        </div>
+      </Dialog>
     </>
   );
 }

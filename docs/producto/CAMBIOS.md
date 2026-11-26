@@ -58,6 +58,8 @@ El 26 de noviembre de 2026 se añadió `Iniciar Freestyle.cmd` para iniciar web 
 
 ## Registro de decisiones nuevas
 
+Revisión 1vs1 del 26/11/2026: se implementan los seis ajustes solicitados de copia estable, formato en modal, host opcional, MC presenciales, tarjetas de roles e invitación unificada. El usuario confirmó MC sin cuenta ni dispositivo, con control del organizador y puntuación habitual de jueces. Detalle y límites de verificación en [especificación §13](specs/batalla-individual.md) y catálogo actualizado en [guía UI](GUIA_COMPONENTES_UI.md).
+
 | ID | Decisión | Estado |
 |---|---|---|
 | DEC-001 | Revisar batalla individual, torneos y Rey de la pista antes del siguiente bloque técnico | Solicitado por el usuario |

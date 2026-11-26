@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import type { Battle, BattleModeConfig, Participant, ReplicaConfig, UserRole } from "@freestyle/shared";
+import { isLocalParticipantId } from "@freestyle/shared";
 import { useClipboard } from "@/lib/utils";
 import { BattleModeSelector } from "./BattleModeSelector";
 import { BattlePosterDialog } from "./BattlePosterDialog";
-import { Button } from "./ui";
+import { Alert, Button, Dialog, TextField } from "./ui";
 
 interface BattleLobbyProps {
   battle: Battle;
   roomId: string;
   roleLabel: string;
   isAdmin: boolean;
-  canControl: boolean;
   currentUserId: string;
   hostCandidates: { id: string; alias: string }[];
   firstTurnId: string | "random";
@@ -30,6 +30,7 @@ interface BattleLobbyProps {
   onTransferAdmin: (targetUserId: string) => void;
   onRevokeAdmin: (targetUserId: string) => void;
   onCreateInvitation: (regenerate: boolean) => void;
+  onLocalParticipant: (slot: number, alias: string, expectedUserId: string | null) => void;
 }
 
 export function BattleLobby({
@@ -37,7 +38,6 @@ export function BattleLobby({
   roomId,
   roleLabel,
   isAdmin,
-  canControl,
   currentUserId,
   hostCandidates,
   firstTurnId,
@@ -55,9 +55,14 @@ export function BattleLobby({
   onTransferAdmin,
   onRevokeAdmin,
   onCreateInvitation,
+  onLocalParticipant,
 }: BattleLobbyProps) {
   const { copied, copy } = useClipboard();
   const [configOpen, setConfigOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [localSlot, setLocalSlot] = useState<number | null>(null);
+  const [localAlias, setLocalAlias] = useState("");
+  const [localExpectedId, setLocalExpectedId] = useState<string | null>(null);
   const participants: Participant[] = battle.participants;
   const missingParticipants = Math.max(0, 2 - participants.length);
   const exhibition = lobbyConfig.exhibition ?? false;
@@ -79,6 +84,13 @@ export function BattleLobby({
   const inviteLink = invitationToken && typeof window !== "undefined" ? `${window.location.origin}/unirse_batalla/${roomId}?invite=${invitationToken}` : "";
   const operationalRoles: UserRole[] = ["participant", "judge", "spectator", "host"];
   const adminCount = battle.members.filter(member => member.roles.includes("admin")).length;
+  const member = battle.members.find(person => person.userId === selectedMember);
+  const roleOptions: { role: UserRole | "waiting"; emoji: string; label: string }[] = [
+    { role: "participant", emoji: "🎤", label: "MC" }, { role: "judge", emoji: "⚖️", label: "Juez" },
+    { role: "spectator", emoji: "👏", label: "Público" }, { role: "host", emoji: "🎙️", label: "Host" },
+    { role: "waiting", emoji: "⏳", label: "En espera" },
+  ];
+  const openLocalSlot = (index: number) => { setLocalAlias(participants[index]?.alias ?? ""); setLocalExpectedId(participants[index]?.userId ?? null); setLocalSlot(index); };
 
   return (
     <section className="lobby-shell" aria-labelledby="lobby-title">
@@ -89,11 +101,13 @@ export function BattleLobby({
           <p aria-live="polite">
             {canStart ? "El cartel está completo. La batalla puede comenzar." : `Esperando ${missing}.`}
           </p>
+          {isAdmin && <Button variant="ghost" size="sm" className="!text-[#4b595f] hover:!text-black" onClick={() => onCreateInvitation(!!invitationToken)}>{invitationToken ? "Renovar enlace" : "Preparar enlace"}</Button>}
         </div>
-        <Button variant="secondary" className="lobby-code !flex-col !items-start" onClick={() => copy(roomId)} aria-label={`Copiar código de sala ${roomId}`}>
+        <Button variant="secondary" className="lobby-code !flex-col !items-start" disabled={isAdmin && !inviteLink}
+          onClick={() => copy(`Te invitaron a una batalla 1vs1. Tu código es ${roomId}.\n${inviteLink ? `Entra aquí: ${inviteLink}` : `Abre ${window.location.origin} e ingresa el código para unirte.`}`)} aria-label={`Copiar invitación y código de sala ${roomId}`}>
           <span>Código de acceso</span>
           <strong>{roomId}</strong>
-          <small>{copied ? "Copiado" : "Copiar código"}</small>
+          <small className="min-h-4" aria-live="polite">{copied ? "Invitación copiada" : isAdmin && !inviteLink ? "Preparando enlace…" : "Copiar invitación"}</small>
         </Button>
       </header>
 
@@ -111,13 +125,15 @@ export function BattleLobby({
                 <div className="lobby-mc" key={participant.userId}>
                   <span>MC {index + 1}</span>
                   <strong>{participant.alias}</strong>
-                  <small>{participant.userId === currentUserId ? "Tu puesto" : "En sala"}</small>
+                  <small>{isLocalParticipantId(participant.userId) ? "MC presencial" : participant.userId === currentUserId ? "Tu puesto" : "En sala"}</small>
+                  {isAdmin && isLocalParticipantId(participant.userId) && <Button variant="ghost" size="sm" onClick={() => openLocalSlot(index)}>Editar MC</Button>}
                 </div>
               ) : (
                 <div className="lobby-mc lobby-mc-empty" key={index}>
                   <span>MC {index + 1}</span>
                   <strong>Puesto libre</strong>
                   <small>Comparte el código</small>
+                  {isAdmin && <Button variant="secondary" size="sm" className="mt-3" disabled={index > participants.length} onClick={() => openLocalSlot(index)}>{index > participants.length ? "Completa MC 1 primero" : "Agregar MC presencial"}</Button>}
                 </div>
               );
             })}
@@ -151,7 +167,7 @@ export function BattleLobby({
           <div className="lobby-card lobby-format">
               <div className="lobby-card-heading">
                 <div><span className="lobby-kicker">Formato acordado</span><h2>{battle.mode.format === "4x4" ? "4x4" : battle.mode.format === "8x8" ? "8x8" : battle.mode.mode === "libre" ? "Freestyle libre" : "Clásico con concepto"}</h2></div>
-              {isAdmin && <Button type="button" variant="ghost" size="sm" className="lobby-edit" onClick={() => setConfigOpen(open => !open)} aria-expanded={configOpen} aria-controls="lobby-config">{configOpen ? "Cerrar" : "Editar formato"}</Button>}
+              {isAdmin && <Button type="button" variant="ghost" size="sm" className="lobby-edit" onClick={() => setConfigOpen(true)} aria-haspopup="dialog">Editar formato</Button>}
             </div>
             <dl className="lobby-rules">
               <div><dt>Extensión</dt><dd>{battle.mode.rounds} {battle.mode.rounds === 1 ? "ronda" : "rondas"}</dd></div>
@@ -173,29 +189,32 @@ export function BattleLobby({
             <BattlePosterDialog battle={battle} variant="pre" triggerLabel="Previsualizar cartelera" triggerClassName="lobby-download" />
 
             {isAdmin && configOpen && (
-              <div id="lobby-config" className="lobby-config">
-                <BattleModeSelector value={lobbyConfig} onChange={onConfigChange} />
+              <Dialog open={configOpen} onClose={() => setConfigOpen(false)} title="Editar formato">
+                <p className="mb-4 text-sm text-white/60">Los cambios se guardan al elegir cada opción.</p>
+                <BattleModeSelector value={lobbyConfig} onChange={config => onConfigChange({ ...config, ...((config.timerMode ?? lobbyConfig.timerMode) === "manual" ? { liveControlEnabled: true } : {}) })} />
                 <label className="lobby-toggle">
                   <span><strong>Réplica automática</strong><small>{replicaConfig?.enabled ? `Hasta ${replicaConfig.maxReplicas} réplica${replicaConfig.maxReplicas !== 1 ? "s" : ""} · ${replicaConfig.tieRange === 0 ? "empate exacto" : `diferencia ≤ ${replicaConfig.tieRange} pts`} · ${replicaConfig.mode.format}` : "Sin réplica automática"}</small></span>
                   <input type="checkbox" checked={replicaConfig?.enabled ?? false} onChange={onReplicaToggle} />
                 </label>
                 <label className="lobby-toggle">
-                  <span><strong>Control en vivo</strong><small>Permite que admin/host controlen las fases manualmente. Si se desactiva, todo avanza por tiempo.</small></span>
+                  <span><strong>Control manual</strong><small>{lobbyConfig.timerMode === "manual" ? "Obligatorio por entradas: tú o el host marcan cada entrada. No necesitas asignar un host." : "El servidor lleva los tiempos. Al activarlo, tú o el host también pueden avanzar las fases."}</small></span>
                   <input
                     type="checkbox"
                     checked={lobbyConfig.liveControlEnabled ?? true}
+                    disabled={lobbyConfig.timerMode === "manual" && lobbyConfig.liveControlEnabled !== false}
                     onChange={() => onConfigChange({ ...lobbyConfig, liveControlEnabled: !(lobbyConfig.liveControlEnabled ?? true) })}
                   />
                 </label>
-              </div>
+              </Dialog>
             )}
           </div>
 
-          {canControl && hostCandidates.length > 0 && (
+          {isAdmin && (
             <div className="lobby-card lobby-control">
-              <div><span className="lobby-kicker">Control en vivo</span><p>Esta persona podrá avanzar las fases. Solo el admin puede iniciar.</p></div>
-              <div className="lobby-tags" role="group" aria-label="Control de batalla">
-                {hostCandidates.map(candidate => <Button key={candidate.id} variant="option" size="sm" onClick={() => onHostChange(candidate.id)} aria-pressed={battle.hostId === candidate.id}>{candidate.alias}</Button>)}
+              <div><span className="lobby-kicker">Host opcional</span><p>{lobbyConfig.timerMode === "manual" ? "Sin host, tú marcas las entradas como organizador." : "El servidor lleva el reloj automáticamente, haya host o no."} Solo el organizador inicia la batalla.</p></div>
+              <div className="lobby-tags" role="group" aria-label="Host de la batalla">
+                <Button variant="option" size="sm" aria-pressed={!battle.hostId} onClick={() => battle.hostId && onRevokeRole(battle.hostId, "host")}>Sin host</Button>
+                {hostCandidates.map(candidate => <Button key={candidate.id} variant="option" size="sm" onClick={() => battle.hostId === candidate.id ? onRevokeRole(candidate.id, "host") : onHostChange(candidate.id)} aria-pressed={battle.hostId === candidate.id}>{candidate.alias}</Button>)}
               </div>
             </div>
           )}
@@ -206,69 +225,52 @@ export function BattleLobby({
                 <div><span className="lobby-kicker">Gestionar</span><h2>Personas y roles</h2></div>
               </div>
               <p>Quienes entran quedan en espera. Asigná un rol (MC, Juez, Público u Host); «Organizador» es un permiso aparte.</p>
-              <div className="lobby-role-list">
-                {battle.members.map(member => {
-                  const isAdminCandidate = member.roles.includes("admin");
-                  const currentRole = operationalRoles.find(role => member.roles.includes(role));
-                  const roleSummary = member.roles.filter(role => operationalRoles.includes(role)).map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : role).join(" + ") || "En espera";
-                  return (
-                    <div key={member.userId} className="lobby-role-row">
-                      <span>{member.alias}{member.userId === currentUserId ? " (tú)" : ""}</span>
-                      <strong>{roleSummary}{isAdminCandidate && <span className="text-red-400"> · Organizador</span>}{member.connected ? "" : " · desconectado"}</strong>
-                      <select
-                        className="bg-black border border-white/10 text-xs p-2 rounded"
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value === "waiting") {
-                            operationalRoles.filter(role => member.roles.includes(role)).forEach(role => onRevokeRole(member.userId, role));
-                          } else {
-                            const newRole = e.target.value as UserRole;
-                            if (newRole && newRole !== currentRole) onChangeRole(member.userId, newRole);
-                          }
-                        }}
-                      >
-                        <option value="" disabled>Cambiar a...</option>
-                        <option value="waiting">En espera</option>
-                        <option value="participant">MC</option>
-                        <option value="judge">Juez</option>
-                        <option value="spectator">Público</option>
-                        <option value="host">Host</option>
-                      </select>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {!isAdminCandidate && adminCount < 2 && <Button variant="ghost" size="sm" className="lobby-edit" onClick={() => onGrantAdmin(member.userId)}>Dar admin</Button>}
-                        {member.userId !== currentUserId && <Button variant="ghost" size="sm" className="lobby-edit" onClick={() => onTransferAdmin(member.userId)}>Transferir</Button>}
-                        {isAdminCandidate && member.userId !== currentUserId && adminCount > 1 && <Button variant="danger" size="sm" className="lobby-edit" onClick={() => onRevokeAdmin(member.userId)}>Quitar admin</Button>}
-                      </div>
-                    </div>
-                  );
+              <div className="lobby-people-grid">
+                {battle.members.map(person => {
+                  const role = roleOptions.find(option => person.roles.includes(option.role as UserRole)) ?? roleOptions[4];
+                  return <Button key={person.userId} variant="option" className="lobby-person-tile" onClick={() => setSelectedMember(person.userId)} aria-haspopup="dialog">
+                    <span className="lobby-person-emoji" aria-hidden="true">{role.emoji}</span>
+                    <strong>{person.alias}{person.userId === currentUserId ? " (tú)" : ""}</strong>
+                    <small>{person.roles.includes("admin") ? "Organizador · " : ""}{roleOptions.filter(option => person.roles.includes(option.role as UserRole)).map(option => option.label).join(" + ") || "En espera"}</small>
+                    <small>{person.connected ? "En sala" : "Desconectado"}</small>
+                  </Button>;
                 })}
-              </div>
-            </div>
-          )}
-
-          {isAdmin && (
-            <div className="lobby-card lobby-invites">
-              <div className="lobby-card-heading">
-                <div><span className="lobby-kicker">Compartir</span><h2>Invitar personas</h2></div>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">Un único enlace reutilizable. Todas las personas entran en espera y reciben su rol dentro de la sala.</p>
-              <div className="flex items-center gap-2">
-                {!invitationToken ? (
-                  <Button type="button" variant="primary" size="sm" onClick={() => onCreateInvitation(false)}>
-                    Generar invitación
-                  </Button>
-                ) : (
-                  <>
-                    <span className="text-xs text-white/30 truncate font-mono flex-1">{inviteLink}</span>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => copy(inviteLink)} className="shrink-0"><span className="inline-block min-w-14">{copied ? "Copiado" : "Copiar"}</span></Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => onCreateInvitation(true)}>Regenerar</Button>
-                  </>
-                )}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      <Dialog open={!!member && isAdmin} onClose={() => setSelectedMember(null)} title={`Roles de ${member?.alias ?? ""}`}>
+        {member && <>
+          <p className="mb-4 text-sm text-white/60">Elige su rol. El permiso de organizador se gestiona por separado.</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {roleOptions.map(option => <Button key={option.role} variant="option" className="!items-center text-center" disabled={!member.connected}
+              aria-pressed={option.role === "waiting" ? !operationalRoles.some(role => member.roles.includes(role)) : member.roles.includes(option.role)}
+              onClick={() => {
+                if (option.role === "waiting") operationalRoles.filter(role => member.roles.includes(role)).forEach(role => onRevokeRole(member.userId, role));
+                else if (!member.roles.includes(option.role)) onChangeRole(member.userId, option.role);
+              }}>
+              <span className="text-3xl" aria-hidden="true">{option.emoji}</span><span>{option.label}</span>
+            </Button>)}
+          </div>
+          {!member.connected && <Alert className="mt-4">Espera a que se reconecte para cambiar sus roles.</Alert>}
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            {!member.roles.includes("admin") && adminCount < 2 && <Button variant="secondary" disabled={!member.connected} onClick={() => onGrantAdmin(member.userId)}>Dar organizador</Button>}
+            {member.userId !== currentUserId && <Button variant="secondary" disabled={!member.connected} onClick={() => onTransferAdmin(member.userId)}>Transferir organización</Button>}
+            {member.roles.includes("admin") && member.userId !== currentUserId && adminCount > 1 && <Button variant="danger" disabled={!member.connected} onClick={() => onRevokeAdmin(member.userId)}>Quitar organizador</Button>}
+          </div>
+        </>}
+      </Dialog>
+      <Dialog open={localSlot !== null && isAdmin} onClose={() => setLocalSlot(null)} title={`MC ${(localSlot ?? 0) + 1} presencial`}>
+        <form onSubmit={event => { event.preventDefault(); if (localSlot !== null && localAlias.trim()) { onLocalParticipant(localSlot, localAlias.trim(), localExpectedId); setLocalSlot(null); } }} className="space-y-4">
+          <TextField label="Nombre o AKA" autoComplete="off" value={localAlias} onChange={event => setLocalAlias(event.target.value)} maxLength={40} required hint="Sin cuenta ni dispositivo. Tú controlas la batalla y los jueces puntúan normalmente." />
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={!localAlias.trim()}>Guardar MC</Button>
+            {localSlot !== null && localExpectedId && <Button variant="danger" onClick={() => { onLocalParticipant(localSlot, "", localExpectedId); setLocalSlot(null); }}>Quitar MC presencial</Button>}
+          </div>
+        </form>
+      </Dialog>
 
       <div className="lobby-startbar">
         <div><span className={canStart ? "is-ready" : ""}>{canStart ? "Cartel completo" : `Falta ${missing}`}</span><small>{isAdmin ? "Revisa el formato antes de abrir los micros." : "El admin iniciará cuando se complete el cartel."}</small></div>

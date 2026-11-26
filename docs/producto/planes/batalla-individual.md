@@ -6,6 +6,10 @@
 
 **Goal:** Rediseñar el recorrido 1vs1: elección de tipo, pantalla única de creación con presets, modalidad Exhibición, lobby claro y cierre con revancha/repetir.
 
+### Seguimiento de revisión manual — 26/11/2026
+
+Cambios solicitados e implementados: copia sin desplazamiento; formato en modal; host opcional y control explicado; MC presenciales sin dispositivo; gestión visual mediante tarjetas con emojis; invitación superior unificada. Se reutiliza `Dialog` también en la cartelera. Reglas detalladas en [especificación §13](../specs/batalla-individual.md). Pruebas unitarias y comprobaciones estáticas/compilación; falta recorrido visual y comprobación de persistencia con PostgreSQL disponible.
+
 **Architecture:** Next.js (web) + Express/Socket.IO (server) + `@freestyle/shared` (contratos). Los cambios de configuración viven en `shared`; el servidor los aplica; la web los presenta.
 
 **Tech Stack:** TypeScript, React 18, Next.js 14, Prisma/PostgreSQL, Socket.IO, vitest (server).

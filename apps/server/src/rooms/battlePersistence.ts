@@ -1,4 +1,5 @@
 import type { Battle, BattleModeConfig, Participant, ReplicaConfig, Word, JudgeRubricVote, PatronEntryVote, PatronExtraVote, FreeVote, RoomVote } from "@freestyle/shared";
+import { LOCAL_PARTICIPANT_PREFIX, isLocalParticipantId } from "@freestyle/shared";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { prisma } from "../db/prisma";
@@ -82,7 +83,7 @@ function deserializeBattle(
   },
 ): Battle {
   const memberMap = new Map<string, Battle["members"][number]>();
-  for (const participant of row.participants ?? []) memberMap.set(participant.userId, { userId: participant.userId, alias: participant.alias, roles: ["participant"], connected: false });
+  for (const participant of row.participants ?? []) if (!isLocalParticipantId(participant.userId)) memberMap.set(participant.userId, { userId: participant.userId, alias: participant.alias, roles: ["participant"], connected: false });
   for (const judge of row.judges ?? []) {
     const member = memberMap.get(judge.userId) ?? { userId: judge.userId, alias: judge.alias, roles: [], connected: false };
     if (!member.roles.includes("judge")) member.roles.push("judge");
@@ -356,6 +357,22 @@ export class BattlePersistence {
   }
 
   // --- Participants ---
+
+  async commitLocalParticipants(battle: Battle): Promise<void> {
+    const snapshot = structuredClone(battle);
+    const local = snapshot.participants.filter(participant => isLocalParticipantId(participant.userId));
+    await this.enqueueBattleWrite(snapshot.id, () => prisma.$transaction(async transaction => {
+      await transaction.liveBattleParticipant.deleteMany({ where: { roomId: snapshot.id, userId: { startsWith: LOCAL_PARTICIPANT_PREFIX, notIn: local.map(participant => participant.userId) } } });
+      for (const participant of local) {
+        const { userId, ...data } = participant;
+        await transaction.liveBattleParticipant.upsert({
+          where: { roomId_userId: { roomId: snapshot.id, userId } },
+          create: { roomId: snapshot.id, userId, ...data }, update: data,
+        });
+      }
+      await transaction.liveBattle.update({ where: { id: snapshot.id }, data: serializeBattleUpdate(snapshot) });
+    }));
+  }
 
   async addParticipant(roomId: string, participant: Participant): Promise<void> {
     const normalizedId = roomId.toLowerCase();

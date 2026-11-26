@@ -44,7 +44,7 @@ Inicio → «Crear batalla» → [1vs1 | Torneo | Rey de la pista]
 
 ## 4. Lobby
 
-- **Bloque «Invitar» unificado** (C4): copiar enlace, copiar código y (posterior) QR.
+- **Invitación unificada** (C4, revisión 26/11/2026): el control superior copia un mensaje con el código y el enlace de invitación válido. Se elimina el bloque duplicado inferior; el organizador puede renovar el enlace en la cabecera. La confirmación de copia no desplaza la página.
 - **Selector de modalidad** «Batalla con jueces / Exhibición» junto al formato (C8). Solo el admin lo cambia antes de iniciar; la entrada de público/host/jueces no altera la modalidad (DEC-011).
 - **Requisitos según modalidad y votación** (C9): no usar la misma comprobación de jueces para todos los sistemas. Ej.: voto de sala no exige jurado.
 - **Mensaje de jueces** (C10): «Necesitas 1, 3 o 5 jueces; ahora hay 2 — sobra 1 o falta 1».
@@ -115,3 +115,13 @@ Reglas asociadas:
 - Perfil, cuentas y progresión (fases 4 y 5).
 - QR de invitación (A10) — posterior.
 - Refactor estructural del servidor (SRV) — se ejecuta como habilitador, no como objetivo de esta fase.
+
+## 13. Revisión del lobby solicitada el 26/11/2026
+
+- «Editar formato» abre un modal con desplazamiento interno, conservando la posición de la página; las opciones se guardan al seleccionarlas. Se reutiliza el mismo `Dialog` para roles, MC y cartelera.
+- El host es opcional y se puede deseleccionar con «Sin host». Por tiempo, el reloj lo lleva el servidor; el control manual permite también avanzar fases. Por entradas, el control manual es necesario y el organizador puede marcar las entradas sin asignar host.
+- El organizador puede agregar, renombrar y quitar MC presenciales desde los puestos libres, en orden MC1/MC2, antes de iniciar. No se sobreescribe un MC digital; primero debe cambiarse su rol. Se validan permisos, cupo, nombre e identidad esperada para evitar ediciones de otro puesto cuando actúan dos organizadores.
+- Los MC presenciales no necesitan cuenta ni dispositivo y reciben las puntuaciones normales de los jueces. No son sesiones ni miembros conectados ficticios. Se persisten en los registros habituales de participantes con IDs `local:` reservados al servidor; ese prefijo se rechaza en el acceso digital. La recuperación conserva sus nombres, orden y resultados sin exigir su reconexión; jueces y miembros digitales sí deben volver.
+- «Personas y roles» presenta tarjetas con emoji, nombre y roles; al pulsarlas se elige un rol con botones cuadrados. El permiso de organizador sigue siendo independiente de MC/Juez/Público/Host.
+
+Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recuperación, ediciones obsoletas y fallos de escritura usando repositorios simulados; typecheck, lint y build. La comprobación visual y la persistencia contra PostgreSQL real quedan pendientes de un entorno disponible.

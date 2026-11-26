@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 import { randomBytes } from "node:crypto";
 import type { Battle, BattleModeConfig, Participant, ReplicaConfig, UserRole, RoomMember, JudgeRubricVote, PatronEntryVote, PatronExtraVote, FreeVote, RoomVote, Word, RoundPhase } from "@freestyle/shared";
-import { canJoinAsRole, ROLE_LIMITS, VALID_JUDGE_COUNTS, DEFAULT_RECONNECT_WINDOW_MS, FORMAT_DEFAULTS } from "@freestyle/shared";
+import { canJoinAsRole, ROLE_LIMITS, VALID_JUDGE_COUNTS, DEFAULT_RECONNECT_WINDOW_MS, FORMAT_DEFAULTS, LOCAL_PARTICIPANT_PREFIX, isLocalParticipantId } from "@freestyle/shared";
 import type { RoomInvitation } from "@freestyle/shared";
 import { generateWord } from "../words/wordGenerator";
 import { getDefaultModeConfig } from "../modes/modes";
@@ -171,6 +171,7 @@ export class BattleRoomManager {
     const normalizedId = battleId.toLowerCase();
     const battle = this.battles.get(normalizedId);
     if (!battle) return "Batalla no encontrada";
+    if (isLocalParticipantId(user.id)) return "Un MC presencial no puede abrir una sesión digital";
     if (!this.sanitizeAlias(user.alias ?? "")) return "Escribe un alias válido";
     if (inviteToken && !this.inspectInvitation(inviteToken, normalizedId)) return "Invitación inválida o revocada";
     if (user.role === "admin") {
@@ -351,7 +352,7 @@ export class BattleRoomManager {
     battle.adminId ??= [...admins][0];
     this.battles.set(battle.id, battle);
     const offline = new Map<string, RoomMember>();
-    for (const member of battle.members) offline.set(member.userId, { ...member, connected: false });
+    for (const member of battle.members) if (!isLocalParticipantId(member.userId)) offline.set(member.userId, { ...member, connected: false });
     for (const session of await this.persistence.listSessionMembers(battle.id)) {
       if (!offline.has(session.userId)) offline.set(session.userId, { userId: session.userId, alias: session.alias, roles: [], connected: false });
     }
@@ -923,6 +924,30 @@ export class BattleRoomManager {
     return battle;
   }
 
+  async setLocalParticipant(socketId: string, slot: number, alias: string, expectedUserId: string | null = null): Promise<{ battle: Battle } | { error: string }> {
+    const battle = this.findBattleBySocket(socketId);
+    if (!battle || !this.isAdmin(socketId, battle)) return { error: "Solo el organizador puede gestionar MC presenciales" };
+    if (battle.status !== "lobby") return { error: "Los MC solo se pueden cambiar antes de iniciar" };
+    if ((slot !== 0 && slot !== 1) || slot > battle.participants.length || typeof alias !== "string" || alias.length > 40) return { error: "Completa los puestos en orden con un nombre de hasta 40 caracteres" };
+    const current = battle.participants[slot];
+    if ((current?.userId ?? null) !== expectedUserId) return { error: "El puesto cambió mientras lo editabas. Vuelve a abrirlo antes de guardar" };
+    if (current && !isLocalParticipantId(current.userId)) return { error: "Este puesto pertenece a una persona conectada. Cambia su rol antes de agregar un MC presencial" };
+    const cleanAlias = this.sanitizeAlias(alias);
+    if (!cleanAlias && !current) return { error: "Escribe el nombre del MC presencial" };
+    const snapshot = structuredClone(battle);
+    if (!cleanAlias) {
+      snapshot.participants.splice(slot, 1);
+      if (snapshot.mode.firstTurnParticipantId === current?.userId) delete snapshot.mode.firstTurnParticipantId;
+    } else {
+      snapshot.participants[slot] = { userId: current?.userId ?? `${LOCAL_PARTICIPANT_PREFIX}${uuid()}`, name: cleanAlias, alias: cleanAlias, isActive: false, currentScore: 0, roundsWon: 0 };
+    }
+    // La ruta de socket serializa las acciones de sala. Publicar solo tras el commit.
+    await this.persistence.commitLocalParticipants(snapshot);
+    battle.participants = snapshot.participants;
+    battle.mode = snapshot.mode;
+    return { battle };
+  }
+
   transferHost(socketId: string, targetUserId: string): Battle | null {
     const battle = this.findBattleBySocket(socketId);
     if (!battle || !this.canControlBattle(socketId, battle)) return null;
@@ -993,6 +1018,15 @@ export class BattleRoomManager {
     if (!this.isAdmin(socketId, battle)) return { error: "Solo el admin puede cambiar roles" };
     if (role === "admin") return { error: "Usa la acción de administración correspondiente" };
     const target = this.findUserById(targetUserId);
+    if (!target && role === "host" && battle.hostId === targetUserId) {
+      for (const session of this.sessions.values()) if (session.battleId === battle.id && session.identity.userId === targetUserId) session.identities.delete("host");
+      const offline = this.offlineMembers.get(battle.id)?.get(targetUserId);
+      if (offline) offline.roles = offline.roles.filter(value => value !== "host");
+      battle.hostId = undefined;
+      this.syncMembers(battle);
+      this.syncBattleToDb(battle);
+      return battle;
+    }
     if (!target || target.battleId !== battle.id || !target.identities.has(role)) return { error: "El usuario no tiene ese rol" };
     this.removeRoleFromBattle(battle, target, role);
     target.identities.delete(role);
@@ -1302,7 +1336,7 @@ export class BattleRoomManager {
     const key = this.roundVoteKey(battle);
     const ids = new Set([mc1.userId, mc2.userId]);
     const judges = new Set(battle.judges.map(judge => judge.id));
-    if (battle.mode.votingSystem !== "room_vote" && !VALID_JUDGE_COUNTS.has(judges.size)) return "La mesa de jueces guardada está incompleta.";
+    if (!battle.mode.exhibition && battle.mode.votingSystem !== "room_vote" && !VALID_JUDGE_COUNTS.has(judges.size)) return "La mesa de jueces guardada está incompleta.";
     if (battle.roundPhase === "mc1_turn" || battle.roundPhase === "mc2_turn") {
       if (battle.currentTurn !== (battle.roundPhase === "mc1_turn" ? mc1.userId : mc2.userId)) return "El turno guardado no coincide con los participantes.";
     }
@@ -1328,7 +1362,7 @@ export class BattleRoomManager {
     if (!this.isRecoveryPaused(battle.id)) return { error: "La batalla no está pausada para recuperación" };
     const issue = this.recoveryIssue(battle);
     if (issue) return { error: issue };
-    const required = new Set([...battle.participants.map(mc => mc.userId), ...battle.judges.map(judge => judge.id), ...(battle.mode.votingSystem === "room_vote" && battle.roundPhase === "voting" ? this.roomVotingRosters.get(this.roomVoteKey(battle)) ?? [] : [])]);
+    const required = new Set([...battle.participants.filter(mc => !isLocalParticipantId(mc.userId)).map(mc => mc.userId), ...battle.judges.map(judge => judge.id), ...(battle.mode.votingSystem === "room_vote" && battle.roundPhase === "voting" ? this.roomVotingRosters.get(this.roomVoteKey(battle)) ?? [] : [])]);
     if ([...required].some(id => !battle.members.some(member => member.userId === id && member.connected))) return { error: "Espera a que vuelvan los MC, los jueces y los miembros del padrón antes de reanudar" };
     const timing = this.getPhaseTiming(battle.id)!;
     if (action === "continue" && (timing.state === "expired" || timing.state === "unknown")) return { error: "El plazo venció o es desconocido. Elige reiniciar el reloj de esta fase." };

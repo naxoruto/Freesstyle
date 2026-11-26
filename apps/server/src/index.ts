@@ -643,6 +643,19 @@ io.on("connection", (socket) => {
         break;
       }
 
+      case "battle:set_local_participant": {
+        const room = battleManager.findBattleBySocket(socket.id);
+        try {
+          const result = await battleManager.setLocalParticipant(socket.id, event.slot, event.alias, event.expectedUserId);
+          if ("error" in result) { socket.emit("battle:error", { message: result.error }); return; }
+          io.to(result.battle.id).emit("battle:state", result.battle);
+        } catch (error) {
+          console.error("No se pudo guardar el MC presencial", error);
+          if (room) blockBattle(room.id, "No se pudo guardar el MC presencial. Vuelve a entrar cuando se restablezca el servicio.");
+        }
+        break;
+      }
+
       case "battle:complete_entry": {
         const room = battleManager.findBattleBySocket(socket.id);
         let result: Awaited<ReturnType<typeof battleManager.completeEntryDurably>>;

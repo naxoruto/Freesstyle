@@ -119,11 +119,15 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const showScores = true;
   const isHost = currentRoles.includes("host") || battle?.hostId === currentUserId;
   const canControl = isAdmin || isHost;
-  const hostCandidates = (battle?.members ?? []).map(member => ({ id: member.userId, alias: member.alias }));
+  const hostCandidates = (battle?.members ?? []).filter(member => member.connected).map(member => ({ id: member.userId, alias: member.alias }));
   const pendingEntryKey = battle?.pendingEntry ? `${battle.currentRound}:${battle.pendingEntry.mcId}:${battle.pendingEntry.entryIndex}` : "";
   const roleLabel = currentRoles.length === 0 ? "En espera" : currentRoles.map(role => role === "participant" ? "MC" : role === "judge" ? "Juez" : role === "spectator" ? "Público" : role === "host" ? "Host" : "Admin").join(" + ");
 
   useEffect(() => setEntryVoteSubmitted(false), [pendingEntryKey]);
+
+  useEffect(() => {
+    if (isAdmin && socket) socket.emit("battle:create_invitation", { type: "battle:create_invitation", regenerate: false });
+  }, [isAdmin, socket, params.id]);
 
   useEffect(() => {
     const s = io(WS_URL, { transports: ["websocket", "polling"], withCredentials: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
@@ -348,6 +352,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
   const handleRevokeAdmin = (targetUserId: string) => socket?.emit("battle:revoke_admin", { type: "battle:revoke_admin", targetUserId });
   const handleCreateInvitation = (regenerate: boolean) => socket?.emit("battle:create_invitation", { type: "battle:create_invitation", regenerate });
   const handleCompleteEntry = () => socket?.emit("battle:complete_entry", { type: "battle:complete_entry" });
+  const handleLocalParticipant = (slot: number, alias: string, expectedUserId: string | null) => socket?.emit("battle:set_local_participant", { type: "battle:set_local_participant", slot, alias, expectedUserId });
   const handleEntryVote = (points: number) => {
     socket?.emit("judge:vote_entry", { type: "judge:vote_entry", battleId: params.id, points });
     setEntryVoteSubmitted(true);
@@ -457,7 +462,6 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           roomId={params.id}
           roleLabel={roleLabel}
           isAdmin={isAdmin}
-          canControl={canControl}
           currentUserId={currentUserId}
           hostCandidates={hostCandidates}
           firstTurnId={firstTurnId}
@@ -475,6 +479,7 @@ export default function BattlePage({ params }: { params: { id: string } }) {
           onTransferAdmin={handleTransferAdmin}
           onRevokeAdmin={handleRevokeAdmin}
           onCreateInvitation={handleCreateInvitation}
+          onLocalParticipant={handleLocalParticipant}
         />
       )}
 

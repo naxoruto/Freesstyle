@@ -82,9 +82,12 @@ Actualizar esta tabla al crear, fusionar, renombrar o retirar componentes compar
 | `BattleModeSelector` | Dominio, reutilizable | `components/BattleModeSelector.tsx`; lobby, creación de batalla y torneo | Existente; sus opciones usan `Button` |
 | `BattleLobby` | Composición de dominio | `components/BattleLobby.tsx`; lobby de batalla | Existente; sus acciones usan `Button` |
 | `RubricPanel`, `ScoreBoard`, `Timer`, `WordDisplay` | Dominio | `components/`; batalla | Existentes |
-| `BattlePosterDialog` | Dominio | `components/`; lobby y resultado de batalla | Existente; sus acciones usan `Button` y sus errores `Alert` |
+| `BattlePosterDialog` | Dominio | `components/`; lobby y resultado de batalla | Reutiliza `Dialog`, `Button` y `Alert` |
 | `HeroSection`, `OneVsOneDemo` | Experiencia | `components/`; inicio/demo | Existentes, con identidad propia |
 | `Button`, `ButtonLink` | UI base | `components/ui/Button.tsx`; Inicio, inscripción, torneo, batalla, lobby, rúbrica y cartel | Implementación inicial; variantes principal, secundario, ghost, peligro y opción |
 | `TextField`, `TextArea` | UI base | `components/ui/Field.tsx`; Inicio, creación de torneo, inscripciones y voto por patrón | Implementación inicial; etiquetas y ayuda accesibles |
 | `Panel`, `Alert` | UI base | `components/ui/Panel.tsx`, `components/ui/Alert.tsx`; torneo, recuperación/votos de batalla y cartel | Implementación inicial |
-| `Select`, `SegmentedControl`, `EmptyState`, `PageHeader`, `Dialog` | UI base | Pendiente de usos y diseño en siguientes etapas | Planificados; aún no implementados |
+| `Dialog` | UI base | `components/ui/Dialog.tsx`; editar formato, roles, MC presenciales y cartelera | Implementado el 26/11/2026; modal nativo, foco contenido, Escape, fondo inerte y restauración de foco/scroll |
+| `Select`, `SegmentedControl`, `EmptyState`, `PageHeader` | UI base | Pendiente de usos y diseño en siguientes etapas | Planificados; aún no implementados |
+
+El lobby usa `Button variant="option"` para personas y roles con emojis, y `TextField` para los nombres de MC presenciales. Antes de crear otra ventana emergente, reutilizar `Dialog`; el contenido específico sigue siendo del flujo de dominio.

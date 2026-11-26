@@ -33,6 +33,12 @@ export interface RoomSession {
 
 export const DEFAULT_RECONNECT_WINDOW_MS = 5 * 60 * 1000; // 5 minutos
 
+/** Espacio de IDs reservado al servidor para MC presenciales, sin sesión digital. */
+export const LOCAL_PARTICIPANT_PREFIX = "local:";
+export function isLocalParticipantId(userId: string): boolean {
+  return userId.startsWith(LOCAL_PARTICIPANT_PREFIX);
+}
+
 /** Invitación reutilizable de sala. Regenerarla revoca el token anterior. */
 export interface RoomInvitation {
   token: string;

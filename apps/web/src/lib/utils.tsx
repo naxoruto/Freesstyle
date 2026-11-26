@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Toast {
   id: number;
@@ -57,24 +57,39 @@ export function Toaster() {
 
 export function useClipboard() {
   const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   const copy = useCallback(async (text: string) => {
+    setCopied(false);
     try {
-      await navigator.clipboard.writeText(text);
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const x = window.scrollX, y = window.scrollY;
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.readOnly = true;
+        ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
+        document.body.appendChild(ta);
+        try {
+          ta.focus({ preventScroll: true });
+          ta.select();
+          if (!document.execCommand("copy")) throw new Error("No se pudo copiar");
+        } finally {
+          ta.remove();
+          active?.focus({ preventScroll: true });
+          window.scrollTo({ left: x, top: y, behavior: "instant" });
+        }
+      }
       setCopied(true);
-      showToast("¡Copiado al portapapeles!", "success");
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 2000);
+      return true;
     } catch {
-      // Fallback
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      showToast("¡Copiado!", "success");
-      setTimeout(() => setCopied(false), 2000);
+      showToast("No se pudo copiar. Revisa los permisos del portapapeles.", "error");
+      return false;
     }
   }, []);
 

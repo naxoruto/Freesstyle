@@ -27,6 +27,7 @@ export function isSocketPayloadValid(event: string, payload: unknown): boolean {
     case "battle:next_phase": return optionalText(value.phaseToken);
     case "battle:resume": return value.action === "continue" || value.action === "restart_clock";
     case "battle:set_mode": return mode(value.mode);
+    case "battle:set_local_participant": return (value.slot === 0 || value.slot === 1) && typeof value.alias === "string" && value.alias.length <= 40 && (value.expectedUserId === null || text(value.expectedUserId));
     case "battle:set_replica": return plain(value.config) && typeof value.config.enabled === "boolean" && integer(value.config.maxReplicas) && integer(value.config.tieRange) && mode(value.config.mode);
     case "battle:set_host": case "battle:grant_admin": case "battle:transfer_admin": case "battle:revoke_admin": return text(value.targetUserId);
     case "battle:change_role": return text(value.targetUserId) && roles.has(String(value.newRole));

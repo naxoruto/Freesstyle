@@ -70,6 +70,8 @@
 
 **Avance (25 de noviembre de 2026):** producto T1–T11 y pulido entregados; T12 (refactor WEB-01) sigue pendiente. Ver [plan de implementación](producto/planes/batalla-individual.md).
 
+**Revisión manual del 26 de noviembre de 2026:** implementados los seis ajustes del lobby: copia sin desplazamiento, formato en modal, host opcional, MC presenciales sin dispositivo, tarjetas de personas/roles e invitación superior unificada. `Dialog` es una primitiva compartida, reutilizada también en la cartelera. Reglas y límites de verificación en [especificación §13](producto/specs/batalla-individual.md). Falta recorrido visual y persistencia con PostgreSQL disponible.
+
 ### 5.1 Decisiones resueltas
 - Los nombres de presets (A9) y el resumen de reglas (C7) quedaron definidos e implementados en la entrega de batalla individual.
 

@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { isSocketPayloadValid } from "./socketPayload";
 
 describe("socket payload validation", () => {
+  it("valida puesto y nombre de MC presencial", () => {
+    expect(isSocketPayloadValid("battle:set_local_participant", { slot: 0, alias: "MC", expectedUserId: null })).toBe(true);
+    expect(isSocketPayloadValid("battle:set_local_participant", { slot: 1, alias: "", expectedUserId: "local:mc" })).toBe(true);
+    for (const payload of [{ slot: 2, alias: "MC" }, { slot: 0, alias: "a".repeat(41) }, { slot: 0, alias: 9 }, { alias: "MC" }]) {
+      expect(isSocketPayloadValid("battle:set_local_participant", payload)).toBe(false);
+    }
+  });
   it("requires an explicit valid recovery decision", () => {
     expect(isSocketPayloadValid("battle:resume", { action: "continue" })).toBe(true);
     expect(isSocketPayloadValid("battle:resume", { action: "restart_clock" })).toBe(true);
