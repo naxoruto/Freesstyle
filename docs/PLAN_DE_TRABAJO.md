@@ -74,7 +74,7 @@
 
 ### 5.1 Decisiones resueltas
 
-- Seguimiento del 26/11: tarjetas de personas compactadas a 140 px. Confirmado método de votación individual por juez, separado del formato; un único voto final por juez al terminar todas las rondas, igual peso y decisión por mayoría. Pendiente concretar la relación entre puntos y voto final antes de implementar. Detalle en [especificación §13](producto/specs/batalla-individual.md).
+- Seguimiento del 26/11: tarjetas de personas compactadas a 140 px. Confirmado método de votación individual por juez, separado del formato; un único voto final por juez al terminar todas las rondas, igual peso y decisión por mayoría. Confirmado cálculo automático desde los puntos de rúbrica/patrón; pendiente repasar tablas y ejemplos. Solicitada preparación de jueces antes del «3, 2, 1»; mecanismo por definir. Detalle en [especificación §13](producto/specs/batalla-individual.md).
 - Los nombres de presets (A9) y el resumen de reglas (C7) quedaron definidos e implementados en la entrega de batalla individual.
 
 ### 5.2 Entregables de producto

@@ -58,7 +58,7 @@ El 26 de noviembre de 2026 se añadió `Iniciar Freestyle.cmd` para iniciar web 
 
 ## Registro de decisiones nuevas
 
-Pulido posterior del 26/11: se compactan las tarjetas de personas (140 px sin expansión). Se confirma que el método de votación lo elige cada juez y debe separarse del formato de batalla; cada juez aporta un único voto final (MC1, MC2 o réplica) al terminar todas las rondas, con igual peso y decisión por mayoría. Falta concretar cómo los puntos de rúbrica/patrón se convierten en ese voto. El cambio funcional de votación aún no está implementado; reglas en [especificación §13](specs/batalla-individual.md).
+Pulido posterior del 26/11: se compactan las tarjetas de personas (140 px sin expansión). Se confirma que el método de votación lo elige cada juez y debe separarse del formato de batalla; cada juez aporta un único voto final (MC1, MC2 o réplica) al terminar todas las rondas, con igual peso y decisión por mayoría. Se confirma que los puntos de rúbrica/patrón calculan automáticamente ese voto; falta concretar las tablas con ejemplos del usuario. Se solicita preparación de jueces antes de activar el «3, 2, 1», con mecanismo todavía por definir. El cambio funcional de votación aún no está implementado; reglas en [especificación §13](specs/batalla-individual.md).
 
 Revisión 1vs1 del 26/11/2026: se implementan los seis ajustes solicitados de copia estable, formato en modal, host opcional, MC presenciales, tarjetas de roles e invitación unificada. El usuario confirmó MC sin cuenta ni dispositivo, con control del organizador y puntuación habitual de jueces. Detalle y límites de verificación en [especificación §13](specs/batalla-individual.md) y catálogo actualizado en [guía UI](GUIA_COMPONENTES_UI.md).
 
