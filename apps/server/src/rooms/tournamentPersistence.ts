@@ -47,6 +47,10 @@ export class TournamentPersistence {
     }));
   }
 
+  async delete(id: string): Promise<void> {
+    await this.enqueue(id, () => prisma.tournament.delete({ where: { id } }));
+  }
+
   async loadActive(): Promise<{ tournament: Tournament; adminToken: string }[]> {
     const rows = await prisma.tournament.findMany({
       where: { status: { in: ["setup", "in_progress"] } },

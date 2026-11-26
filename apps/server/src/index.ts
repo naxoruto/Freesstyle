@@ -301,6 +301,12 @@ app.post("/api/tournaments/:id/participants/confirm", (req, res) => {
   res.json(tournament);
 });
 
+app.post("/api/tournaments/:id/participants/sort", (req, res) => {
+  const tournament = tournamentManager.sortParticipants(req.params.id, req.body?.adminToken);
+  if (!tournament) { res.status(400).json({ error: "Confirma titulares y completa el cupo antes de sortear" }); return; }
+  res.json(tournament);
+});
+
 app.put("/api/tournaments/:id/rules", (req, res) => {
   const tournament = tournamentManager.updateRules(req.params.id, req.body?.adminToken, req.body?.modeConfig);
   if (!tournament) { res.status(400).json({ error: "No se pudieron actualizar las reglas" }); return; }

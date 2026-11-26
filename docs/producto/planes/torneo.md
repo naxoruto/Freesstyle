@@ -25,7 +25,7 @@
 | T9 · Formulario web | ✅ Implementado | `546bbcb` |
 | T10 · Inscripción guiada y confirmación de titulares | ✅ Implementado | Esta entrega |
 | T10b · Autoinscripción por enlace (API + página) | ✅ Implementado | Esta entrega |
-| T11 · Sorteo y auditoría (web) | ⏳ Pendiente | — |
+| T11 · Sorteo y auditoría (web) | ✅ Implementado | Esta entrega |
 | T12 · Cuadro en vivo (web) | ⏳ Pendiente | — |
 | T13 · Repesca (web) | ⏳ Pendiente | — |
 
@@ -179,15 +179,15 @@ T9 (form) → T10 (inscripción UI) → T10b (autoinscripción) → T11 (sorteo 
 - [x] **Paso 3 — Ejecutar** → 256 pruebas del servidor, lint, typecheck y builds; recorrido HTTP de inscripción pública con base descartable.
 - [x] **Paso 4 — Commit**: `feat(torneo): autoinscripción por enlace`.
 
-## T11 — Sorteo y revisión con auditoría (web) ⏳
+## T11 — Sorteo y revisión con auditoría (web) ✅
 
 **Files:** `apps/web/src/app/tournament/page.tsx`
 
 **Interfaces:** «Sortear» separado de «Iniciar»; reorden con flechas; visor de auditoría.
 
-- [ ] **Paso 1 — Implementar**.
-- [ ] **Paso 2 — Verificar**: typecheck + manual.
-- [ ] **Paso 3 — Commit**: `feat(web): sorteo revisable con auditoría`.
+- [x] **Paso 1 — Implementar**: separar sorteo del inicio, mostrar el orden, permitir reordenar titulares y mostrar el registro de actividad.
+- [x] **Paso 2 — Verificar**: pruebas del servidor, lint, typecheck, compilaciones y recorrido HTTP de sorteo, reorden, auditoría e inicio.
+- [x] **Paso 3 — Commit**: `feat(torneo): sorteo revisable con auditoría`.
 
 ## T12 — Cuadro en vivo (web) ⏳
 

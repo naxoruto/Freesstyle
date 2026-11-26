@@ -148,6 +148,7 @@ export interface Tournament {
   registrationClosed?: boolean;
   modeConfig?: BattleModeConfig;
   rulesUpdatedAt?: string;
+  drawOrder?: string[];
   auditLog: TournamentAuditEntry[];
   thirdPlaceMatch?: TournamentBattle;
   losersPhases?: TournamentPhase[];

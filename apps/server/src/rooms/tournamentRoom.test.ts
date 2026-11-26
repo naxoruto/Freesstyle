@@ -135,6 +135,7 @@ describe("TournamentRoomManager", () => {
     expect(tournament.rulesUpdatedAt).toBeTruthy();
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     manager.confirmParticipants(tournament.id, adminToken);
+    manager.sortParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, clasico);
     expect(manager.updateRules(tournament.id, adminToken, libre)).toBeNull();
     expect(tournament.phases[0].modeConfig.mode).toBe("clasico");
@@ -148,6 +149,7 @@ describe("TournamentRoomManager", () => {
     expect(manager.updateRules(created.tournament.id, created.adminToken, { ...rules, rounds: undefined } as unknown as typeof rules)).toBeNull();
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(created.tournament.id, created.adminToken, alias);
     manager.confirmParticipants(created.tournament.id, created.adminToken);
+    manager.sortParticipants(created.tournament.id, created.adminToken);
     manager.startTournament(created.tournament.id, created.adminToken, rules);
     expect(created.tournament.phases[0].modeConfig.timePerTurn).toBe(45);
     expect(battles.createBattle(rules).mode.timePerTurn).toBe(45);
@@ -169,11 +171,12 @@ describe("TournamentRoomManager", () => {
     const { tournament, adminToken } = manager.createTournament("Copa", "manual", "single_elimination")!;
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
 
+    manager.confirmParticipants(tournament.id, adminToken);
     manager.sortParticipants(tournament.id, adminToken);
     expect(tournament.auditLog.some(entry => entry.action === "sort")).toBe(true);
 
     const ids = tournament.participants.map(participant => participant.userId);
-    manager.reorderParticipants(tournament.id, adminToken, [ids[1], ids[0], ids[2], ids[3]]);
+    expect(manager.reorderParticipants(tournament.id, adminToken, [ids[1], ids[0], ids[2], ids[3]])).toBe(tournament);
     expect(tournament.participants.map(participant => participant.userId)).toEqual([ids[1], ids[0], ids[2], ids[3]]);
     expect(tournament.auditLog.some(entry => entry.action === "reorder")).toBe(true);
   });
@@ -195,6 +198,8 @@ describe("TournamentRoomManager", () => {
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
 
     manager.confirmParticipants(tournament.id, adminToken);
+
+    tournament.drawOrder = tournament.participants.map(participant => participant.userId);
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
     expect(tournament.phases).toHaveLength(2);
     expect(tournament.phases[0].battles).toHaveLength(2);
@@ -235,15 +240,62 @@ describe("TournamentRoomManager", () => {
     for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
     const [a, b, c, d] = tournament.participants;
 
+    manager.confirmParticipants(tournament.id, adminToken);
+    tournament.drawOrder = tournament.participants.map(participant => participant.userId);
     const reordered = manager.reorderParticipants(tournament.id, adminToken, [d.userId, a.userId, b.userId, c.userId]);
     expect(reordered).toBe(tournament);
     expect(tournament.participants.map(participant => participant.alias)).toEqual(["D", "A", "B", "C"]);
 
-    manager.confirmParticipants(tournament.id, adminToken);
     manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
     const [first, second] = tournament.phases[0].battles;
     expect(first).toMatchObject({ mc1Id: d.userId, mc2Id: a.userId });
     expect(second).toMatchObject({ mc1Id: b.userId, mc2Id: c.userId });
+  });
+
+  it("sorts participants before starting and preserves the reviewed order when starting", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Sorteo", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
+    const originalRandom = Math.random;
+    Math.random = () => 0;
+    try {
+      expect(manager.sortParticipants(tournament.id, adminToken)).toBe(tournament);
+    } finally {
+      Math.random = originalRandom;
+    }
+    const reviewed = [...tournament.participants];
+    expect(tournament.auditLog.at(-1)?.action).toBe("sort");
+    const reversed = [...reviewed].reverse();
+    expect(manager.reorderParticipants(tournament.id, adminToken, reversed.map(participant => participant.userId))).toBe(tournament);
+    const finalOrder = [...tournament.participants];
+    manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"));
+    expect(tournament.participants.map(participant => participant.userId)).toEqual(finalOrder.map(participant => participant.userId));
+    expect(tournament.phases[0].battles[0]).toMatchObject({ mc1Id: reversed[0].userId, mc2Id: reversed[1].userId });
+    expect(tournament.auditLog.at(-1)?.action).toBe("reorder");
+  });
+
+  it("keeps the bracket open and its draw intact when a titular changes position", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
+    manager.sortParticipants(tournament.id, adminToken);
+    const drawn = [...tournament.participants];
+    expect(manager.moveParticipant(tournament.id, adminToken, drawn[1].userId, "suplente")).toBe(tournament);
+    expect(tournament.registrationClosed).toBe(true);
+    expect(tournament.drawOrder).toEqual(tournament.participants.map(participant => participant.userId));
+    expect(tournament.auditLog.some(entry => entry.action === "move")).toBe(true);
+  });
+
+  it("cancels a confirmed tournament when a titular is removed", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
+    manager.sortParticipants(tournament.id, adminToken);
+    expect(manager.removeParticipant(tournament.id, adminToken, tournament.participants[0].userId)).toBeNull();
+    expect(manager.getTournament(tournament.id)).toBeUndefined();
   });
 
   it("rejects reorder with an invalid admin token", () => {
@@ -268,6 +320,34 @@ describe("TournamentRoomManager", () => {
     expect(tournament.participants.map(participant => participant.userId)).toEqual(ids);
   });
 
+  it("clears the saved draw when titular membership changes", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C", "D", "E"]) manager.addParticipant(tournament.id, adminToken, alias);
+    manager.confirmParticipants(tournament.id, adminToken);
+    manager.sortParticipants(tournament.id, adminToken);
+    expect(tournament.drawOrder).toEqual(tournament.participants.map(participant => participant.userId));
+    manager.removeParticipant(tournament.id, adminToken, tournament.participants[0].userId);
+    expect(tournament.drawOrder).toBeUndefined();
+    expect(tournament.registrationClosed).toBe(true);
+  });
+
+  it("requires confirmation and a full roster before drawing", () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const { tournament, adminToken } = manager.createTournament("Copa", "random", "single_elimination", { capacity: 4 })!;
+    for (const alias of ["A", "B", "C"]) manager.addParticipant(tournament.id, adminToken, alias);
+    expect(manager.sortParticipants(tournament.id, adminToken)).toBeNull();
+    manager.addParticipant(tournament.id, adminToken, "D");
+    expect(manager.sortParticipants(tournament.id, adminToken)).toBeNull();
+    manager.confirmParticipants(tournament.id, adminToken);
+    expect(manager.sortParticipants(tournament.id, adminToken)).toBe(tournament);
+    const drawOrder = [...tournament.drawOrder!];
+    manager.addParticipant(tournament.id, adminToken, "Suplente");
+    expect(tournament.registrationClosed).toBe(true);
+    expect(tournament.drawOrder).toEqual(drawOrder);
+    expect(tournament.suplentes.map(participant => participant.alias)).toContain("Suplente");
+  });
+
   it("rejects reorder with missing, duplicate or unknown ids", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const { tournament, adminToken } = manager.createTournament("Copa", "manual")!;
@@ -287,6 +367,7 @@ describe("TournamentRoomManager", () => {
     const [a, b, c, d] = tournament.participants;
 
     manager.confirmParticipants(tournament.id, adminToken);
+    tournament.drawOrder = tournament.participants.map(participant => participant.userId);
     expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
     expect(tournament.losersPhases).toHaveLength(2);
     const [first, second] = tournament.phases[0].battles;
@@ -339,6 +420,7 @@ describe("TournamentRoomManager", () => {
       const { tournament, adminToken } = manager.createTournament(`Repesca ${count}`, "manual", "double_elimination", { capacity: count })!;
       for (let index = 0; index < count; index++) manager.addParticipant(tournament.id, adminToken, `MC ${index + 1}`);
       manager.confirmParticipants(tournament.id, adminToken);
+      manager.sortParticipants(tournament.id, adminToken);
       expect(manager.startTournament(tournament.id, adminToken, getDefaultModeConfig("clasico"))).toBe(tournament);
       expect(tournament.losersPhases?.map(phase => phase.battles.length)).toEqual(expected);
     }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDefaultConfig, normalizeConfig, validateConfig, type BattleModeConfig, type Tournament, type TournamentType } from "@freestyle/shared";
 import { BattleModeSelector } from "../../components/BattleModeSelector";
+import { Alert, Button, ButtonLink, Panel, TextArea, TextField } from "../../components/ui";
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -26,6 +27,7 @@ export default function TournamentPage() {
   const [participantAlias, setParticipantAlias] = useState("");
   const [modeConfig, setModeConfig] = useState<BattleModeConfig>(() => createDefaultConfig("clasico"));
   const [editingRules, setEditingRules] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("id");
@@ -37,6 +39,7 @@ export default function TournamentPage() {
       .then((saved: Tournament) => {
         setAdminToken(token);
         setTournament(saved);
+        setHasDrawn(!!saved.drawOrder && saved.drawOrder.join(",") === saved.participants.map(participant => participant.userId).join(","));
         setModeConfig(saved.modeConfig ?? createDefaultConfig("clasico"));
         setStep(saved.status === "setup" ? "setup" : "active");
       })
@@ -121,7 +124,7 @@ export default function TournamentPage() {
   };
 
   const handleStart = async () => {
-    if (!tournament) return;
+    if (!tournament || !hasDrawn) return;
     setLoading(true);
     try {
       const startResponse = await fetch(`${API_URL}/api/tournaments/${tournament.id}/start`, {
@@ -156,7 +159,16 @@ export default function TournamentPage() {
     if (!response.ok) {
       setTournament({ ...tournament, participants: previous });
       setError("No se pudo actualizar el orden");
+    } else {
+      const updated = await response.json() as Tournament;
+      setTournament(updated);
+      setHasDrawn(!!updated.drawOrder && updated.drawOrder.join(",") === updated.participants.map(participant => participant.userId).join(","));
     }
+  };
+
+  const handleDraw = async () => {
+    if (!tournament || loading || tournament.participants.length !== tournament.capacity) return;
+    if (await updateSetup("/participants/sort", "POST")) setHasDrawn(true);
   };
 
   const openBattle = async (battleId: string) => {
@@ -194,13 +206,13 @@ export default function TournamentPage() {
         <p className="my-1 text-xs text-red-500">VS</p>
         <p>{p2?.alias ?? "Por definir"}</p>
         {match.battleId && (
-          <button onClick={() => openBattle(match.battleId!)} className="mt-3 block text-xs uppercase tracking-wider text-red-400">Abrir sala {match.battleId}</button>
+          <Button onClick={() => openBattle(match.battleId!)} variant="ghost" size="sm" className="mt-3">Abrir sala {match.battleId}</Button>
         )}
 
         {match.battleId && !match.winnerId && p1 && p2 && (
           <div className="mt-3 flex gap-2">
-            <button onClick={() => registerWinner(match.battleId!, p1.userId)} className="border border-white/10 px-2 py-1 text-xs">Ganó {p1.alias}</button>
-            <button onClick={() => registerWinner(match.battleId!, p2.userId)} className="border border-white/10 px-2 py-1 text-xs">Ganó {p2.alias}</button>
+            <Button onClick={() => registerWinner(match.battleId!, p1.userId)} variant="secondary" size="sm">Ganó {p1.alias}</Button>
+            <Button onClick={() => registerWinner(match.battleId!, p2.userId)} variant="secondary" size="sm">Ganó {p2.alias}</Button>
           </div>
         )}
         {match.winnerId && <p className="mt-3 text-xs uppercase text-green-400">Ganador registrado</p>}
@@ -210,42 +222,42 @@ export default function TournamentPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <a href="/" className="text-gray-500 hover:text-white transition mb-4 flex items-center gap-1 text-sm">
+      <ButtonLink href="/" variant="ghost" size="sm" className="mb-4">
         <span>←</span> Volver al inicio
-      </a>
+      </ButtonLink>
       <p className="text-xs uppercase tracking-[0.3em] text-red-500">Formato eliminatorio</p>
       <h1 className="mt-2 font-battle text-5xl font-black uppercase italic">Torneos</h1>
 
       {step === "form" && (
         <div className="mt-8 space-y-6">
-          <div className="space-y-4 border border-white/10 p-5">
+          <Panel className="space-y-4">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Tipo de torneo</p>
               <div className="grid gap-2 sm:grid-cols-3">
-                <button type="button" onClick={() => setType("single_elimination")} aria-pressed={type === "single_elimination"} className={`p-3 border text-sm text-left ${type === "single_elimination" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
+                <Button variant="option" size="sm" onClick={() => setType("single_elimination")} aria-pressed={type === "single_elimination"}>
                   <span className="block font-bold">Eliminación directa</span>
                   <span className="text-xs text-gray-500">El que pierde queda fuera</span>
-                </button>
-                <button type="button" onClick={() => setType("with_third_place")} aria-pressed={type === "with_third_place"} className={`p-3 border text-sm text-left ${type === "with_third_place" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
+                </Button>
+                <Button variant="option" size="sm" onClick={() => setType("with_third_place")} aria-pressed={type === "with_third_place"}>
                   <span className="block font-bold">Con tercer puesto</span>
                   <span className="text-xs text-gray-500">Partido extra por el 3er lugar</span>
-                </button>
-                <button type="button" onClick={() => setType("double_elimination")} aria-pressed={type === "double_elimination"} className={`p-3 border text-sm text-left ${type === "double_elimination" ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>
+                </Button>
+                <Button variant="option" size="sm" onClick={() => setType("double_elimination")} aria-pressed={type === "double_elimination"}>
                   <span className="block font-bold">Con repesca</span>
                   <span className="text-xs text-gray-500">Dos derrotas eliminan</span>
-                </button>
+                </Button>
               </div>
             </div>
 
-            <input value={name} onChange={e => setName(e.target.value)} maxLength={100} placeholder="Nombre del torneo" className="w-full border border-white/10 bg-black p-3" />
-            <input value={organizer} onChange={e => setOrganizer(e.target.value)} maxLength={60} placeholder="Organizador (opcional, persona o asociación)" className="w-full border border-white/10 bg-black p-3" />
-            <input value={logo} onChange={e => setLogo(e.target.value)} placeholder="Logo (URL, opcional)" className="w-full border border-white/10 bg-black p-3" />
+            <TextField label="Nombre del torneo" required value={name} onChange={e => setName(e.target.value)} maxLength={100} placeholder="Ej: Batalla del Parque" />
+            <TextField label="Organizador (opcional)" value={organizer} onChange={e => setOrganizer(e.target.value)} maxLength={60} placeholder="Persona o asociación" />
+            <TextField label="Logo (opcional)" type="url" value={logo} onChange={e => setLogo(e.target.value)} placeholder="https://..." />
 
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Capacidad del cuadro</p>
               <div className="grid grid-cols-3 gap-2">
                 {[4, 8, 16].map(n => (
-                  <button key={n} type="button" onClick={() => setCapacity(n)} aria-pressed={capacity === n} className={`p-3 border text-sm ${capacity === n ? "border-red-500 text-white" : "border-gray-800 text-gray-400"}`}>{n}</button>
+                  <Button key={n} variant="option" size="sm" className="!items-center !justify-center" onClick={() => setCapacity(n)} aria-pressed={capacity === n}>{n}</Button>
                 ))}
               </div>
             </div>
@@ -258,9 +270,9 @@ export default function TournamentPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-gray-400 uppercase tracking-widest">Participantes (opcional)</p>
-                <button type="button" onClick={loadExample} className="text-xs text-red-400 hover:text-red-300">Cargar ejemplo</button>
+                <Button type="button" variant="ghost" size="sm" onClick={loadExample}>Cargar ejemplo</Button>
               </div>
-              <textarea value={aliases} onChange={e => setAliases(e.target.value)} rows={6} placeholder="Un alias por línea. También puedes agregar participantes después de crear." className="w-full border border-white/10 bg-black p-3 font-mono text-sm" />
+              <TextArea label="Lista de participantes" hint="Un alias por línea. También puedes agregarlos después de crear." value={aliases} onChange={e => setAliases(e.target.value)} rows={6} placeholder="MC Uno&#10;MC Dos" controlClassName="font-mono" />
             </div>
 
             <label className="flex items-center gap-3 text-sm text-white/50">
@@ -268,52 +280,49 @@ export default function TournamentPage() {
               Emparejamientos aleatorios (podés reordenar después)
             </label>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <button onClick={handleCreate} disabled={loading} className="w-full bg-red-600 py-3 font-battle font-black uppercase disabled:opacity-40">
+            {error && <Alert variant="error">{error}</Alert>}
+            <Button onClick={handleCreate} disabled={loading} fullWidth size="lg">
               {loading ? "Creando..." : "Crear torneo"}
-            </button>
-          </div>
-          <div className="border border-white/5 p-5 text-sm leading-7 text-white/40">
+            </Button>
+          </Panel>
+          <Panel className="border-white/5 text-sm leading-7 text-white/40">
             <p>Cuadros de 4, 8 o 16 participantes. La repesca soporta 4, 8 y 16.</p>
             <p>Después de crear, podrás compartir el enlace, agregar personas y confirmar titulares.</p>
             <p>Cada enfrentamiento crea una sala de batalla normal.</p>
-          </div>
+          </Panel>
         </div>
       )}
 
       {step === "setup" && tournament && (
         <div className="mt-8 space-y-6">
-          <div className="border border-red-500/30 bg-red-950/10 p-5 space-y-5">
+          <Panel className="space-y-5 border-red-500/30 bg-red-950/10">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-red-400">{tournament.registrationClosed ? "Inscripción confirmada · paso 2 de 2" : "Inscripción · paso 1 de 2"}</p>
               <h2 className="mt-2 font-battle text-2xl font-black uppercase">{tournament.name}</h2>
               <p className="mt-2 text-sm text-white/50">Identificador del torneo: <span className="font-mono text-white">{tournament.id}</span></p>
               {!tournament.registrationClosed && <div className="mt-4">
-                <label htmlFor="tournament-invite" className="block text-sm font-bold mb-2">Enlace de inscripción</label>
-                <input id="tournament-invite" readOnly value={typeof window === "undefined" ? "" : `${window.location.origin}/tournament/join/${tournament.id}`} onFocus={event => event.currentTarget.select()} className="w-full border border-white/10 bg-black p-3 text-sm text-white/70" />
-                <p className="mt-2 text-xs text-white/50">Comparte el enlace después de revisar las reglas. La inscripción pública se cerrará al confirmar titulares.</p>
+                <TextField label="Enlace de inscripción" readOnly value={typeof window === "undefined" ? "" : `${window.location.origin}/tournament/join/${tournament.id}`} onFocus={event => event.currentTarget.select()} hint="Comparte el enlace después de revisar las reglas. La inscripción pública se cerrará al confirmar titulares." />
               </div>}
             </div>
             <div className="border-t border-white/10 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-bold">Reglas de las batallas</p>
-                <button type="button" onClick={() => { setModeConfig(tournament.modeConfig ?? createDefaultConfig("clasico")); setEditingRules(!editingRules); }} className="text-sm text-red-400 hover:text-red-300">
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setModeConfig(tournament.modeConfig ?? createDefaultConfig("clasico")); setEditingRules(!editingRules); }}>
                   {editingRules ? "Cerrar edición" : "Cambiar reglas"}
-                </button>
+                </Button>
               </div>
               <p className="mt-2 text-sm text-white/60">{tournament.modeConfig?.format ?? "1x1"} · {tournament.modeConfig?.mode ?? "clasico"} · {tournament.modeConfig?.rounds ?? 3} rondas · {tournament.modeConfig?.timePerTurn ?? 45}s por turno</p>
               {editingRules && (
                 <div className="mt-4 space-y-4">
                   <BattleModeSelector value={modeConfig} onChange={changeRules} disabled={loading} />
-                  <button type="button" onClick={handleSaveRules} disabled={loading} className="bg-red-600 px-4 py-2 text-sm font-bold disabled:opacity-40">Guardar reglas</button>
+                  <Button onClick={handleSaveRules} disabled={loading}>Guardar reglas</Button>
                 </div>
               )}
             </div>
             <div className="border-t border-white/10 pt-4">
-              <label htmlFor="participant-alias" className="block text-sm font-bold mb-2">Agregar participante a mano</label>
               <div className="flex gap-2">
-                <input id="participant-alias" value={participantAlias} onChange={event => setParticipantAlias(event.target.value)} maxLength={40} placeholder="AKA o nombre" className="min-w-0 flex-1 border border-white/10 bg-black p-3 text-sm" />
-                <button type="button" onClick={handleAddParticipant} disabled={loading || !participantAlias.trim()} className="bg-red-600 px-4 text-sm font-bold disabled:opacity-40">Agregar</button>
+                <TextField id="participant-alias" label="Agregar participante a mano" value={participantAlias} onChange={event => setParticipantAlias(event.target.value)} maxLength={40} placeholder="AKA o nombre" className="min-w-0 flex-1" />
+                <Button type="button" onClick={handleAddParticipant} disabled={loading || !participantAlias.trim()} className="self-end">Agregar</Button>
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -324,8 +333,8 @@ export default function TournamentPage() {
                   {tournament.participants.map(participant => (
                     <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm">
                       <span className="min-w-0 flex-1 truncate">{participant.alias}</span>
-                      <button type="button" onClick={() => handlePlacement(participant.userId, "suplente")} disabled={loading} className="text-xs text-white/60 hover:text-white">A suplentes</button>
-                      <button type="button" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`} className="text-xs text-red-400 hover:text-red-300">Quitar</button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => handlePlacement(participant.userId, "suplente")} disabled={loading}>A suplentes</Button>
+                      <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`}>Quitar</Button>
                     </div>
                   ))}
                 </div>
@@ -337,56 +346,62 @@ export default function TournamentPage() {
                   {tournament.suplentes.map(participant => (
                     <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm">
                       <span className="min-w-0 flex-1 truncate">{participant.alias}</span>
-                      <button type="button" onClick={() => handlePlacement(participant.userId, "titular")} disabled={loading} className="text-xs text-white/60 hover:text-white">A titulares</button>
-                      <button type="button" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`} className="text-xs text-red-400 hover:text-red-300">Quitar</button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => handlePlacement(participant.userId, "titular")} disabled={loading}>A titulares</Button>
+                      <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveParticipant(participant.userId)} disabled={loading} aria-label={`Quitar a ${participant.alias}`}>Quitar</Button>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             {!tournament.registrationClosed ? (
-              <button type="button" onClick={() => updateSetup("/participants/confirm", "POST")} disabled={loading || tournament.participants.length !== tournament.capacity} className="bg-red-600 px-6 py-3 font-battle font-black uppercase disabled:opacity-40">Confirmar titulares</button>
+              <Button type="button" onClick={async () => { if (await updateSetup("/participants/confirm", "POST")) setHasDrawn(false); }} disabled={loading || tournament.participants.length !== tournament.capacity} size="lg">Confirmar titulares</Button>
             ) : <p className="text-sm text-green-400">Titulares confirmados. Inscripción pública cerrada; puedes corregir la lista antes de iniciar.</p>}
             {tournament.auditLog.length > 0 && (
               <details className="border-t border-white/10 pt-4 text-sm">
                 <summary className="cursor-pointer font-bold text-white/70">Actividad reciente</summary>
                 <ol className="mt-3 space-y-2 text-white/50">
-                  {[...tournament.auditLog].reverse().slice(0, 8).map((entry, index) => (
-                    <li key={`${entry.at}-${index}`}>{entry.detail}</li>
+                  {[...tournament.auditLog].reverse().slice(0, 12).map((entry, index) => (
+                    <li key={`${entry.at}-${index}`}><time dateTime={entry.at} className="mr-2 text-white/30">{new Date(entry.at).toLocaleString()}</time><strong className="mr-2 text-white/60">{entry.actorId}</strong>{entry.detail}</li>
                   ))}
                 </ol>
               </details>
             )}
-            {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
-          </div>
+            {error && <Alert variant="error">{error}</Alert>}
+          </Panel>
           {tournament.registrationClosed && <>
-          <div className="border border-white/10 p-5">
+          <Panel>
             <h2 className="font-battle text-2xl font-black uppercase mb-4">{tournament.name}</h2>
             <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-4">Participantes ({tournament.participants.length})</p>
-            {tournament.bracketMode === "manual" ? (
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <Button type="button" onClick={handleDraw} disabled={loading || tournament.participants.length !== tournament.capacity}>{hasDrawn ? "Sortear de nuevo" : "Sortear"}</Button>
+              <span className={`text-sm ${hasDrawn ? "text-green-400" : "text-white/40"}`} role="status">{hasDrawn ? "Sorteo realizado · revisa el orden antes de iniciar" : "El cuadro aún no se ha sorteado"}</span>
+            </div>
+            {hasDrawn ? (
               <div className="space-y-2">
                 {tournament.participants.map((participant, index) => (
                   <div key={participant.userId} className="flex items-center gap-2 border border-white/10 p-2 text-sm text-white/60">
                     <span className="text-xs text-white/20 w-6 text-right">{index + 1}.</span>
                     <span className="flex-1">{participant.alias}</span>
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleReorder(index, -1)}
-                      disabled={index === 0}
+                      disabled={loading || index === 0}
                       aria-label={`Subir a ${participant.alias}`}
-                      className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
+                      className="w-9 px-0"
                     >
                       ↑
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleReorder(index, 1)}
-                      disabled={index === tournament.participants.length - 1}
+                      disabled={loading || index === tournament.participants.length - 1}
                       aria-label={`Bajar a ${participant.alias}`}
-                      className="border border-white/10 w-8 h-8 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-20"
+                      className="w-9 px-0"
                     >
                       ↓
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -400,9 +415,9 @@ export default function TournamentPage() {
                 ))}
               </div>
             )}
-          </div>
-          {tournament.bracketMode === "manual" && tournament.type === "king_of_the_hill" && (
-            <div className="border border-white/10 p-5">
+          </Panel>
+          {hasDrawn && tournament.bracketMode === "manual" && tournament.type === "king_of_the_hill" && (
+            <Panel>
               <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-3">Orden de la pista</p>
               <div className="border border-red-500/30 p-3 text-sm text-white/70">
                 <span className="font-bold text-white">Duelo inicial:</span> {tournament.participants[0]?.alias ?? "?"}
@@ -412,10 +427,10 @@ export default function TournamentPage() {
               <p className="mt-3 text-xs text-white/40">
                 Fila de retadores: {tournament.participants.slice(2).map(participant => participant.alias).join(" → ")}
               </p>
-            </div>
+            </Panel>
           )}
-          {tournament.bracketMode === "manual" && tournament.type !== "king_of_the_hill" && (
-            <div className="border border-white/10 p-5">
+          {hasDrawn && tournament.bracketMode === "manual" && tournament.type !== "king_of_the_hill" && (
+            <Panel>
               <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-3">Enfrentamientos</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {Array.from({ length: Math.floor(tournament.participants.length / 2) }, (_, index) => (
@@ -426,21 +441,19 @@ export default function TournamentPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Panel>
           )}
-          <div className="border border-white/10 p-5">
+          <Panel>
             <p className="text-sm text-white/40 mb-4">
-              {tournament.bracketMode === "random"
-                ? tournament.type === "king_of_the_hill" ? "El orden completo de la pista se sorteará al iniciar." : "Los enfrentamientos se sortearán aleatoriamente al iniciar."
-                : tournament.type === "king_of_the_hill" ? "Usa las flechas para definir el duelo inicial y la fila de retadores." : tournament.type === "double_elimination" ? "Usa las flechas para definir el cuadro principal y el orden de la repesca." : "Usa las flechas para reordenar. Los enfrentamientos respetan el orden (1 vs 2, 3 vs 4...)."}
+              {hasDrawn ? "El orden está guardado. Puedes volver a sortear o ajustarlo antes de iniciar." : "Confirma titulares, sortea y revisa el orden. Iniciar usará el resultado guardado."}
             </p>
-            {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+            {error && <Alert variant="error" className="mb-3">{error}</Alert>}
             <div className="flex gap-3">
-              <button onClick={handleStart} disabled={loading || tournament.participants.length !== tournament.capacity} className="bg-red-600 px-6 py-3 font-battle font-black uppercase disabled:opacity-40">
+              <Button onClick={handleStart} disabled={loading || !hasDrawn || tournament.participants.length !== tournament.capacity} size="lg">
                 {loading ? "Iniciando..." : "Iniciar torneo"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Panel>
           </>}
         </div>
       )}

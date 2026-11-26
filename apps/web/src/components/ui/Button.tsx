@@ -14,11 +14,11 @@ interface SharedProps {
 }
 
 const styles: Record<ButtonVariant, string> = {
-  primary: "border border-transparent bg-arena-signal text-white hover:bg-arena-signal-hover",
-  secondary: "border border-white/20 bg-transparent text-white hover:border-white/50 hover:bg-white/5",
-  ghost: "border border-transparent bg-transparent text-white/65 hover:bg-white/5 hover:text-white",
-  danger: "border border-red-500/35 bg-red-950/30 text-red-300 hover:border-red-400/60 hover:bg-red-950/60",
-  option: "w-full border border-white/10 bg-white/[0.02] text-left text-white/75 hover:border-white/30 hover:bg-white/[0.05] aria-pressed:border-arena-signal aria-pressed:bg-arena-signal/10 aria-pressed:text-white",
+  primary: "inline-flex items-center justify-center border border-transparent bg-arena-signal text-white hover:bg-arena-signal-hover",
+  secondary: "inline-flex items-center justify-center border border-white/20 bg-transparent text-white hover:border-white/50 hover:bg-white/5",
+  ghost: "inline-flex items-center justify-center border border-transparent bg-transparent text-white/65 hover:bg-white/5 hover:text-white",
+  danger: "inline-flex items-center justify-center border border-red-500/35 bg-red-950/30 text-red-300 hover:border-red-400/60 hover:bg-red-950/60",
+  option: "flex flex-col items-start justify-center border border-white/10 bg-white/[0.02] text-left text-white/75 hover:border-white/30 hover:bg-white/[0.05] aria-pressed:border-arena-signal aria-pressed:bg-arena-signal/10 aria-pressed:text-white",
 };
 
 const sizes: Record<ButtonSize, string> = {
@@ -31,9 +31,9 @@ type ButtonStyleProps = Pick<SharedProps, "variant" | "size" | "fullWidth" | "cl
 
 export function buttonClassName({ variant = "primary", size = "md", fullWidth = false, className }: ButtonStyleProps) {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-focus focus-visible:ring-offset-2 focus-visible:ring-offset-arena-canvas disabled:pointer-events-none disabled:opacity-40",
+    "gap-2 rounded-[var(--radius-control)] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arena-focus focus-visible:ring-offset-2 focus-visible:ring-offset-arena-canvas disabled:pointer-events-none disabled:opacity-40",
     styles[variant],
-    variant === "option" ? "p-4" : sizes[size],
+    variant === "option" ? (size === "lg" ? "min-h-12 p-4" : size === "sm" ? "min-h-9 px-3 py-2 text-xs" : "min-h-11 px-4 py-3 text-sm") : sizes[size],
     fullWidth && "w-full",
     className,
   );

@@ -77,6 +77,7 @@ export class TournamentRoomManager {
     const participant = { userId: uuid(), alias: alias.trim(), eliminated: false };
     if (tournament.participants.length < tournament.capacity) {
       tournament.participants.push(participant);
+      this.invalidateDraw(tournament);
     } else {
       tournament.suplentes.push(participant);
     }
@@ -150,6 +151,16 @@ export class TournamentRoomManager {
     const titularIndex = tournament.participants.findIndex(participant => participant.userId === participantId);
     const suplenteIndex = tournament.suplentes.findIndex(participant => participant.userId === participantId);
     if (titularIndex < 0 && suplenteIndex < 0) return null;
+    if (titularIndex >= 0 && tournament.registrationClosed) {
+      tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "cancel", detail: `Canceló el torneo por retiro de titular ${tournament.participants[titularIndex].alias}` });
+      tournament.status = "finished";
+      tournament.registrationClosed = true;
+      tournament.drawOrder = undefined;
+      this.tournaments.delete(tournament.id);
+      this.adminTokens.delete(tournament.id);
+      void this.persistence.delete(tournament.id).catch(error => console.error("No se pudo quitar el torneo cancelado", error));
+      return null;
+    }
     const removed = titularIndex >= 0 ? tournament.participants[titularIndex] : tournament.suplentes[suplenteIndex];
     if (titularIndex >= 0) {
       tournament.participants.splice(titularIndex, 1);
@@ -158,7 +169,11 @@ export class TournamentRoomManager {
     } else {
       tournament.suplentes.splice(suplenteIndex, 1);
     }
-    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "remove", detail: `Quitó a ${removed.alias}` });
+    if (titularIndex >= 0) {
+      if (tournament.drawOrder) tournament.drawOrder = tournament.participants.map(participant => participant.userId);
+      else this.invalidateDraw(tournament);
+    }
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "remove", detail: `Quitó a ${removed.alias}; titulares actuales: ${this.participantAliases(tournament)}` });
     this.persist(tournament);
     return tournament;
   }
@@ -167,6 +182,7 @@ export class TournamentRoomManager {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup") return null;
     let movedAlias: string;
+    let movedTitular = false;
     if (destination === "titular") {
       const index = tournament.suplentes.findIndex(participant => participant.userId === participantId);
       if (index < 0) return null;
@@ -182,9 +198,14 @@ export class TournamentRoomManager {
       if (index < 0) return null;
       const [demoted] = tournament.participants.splice(index, 1);
       movedAlias = demoted.alias;
+      movedTitular = true;
       tournament.suplentes.unshift(demoted);
     }
-    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "move", detail: `Movió a ${movedAlias} a ${destination}` });
+    if (destination === "titular" || movedTitular) {
+      if (tournament.drawOrder) tournament.drawOrder = tournament.participants.map(participant => participant.userId);
+      else this.invalidateDraw(tournament);
+    }
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "move", detail: `Movió a ${movedAlias} a ${destination}; titulares actuales: ${this.participantAliases(tournament)}` });
     this.persist(tournament);
     return tournament;
   }
@@ -192,6 +213,7 @@ export class TournamentRoomManager {
   confirmParticipants(tournamentId: string, adminToken: string): Tournament | null {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup" || tournament.participants.length !== tournament.capacity) return null;
+    if (tournament.registrationClosed) return tournament;
     tournament.registrationClosed = true;
     tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "confirm", detail: `Confirmó ${tournament.capacity} titulares` });
     this.persist(tournament);
@@ -210,14 +232,10 @@ export class TournamentRoomManager {
 
   sortParticipants(tournamentId: string, adminToken: string): Tournament | null {
     const tournament = this.authorize(tournamentId, adminToken);
-    if (!tournament || tournament.status !== "setup") return null;
-    const participants = [...tournament.participants];
-    for (let index = participants.length - 1; index > 0; index--) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [participants[index], participants[swapIndex]] = [participants[swapIndex], participants[index]];
-    }
-    tournament.participants = participants;
-    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "sort", detail: "Sorteó el orden de los titulares" });
+    if (!tournament || tournament.status !== "setup" || !tournament.registrationClosed || tournament.participants.length !== tournament.capacity) return null;
+    tournament.participants = this.shuffle(tournament.participants);
+    tournament.drawOrder = this.participantOrder(tournament).split(",");
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "sort", detail: `Sorteó el orden de titulares: ${this.participantAliases(tournament)}` });
     this.persist(tournament);
     return tournament;
   }
@@ -226,11 +244,13 @@ export class TournamentRoomManager {
     const tournament = this.authorize(tournamentId, adminToken);
     if (!tournament || tournament.status !== "setup" || !Array.isArray(orderedIds)) return null;
     const current = tournament.participants;
+    if (current.length !== tournament.capacity || !tournament.drawOrder || tournament.drawOrder.join(",") !== this.participantOrder(tournament)) return null;
     if (orderedIds.length !== current.length || new Set(orderedIds).size !== current.length) return null;
     const byId = new Map(current.map(participant => [participant.userId, participant]));
     if (!orderedIds.every(id => byId.has(id))) return null;
     tournament.participants = orderedIds.map(id => byId.get(id)!);
-    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "admin", action: "reorder", detail: "Reordenó los titulares del cuadro" });
+    tournament.drawOrder = this.participantOrder(tournament).split(",");
+    tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "reorder", detail: `Ajustó el orden del cuadro: ${this.participantAliases(tournament)}` });
     this.persist(tournament);
     return tournament;
   }
@@ -264,15 +284,20 @@ export class TournamentRoomManager {
     if (!tournament || tournament.status !== "setup") return null;
     const participantCount = tournament.participants.length;
     if (!tournament.registrationClosed || participantCount !== tournament.capacity) return null;
+    if (tournament.drawOrder && tournament.drawOrder.join(",") === this.participantOrder(tournament)) {
+      // Preserve a reviewed draw when present.
+    } else if (tournament.bracketMode === "manual") {
+      // Explicit manual ordering remains supported for legacy callers and older tournaments.
+      tournament.drawOrder = this.participantOrder(tournament).split(",");
+    } else if (tournament.bracketMode === "random") {
+      tournament.participants = this.shuffle(tournament.participants);
+      tournament.drawOrder = this.participantOrder(tournament).split(",");
+      tournament.auditLog.push({ at: new Date().toISOString(), actorId: "organizador", action: "sort", detail: `Sorteó el orden de titulares: ${this.participantAliases(tournament)}` });
+      this.persist(tournament);
+    } else return null;
     modeConfig = tournament.modeConfig ?? modeConfig;
 
     const participants = [...tournament.participants];
-    if (tournament.bracketMode === "random") {
-      for (let index = participants.length - 1; index > 0; index--) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [participants[index], participants[swapIndex]] = [participants[swapIndex], participants[index]];
-      }
-    }
 
     const phases: TournamentPhase[] = [];
     if (tournament.type === "king_of_the_hill") {
@@ -572,5 +597,26 @@ export class TournamentRoomManager {
     } catch {
       return false;
     }
+  }
+
+  private shuffle<T>(items: T[]): T[] {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
+  }
+
+  private participantOrder(tournament: Tournament): string {
+    return tournament.participants.map(participant => participant.userId).join(",");
+  }
+
+  private participantAliases(tournament: Tournament): string {
+    return tournament.participants.map((participant, index) => `${index + 1}. ${participant.alias}`).join(" → ");
+  }
+
+  private invalidateDraw(tournament: Tournament): void {
+    tournament.drawOrder = undefined;
   }
 }
