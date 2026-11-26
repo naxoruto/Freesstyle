@@ -63,6 +63,18 @@ El seed modifica la base y carga un catálogo inicial pequeño; no restaura el c
 
 ## Ejecutar y verificar
 
+### Lanzador de Windows
+
+Después de preparar las dependencias y la base, abrir **`Iniciar Freestyle.cmd`** en la raíz con doble clic. El lanzador usa las herramientas instaladas del proyecto directamente, comprueba la conexión y las migraciones, inicia backend y frontend, espera `/api/ready` y la página de inicio, y abre `http://localhost:3002` en el navegador predeterminado. La consola conserva los mensajes de los servicios.
+
+Si la base local configurada en el puerto 5433 no responde, intenta `docker start freestyle-db`. Es necesario abrir Docker Desktop previamente. Si todavía no existe ese contenedor, preparar PostgreSQL de desarrollo desde la raíz con `docker compose up -d postgres`, utilizando la configuración local existente. El lanzador no crea bases, no ejecuta seeds ni aplica migraciones.
+
+Si se detectan migraciones pendientes, respaldar y comprobar la restauración de los datos existentes antes de ejecutar `pnpm --filter @freestyle/server exec prisma migrate deploy` sobre la base configurada. Este comando aplica las migraciones guardadas en el repositorio; no usar `migrate reset` para arrancar la aplicación. Luego abrir nuevamente el lanzador.
+
+Mantener la ventana abierta durante el uso y pulsar **Ctrl+C** para detener frontend y backend. PostgreSQL queda iniciado para conservar su disponibilidad. Si ya está corriendo `pnpm dev`, detenerlo antes de usar el lanzador para liberar los puertos. Un fallo de arranque detiene los servicios que inició el lanzador y conserva el mensaje visible.
+
+Para comprobar solo dependencias, conexión y migraciones, sin iniciar servicios ni contenedores: `node scripts/start-local.cjs --check`. El lanzador carga el entorno del servidor en el mismo orden que la aplicación y conserva los archivos existentes. Para esta ejecución local, fija `SERVER_INTERNAL_URL` y `NEXT_PUBLIC_WS_URL` al backend iniciado, incluido su `WS_PORT`, para conectar tanto HTTP como las salas en tiempo real. El resto de la configuración web se carga desde Next.js como siempre.
+
 Con `DATABASE_URL` configurada en la misma consola:
 
 ```powershell

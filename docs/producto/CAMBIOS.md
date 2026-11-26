@@ -50,6 +50,8 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 
+El 26 de noviembre de 2026 se añadió `Iniciar Freestyle.cmd` para iniciar web y backend con doble clic, comprobar PostgreSQL y migraciones y abrir el navegador tras verificar disponibilidad. Puede arrancar el contenedor local existente; no aplica migraciones. Sintaxis y diagnóstico sin base comprobados; simulación del bloqueo por migraciones, URL de Socket.IO, apertura tras disponibilidad y cierre limitado a procesos propios. El arranque completo queda pendiente con PostgreSQL disponible. Uso en [Entorno local](../ENTORNO_LOCAL.md); seguimiento DX-05 en el plan de trabajo.
+
 ## Documentos históricos
 
 [Plan antiguo](../archivo/PLAN.md), [ejecución anterior](../archivo/EXECUTION_PLAN.md), [requerimientos anteriores](../archivo/UPDATES.md), [handoff de datos de julio](../archivo/HANDOFF_DATOS_2026-07-28.md). Conservan el trabajo previo, pero sus prioridades y cifras pueden estar desactualizadas.

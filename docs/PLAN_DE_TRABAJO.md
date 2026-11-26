@@ -267,6 +267,7 @@
 | DX-02 | Logging estructurado (pino) | continuo | |
 | DX-03 | CI mínima | continuo | |
 | DX-04 | Limpiar `FIX Bug N` y logs residuales | 1–3 | |
+| DX-05 | Lanzador Windows de frontend y backend con comprobación de PostgreSQL y migraciones | Entregado, 26/11/2026 | `Iniciar Freestyle.cmd`; arranque completo pendiente de revisión con PostgreSQL disponible |
 | UI-01 | Auditoría de componentes existentes y reglas de reutilización | 0 (planificación) | Catálogo inicial y procedimiento acordado; [guía UI](producto/GUIA_COMPONENTES_UI.md) |
 | UI-02 | Definir tokens visuales y componentes UI comunes | En curso; primera base implementada | Botones, campos, paneles y avisos; completar controles restantes y ejemplos |
 | UI-03 | Migrar páginas por etapas y dividir composiciones grandes | En curso; Inicio, inscripción, creación/operación de torneo y pantallas de batalla migradas parcialmente | Reusar UI-02; WEB-01/02 quedan coordinados con esta migración |

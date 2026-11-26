@@ -26,6 +26,8 @@ Plataforma de freestyle competitiva con:
 
 ## Scripts
 
+En Windows, abre **`Iniciar Freestyle.cmd`** con doble clic para iniciar el backend y la web y abrir el navegador. Requiere Node.js 22, dependencias instaladas y la base local configurada. Si PostgreSQL está apagado, intenta iniciar el contenedor existente `freestyle-db`; Docker Desktop debe estar funcionando. Si faltan migraciones, muestra el comando necesario y se detiene. Mantén la ventana abierta y pulsa `Ctrl+C` para detener frontend y backend. Consulta [Entorno local](docs/ENTORNO_LOCAL.md) para la preparación inicial.
+
 ```bash
 pnpm dev
 pnpm build

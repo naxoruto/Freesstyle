@@ -1,4 +1,8 @@
-# Comprobadores de recuperación
+# Herramientas locales
+
+`start-local.cjs` es el lanzador de desarrollo para Windows, invocado desde `Iniciar Freestyle.cmd` en la raíz. Comprueba PostgreSQL y migraciones e inicia frontend y backend. `node scripts/start-local.cjs --check` comprueba los requisitos sin arrancar servicios ni contenedores. Preparación y uso en [Entorno local](../docs/ENTORNO_LOCAL.md).
+
+## Comprobadores de recuperación
 
 Ejecutar desde la raíz del repositorio. Requieren las dependencias del monorepo instaladas y PostgreSQL de pruebas migrado; no apuntar a datos que se quieran conservar.
 

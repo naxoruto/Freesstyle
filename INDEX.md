@@ -30,6 +30,7 @@ La prioridad del usuario es ahora mejorar batalla individual, torneos y Rey de l
 | Catálogo, inventario e importadores | [apps/server/src/importers](apps/server/src/importers/) |
 | Juego diario | [apps/server/src/games](apps/server/src/games/) |
 | Comprobadores manuales reproducibles | [scripts](scripts/) |
+| Arranque local con doble clic (Windows) | [Iniciar Freestyle.cmd](Iniciar%20Freestyle.cmd), [guía local](docs/ENTORNO_LOCAL.md) |
 
 Las pruebas están junto al código, en archivos `*.test.ts`. Las pruebas de integración necesitan PostgreSQL descartable; consultar la guía de entorno antes de ejecutarlas.
 
