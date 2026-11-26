@@ -10,6 +10,7 @@ import { ScoreBoard } from "@/components/ScoreBoard";
 import { RubricPanel } from "@/components/RubricPanel";
 import { BattleLobby } from "@/components/BattleLobby";
 import { BattlePosterDialog } from "@/components/BattlePosterDialog";
+import { Alert, Button, ButtonLink, Panel, TextField } from "@/components/ui";
 import { showToast, Toaster } from "@/lib/utils";
 import type { Battle, UserRole, RoundPhase, Word, JudgeRubricVote, ScoreRubric, BattleModeConfig, ReplicaConfig } from "@freestyle/shared";
 
@@ -406,23 +407,14 @@ export default function BattlePage({ params }: { params: { id: string } }) {
       <div className="min-h-[calc(100vh-57px)] flex items-center justify-center">
         <Toaster />
         <div className="text-center px-4 max-w-md animate-slide-up">
-          <div className="text-4xl mb-4">⚠️</div>
+          <div className="text-4xl mb-4" aria-hidden="true">⚠️</div>
           <h2 className="text-xl font-battle text-white mb-3">No se pudo entrar a la sala</h2>
-          <p className="text-gray-400 mb-6 text-sm">{entryError || "Error inesperado."}</p>
+          <Alert variant="error" className="mb-6">{entryError || "Error inesperado."}</Alert>
           <div className="flex gap-3 justify-center">
-            <button
-              onClick={handleRetry}
-              className="px-6 py-3 font-battle font-black italic uppercase tracking-wider transition-all text-sm"
-              style={{ background: "#e30613", color: "white" }}
-            >
+            <Button onClick={handleRetry}>
               Reintentar
-            </button>
-            <a
-              href="/"
-              className="px-6 py-3 border border-white/10 font-battle font-black italic uppercase tracking-wider text-white/50 hover:text-white hover:border-white/30 transition text-sm"
-            >
-              Inicio
-            </a>
+            </Button>
+            <ButtonLink href="/" variant="secondary">Inicio</ButtonLink>
           </div>
         </div>
       </div>
@@ -488,19 +480,19 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
       {/* IN PROGRESS */}
       {isInProgress && battle?.recovery && (
-        <section className="mx-auto max-w-2xl space-y-4 border border-yellow-400/30 bg-yellow-400/5 p-6" aria-label="Recuperación de batalla">
+        <Panel as="section" className="mx-auto max-w-2xl space-y-4 border-yellow-400/30 bg-yellow-400/5" aria-label="Recuperación de batalla">
           <h2 className="font-battle text-3xl font-black uppercase">Batalla recuperada · En pausa</h2>
           <p className="text-white/70">Se conservaron la fase, los votos y los resultados. El organizador debe confirmar la reanudación.</p>
           <p className="text-sm text-white/60">Ronda {battle.currentRound} · Réplica {battle.replicaCount} · Fase: {battle.roundPhase}</p>
           <ul className="space-y-1 text-sm">{battle.members.filter(member => member.roles.length > 0).map(member => <li key={member.userId}>{member.alias} · {member.connected ? "Conectado" : "Esperando reconexión"}</li>)}</ul>
-          {battle.recovery.issue ? <p role="alert" className="text-yellow-300">{battle.recovery.issue}</p> : <>
+          {battle.recovery.issue ? <Alert variant="warning">{battle.recovery.issue}</Alert> : <>
             <p className="text-sm text-white/60">{battle.phaseDeadline ? `Plazo guardado: ${new Date(battle.phaseDeadline).toLocaleTimeString()}. Si ya venció, reinicia el reloj para continuar.` : "Esta fase no tiene reloj o procede de una partida sin plazo guardado."} Deben volver los MC, los jueces y los votantes del padrón.</p>
             {canControl ? <div className="flex flex-wrap gap-3">
-              <button className="bg-red-600 px-5 py-3 font-bold" onClick={() => socket?.emit("battle:resume", { action: "continue" })}>Reanudar con el plazo guardado</button>
-              <button className="border border-white/30 px-5 py-3 font-bold" onClick={() => socket?.emit("battle:resume", { action: "restart_clock" })}>Reiniciar reloj de esta fase</button>
+              <Button onClick={() => socket?.emit("battle:resume", { action: "continue" })}>Reanudar con el plazo guardado</Button>
+              <Button variant="secondary" onClick={() => socket?.emit("battle:resume", { action: "restart_clock" })}>Reiniciar reloj de esta fase</Button>
             </div> : <p className="text-sm text-yellow-300">Esperando al organizador.</p>}
           </>}
-        </section>
+        </Panel>
       )}
       {isInProgress && !battle?.recovery && (
         <div className="space-y-4">
@@ -562,11 +554,11 @@ export default function BattlePage({ params }: { params: { id: string } }) {
             <Timer seconds={timer} total={battle.mode.timePerTurn} />
           )}
           {battle && battle.mode.timerMode === "manual" && (phase === "mc1_turn" || phase === "mc2_turn") && (
-            <div className="mx-auto max-w-sm border border-white/10 p-4 text-center">
+            <Panel className="mx-auto max-w-sm text-center">
               <p className="text-xs uppercase tracking-[0.25em] text-white/30">Entradas restantes</p>
               <p className="font-battle text-5xl font-black text-red-500">{battle.entriesRemaining[activeMcId] ?? battle.mode.entriesPerParticipant}</p>
-              {canControl && <button onClick={handleCompleteEntry} className="mt-3 w-full bg-red-600 py-3 font-battle font-black uppercase">Entrada completada</button>}
-            </div>
+              {canControl && <Button onClick={handleCompleteEntry} className="mt-3" fullWidth>Entrada completada</Button>}
+            </Panel>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -615,102 +607,104 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
                   {/* Submit button — only in voting phase */}
                   {phase === "voting" && (
-                    <button
+                    <Button
                       onClick={handleVote}
-                      className="w-full py-3 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
-                      style={{ background: "#e30613", color: "white" }}
+                      fullWidth
                     >
                       Enviar Puntuaciones
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
 
               {isJudge && battle?.mode.votingSystem === "patron" && phase === "entry_voting" && battle.pendingEntry && (
-                <div className="border border-white/10 p-4 text-center">
+                <Panel className="text-center">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/30">Puntúa esta entrada</p>
                   <p className="my-3 font-battle text-xl font-black">{participants.find(participant => participant.userId === battle.pendingEntry?.mcId)?.alias}</p>
                   <div className="grid grid-cols-5 gap-2">
                     {[0, 1, 2, 3, 4].map(points => (
-                      <button key={points} disabled={entryVoteSubmitted} onClick={() => handleEntryVote(points)} className="border border-red-500/40 py-3 font-battle text-xl disabled:opacity-30">{points}</button>
+                      <Button key={points} variant="option" size="sm" className="!items-center !justify-center py-3 font-battle text-xl" disabled={entryVoteSubmitted} onClick={() => handleEntryVote(points)}>{points}</Button>
                     ))}
                   </div>
-                </div>
+                </Panel>
               )}
 
               {isJudge && battle?.mode.votingSystem === "patron" && phase === "voting" && !judgeVoted && mc1 && mc2 && (
-                <div className="border border-white/10 p-4 space-y-4">
+                <Panel className="space-y-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/30">Puntos extra finales</p>
                   {([["mc1", mc1], ["mc2", mc2]] as const).map(([key, participant]) => (
-                    <label key={key} className="flex items-center justify-between text-sm">
-                      <span>{participant.alias}</span>
-                      <input type="number" min={0} max={4} value={patronExtras[key]} onChange={event => setPatronExtras(current => ({ ...current, [key]: Math.max(0, Math.min(4, Number(event.target.value))) }))} className="w-16 bg-black border border-white/10 p-2 text-center" />
-                    </label>
+                    <TextField key={key} label={`Puntos extra para ${participant.alias}`} type="number" min={0} max={4} value={patronExtras[key]} onChange={event => setPatronExtras(current => ({ ...current, [key]: Math.max(0, Math.min(4, Number(event.target.value))) }))} className="max-w-32" controlClassName="text-center" />
                   ))}
-                  <button onClick={handlePatronExtraVote} className="w-full bg-red-600 py-3 font-battle font-black uppercase">Enviar extras</button>
-                </div>
+                  <Button onClick={handlePatronExtraVote} fullWidth>Enviar extras</Button>
+                </Panel>
               )}
 
               {isJudge && battle?.mode.votingSystem === "free_vote" && phase === "voting" && !judgeVoted && mc1 && mc2 && (
-                <div className="border border-white/10 p-4 space-y-3">
+                <Panel className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/30">Voto libre — Elegí al ganador</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <button
+                    <Button
+                      variant="option"
+                      size="lg"
                       onClick={() => {
                         socket?.emit("judge:vote_free", { type: "judge:vote_free", battleId: params.id, votedForId: mc1.userId });
                         setJudgeVoted(true);
                       }}
-                      className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                      className="!items-center text-center font-battle font-black uppercase text-lg"
                     >
                       {mc1.alias}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="option"
+                      size="lg"
                       onClick={() => {
                         socket?.emit("judge:vote_free", { type: "judge:vote_free", battleId: params.id, votedForId: mc2.userId });
                         setJudgeVoted(true);
                       }}
-                      className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                      className="!items-center text-center font-battle font-black uppercase text-lg"
                     >
                       {mc2.alias}
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Panel>
               )}
 
               {canRoomVote && phase === "voting" && !judgeVoted && mc1 && mc2 && (
-                <div className="border border-red-500/30 p-4 space-y-3">
+                <Panel className="space-y-3 border-red-500/30">
                   <p className="text-xs uppercase tracking-[0.2em] text-red-400">Voto de sala</p>
                   <p className="text-xs text-white/40">Elige quién ganó. Los MC activos no participan de esta votación.</p>
                   <div className="grid grid-cols-2 gap-3">
                     {[mc1, mc2].map(participant => (
-                      <button
+                      <Button
+                        variant="option"
+                        size="lg"
                         key={participant.userId}
                         onClick={() => {
                           socket?.emit("room:vote", { type: "room:vote", battleId: params.id, votedForId: participant.userId });
                           setJudgeVoted(true);
                         }}
-                        className="w-full p-4 border border-red-500/40 font-battle font-black uppercase text-lg hover:bg-red-500/10 transition"
+                        className="!items-center text-center font-battle font-black uppercase text-lg"
                       >
                         {participant.alias}
-                      </button>
+                      </Button>
                     ))}
                   </div>
-                </div>
+                </Panel>
               )}
 
               {canRoomVote && judgeVoted && phase === "voting" && (
-                <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
+                <Alert variant="success" className="text-center">
                   <p className="text-xs font-semibold tracking-[0.25em] uppercase text-green-400">Voto enviado</p>
                   <p className="text-xs text-white/20 mt-1">Esperando al resto de la sala...</p>
-                </div>
+                </Alert>
               )}
 
               {/* Judge already voted */}
               {isJudge && battle?.mode.votingSystem !== "room_vote" && judgeVoted && phase === "voting" && (
-                <div className="p-4 border border-white/10 text-center" style={{ background: "rgba(34,197,94,0.04)" }}>
+                <Alert variant="success" className="text-center">
                   <p className="text-xs font-semibold tracking-[0.25em] uppercase text-green-400">Puntuaciones enviadas</p>
                   <p className="text-xs text-white/20 mt-1">Esperando a los demás jueces...</p>
-                </div>
+                </Alert>
               )}
 
               {/* ROUND RESULT */}
@@ -776,13 +770,9 @@ export default function BattlePage({ params }: { params: { id: string } }) {
 
                   {canControl && battle && battle.currentRound < battle.mode.rounds && (
                     <div className="p-3 border-t border-white/5">
-                      <button
-                        onClick={handleNextRound}
-                        className="w-full py-2.5 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
-                        style={{ background: "#e30613", color: "white" }}
-                      >
+                      <Button onClick={handleNextRound} fullWidth>
                         Siguiente Ronda
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -826,33 +816,16 @@ export default function BattlePage({ params }: { params: { id: string } }) {
             </div>
           )}
           <div className="flex justify-center gap-3 flex-wrap">
-            <button onClick={handleRepeat} className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all" style={{ background: "#e30613", color: "white" }}>Revancha</button>
-            <button onClick={handleRepeat} className="inline-block border border-white/20 px-8 py-3 font-battle font-black italic uppercase tracking-wider text-white transition hover:border-white/50">Repetir formato</button>
+            <Button onClick={handleRepeat} size="lg">Revancha</Button>
+            <Button onClick={handleRepeat} variant="secondary" size="lg">Repetir formato</Button>
           </div>
           {returnTo === "tournament" && tournamentId ? (
             <div className="flex justify-center gap-3">
-              <a
-                href={`/tournament?id=${tournamentId}`}
-                className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
-                style={{ background: "#e30613", color: "white" }}
-              >
-                Volver al torneo
-              </a>
-              <a
-                href="/"
-                className="inline-block border border-white/20 px-8 py-3 font-battle font-black italic uppercase tracking-wider text-white transition hover:border-white/50"
-              >
-                Nueva Batalla
-              </a>
+              <ButtonLink href={`/tournament?id=${tournamentId}`} size="lg">Volver al torneo</ButtonLink>
+              <ButtonLink href="/" variant="secondary" size="lg">Nueva Batalla</ButtonLink>
             </div>
           ) : (
-            <a
-              href="/"
-              className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
-              style={{ background: "#e30613", color: "white" }}
-            >
-              Nueva Batalla
-            </a>
+            <ButtonLink href="/" size="lg">Nueva Batalla</ButtonLink>
           )}
           <BattlePosterDialog
             battle={battle}

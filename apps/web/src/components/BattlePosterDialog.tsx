@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Battle } from "@freestyle/shared";
 import { createPostBattlePoster, createPreBattlePoster, downloadBattlePoster, type BattlePosterPreview } from "@/lib/battlePoster";
+import { Alert, Button } from "./ui";
 
 interface BattlePosterDialogProps {
   battle: Battle;
@@ -43,7 +44,7 @@ export function BattlePosterDialog({ battle, variant, triggerLabel, triggerClass
 
   return (
     <>
-      <button type="button" className={triggerClassName} onClick={showPreview}>{triggerLabel}</button>
+      <Button type="button" variant="secondary" className={triggerClassName} onClick={showPreview}>{triggerLabel}</Button>
       {open && (
         <div className="poster-modal" role="dialog" aria-modal="true" aria-labelledby="poster-title" onMouseDown={event => {
           if (event.target === event.currentTarget) setOpen(false);
@@ -54,16 +55,16 @@ export function BattlePosterDialog({ battle, variant, triggerLabel, triggerClass
                 <span>Vista previa</span>
                 <h2 id="poster-title">{variant === "pre" ? "Cartelera previa" : "Resultado de batalla"}</h2>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar vista previa" autoFocus>Cerrar</button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} aria-label="Cerrar vista previa" autoFocus>Cerrar</Button>
             </div>
             <div className="poster-preview">
               {!preview && !error && <span className="poster-loading">Generando cartelera...</span>}
-              {error && <p role="alert">{error}</p>}
+              {error && <Alert variant="error">{error}</Alert>}
               {preview && <Image src={preview.dataUrl} alt="Vista previa de la cartelera que se descargará" width={540} height={675} unoptimized priority />}
             </div>
             <div className="poster-dialog-actions">
               <p>La imagen incluirá <strong>{process.env.NEXT_PUBLIC_SITE_URL || "el dominio de esta página"}</strong>.</p>
-              <button type="button" disabled={!preview} onClick={() => preview && downloadBattlePoster(preview)}>Descargar PNG</button>
+              <Button type="button" size="lg" disabled={!preview} onClick={() => preview && downloadBattlePoster(preview)}>Descargar PNG</Button>
             </div>
           </div>
         </div>

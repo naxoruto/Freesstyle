@@ -5,6 +5,7 @@ import type { Battle, BattleModeConfig, Participant, ReplicaConfig, UserRole } f
 import { useClipboard } from "@/lib/utils";
 import { BattleModeSelector } from "./BattleModeSelector";
 import { BattlePosterDialog } from "./BattlePosterDialog";
+import { Button } from "./ui";
 
 interface BattleLobbyProps {
   battle: Battle;
@@ -89,11 +90,11 @@ export function BattleLobby({
             {canStart ? "El cartel está completo. La batalla puede comenzar." : `Esperando ${missing}.`}
           </p>
         </div>
-        <button type="button" className="lobby-code" onClick={() => copy(roomId)} aria-label={`Copiar código de sala ${roomId}`}>
+        <Button variant="secondary" className="lobby-code !flex-col !items-start" onClick={() => copy(roomId)} aria-label={`Copiar código de sala ${roomId}`}>
           <span>Código de acceso</span>
           <strong>{roomId}</strong>
           <small>{copied ? "Copiado" : "Copiar código"}</small>
-        </button>
+        </Button>
       </header>
 
       <div className="lobby-grid">
@@ -137,9 +138,9 @@ export function BattleLobby({
             <fieldset className="lobby-fieldset">
               <legend>Primer turno</legend>
               <div className="lobby-segments">
-                <button type="button" aria-pressed={firstTurnId === "random"} onClick={() => onFirstTurnChange("random")}>Aleatorio</button>
+                <Button variant="option" size="sm" aria-pressed={firstTurnId === "random"} onClick={() => onFirstTurnChange("random")}>Aleatorio</Button>
                 {participants.slice(0, 2).map(participant => (
-                  <button type="button" key={participant.userId} aria-pressed={firstTurnId === participant.userId} onClick={() => onFirstTurnChange(participant.userId)}>{participant.alias}</button>
+                  <Button key={participant.userId} variant="option" size="sm" aria-pressed={firstTurnId === participant.userId} onClick={() => onFirstTurnChange(participant.userId)}>{participant.alias}</Button>
                 ))}
               </div>
             </fieldset>
@@ -150,7 +151,7 @@ export function BattleLobby({
           <div className="lobby-card lobby-format">
               <div className="lobby-card-heading">
                 <div><span className="lobby-kicker">Formato acordado</span><h2>{battle.mode.format === "4x4" ? "4x4" : battle.mode.format === "8x8" ? "8x8" : battle.mode.mode === "libre" ? "Freestyle libre" : "Clásico con concepto"}</h2></div>
-              {isAdmin && <button type="button" className="lobby-edit" onClick={() => setConfigOpen(open => !open)} aria-expanded={configOpen} aria-controls="lobby-config">{configOpen ? "Cerrar" : "Editar formato"}</button>}
+              {isAdmin && <Button type="button" variant="ghost" size="sm" className="lobby-edit" onClick={() => setConfigOpen(open => !open)} aria-expanded={configOpen} aria-controls="lobby-config">{configOpen ? "Cerrar" : "Editar formato"}</Button>}
             </div>
             <dl className="lobby-rules">
               <div><dt>Extensión</dt><dd>{battle.mode.rounds} {battle.mode.rounds === 1 ? "ronda" : "rondas"}</dd></div>
@@ -163,8 +164,8 @@ export function BattleLobby({
               <div className="lobby-modality mt-4">
                 <p className="lobby-kicker">Modalidad</p>
                 <div className="lobby-segments">
-                  <button type="button" aria-pressed={!exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: false })}>Batalla con jueces</button>
-                  <button type="button" aria-pressed={exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: true })}>Exhibición</button>
+                  <Button variant="option" size="sm" aria-pressed={!exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: false })}>Batalla con jueces</Button>
+                  <Button variant="option" size="sm" aria-pressed={exhibition} onClick={() => onConfigChange({ ...lobbyConfig, exhibition: true })}>Exhibición</Button>
                 </div>
               </div>
             )}
@@ -194,7 +195,7 @@ export function BattleLobby({
             <div className="lobby-card lobby-control">
               <div><span className="lobby-kicker">Control en vivo</span><p>Esta persona podrá avanzar las fases. Solo el admin puede iniciar.</p></div>
               <div className="lobby-tags" role="group" aria-label="Control de batalla">
-                {hostCandidates.map(candidate => <button type="button" key={candidate.id} onClick={() => onHostChange(candidate.id)} aria-pressed={battle.hostId === candidate.id}>{candidate.alias}</button>)}
+                {hostCandidates.map(candidate => <Button key={candidate.id} variant="option" size="sm" onClick={() => onHostChange(candidate.id)} aria-pressed={battle.hostId === candidate.id}>{candidate.alias}</Button>)}
               </div>
             </div>
           )}
@@ -234,9 +235,9 @@ export function BattleLobby({
                         <option value="host">Host</option>
                       </select>
                       <div className="flex flex-wrap gap-1 justify-end">
-                        {!isAdminCandidate && adminCount < 2 && <button type="button" className="lobby-edit" onClick={() => onGrantAdmin(member.userId)}>Dar admin</button>}
-                        {member.userId !== currentUserId && <button type="button" className="lobby-edit" onClick={() => onTransferAdmin(member.userId)}>Transferir</button>}
-                        {isAdminCandidate && member.userId !== currentUserId && adminCount > 1 && <button type="button" className="lobby-edit" onClick={() => onRevokeAdmin(member.userId)}>Quitar admin</button>}
+                        {!isAdminCandidate && adminCount < 2 && <Button variant="ghost" size="sm" className="lobby-edit" onClick={() => onGrantAdmin(member.userId)}>Dar admin</Button>}
+                        {member.userId !== currentUserId && <Button variant="ghost" size="sm" className="lobby-edit" onClick={() => onTransferAdmin(member.userId)}>Transferir</Button>}
+                        {isAdminCandidate && member.userId !== currentUserId && adminCount > 1 && <Button variant="danger" size="sm" className="lobby-edit" onClick={() => onRevokeAdmin(member.userId)}>Quitar admin</Button>}
                       </div>
                     </div>
                   );
@@ -253,14 +254,14 @@ export function BattleLobby({
               <p className="text-xs text-gray-500 mb-3">Un único enlace reutilizable. Todas las personas entran en espera y reciben su rol dentro de la sala.</p>
               <div className="flex items-center gap-2">
                 {!invitationToken ? (
-                  <button type="button" onClick={() => onCreateInvitation(false)} className="text-xs px-3 py-1.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 rounded transition disabled:opacity-40">
+                  <Button type="button" variant="primary" size="sm" onClick={() => onCreateInvitation(false)}>
                     Generar invitación
-                  </button>
+                  </Button>
                 ) : (
                   <>
                     <span className="text-xs text-white/30 truncate font-mono flex-1">{inviteLink}</span>
-                    <button type="button" onClick={() => copy(inviteLink)} className="text-xs px-2 py-1 border border-white/10 text-white/50 hover:text-white hover:border-white/30 rounded transition shrink-0"><span className="inline-block min-w-14">{copied ? "Copiado" : "Copiar"}</span></button>
-                    <button type="button" onClick={() => onCreateInvitation(true)} className="text-xs px-2 py-1 border border-red-500/30 text-red-400 rounded transition disabled:opacity-40">Regenerar</button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => copy(inviteLink)} className="shrink-0"><span className="inline-block min-w-14">{copied ? "Copiado" : "Copiar"}</span></Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => onCreateInvitation(true)}>Regenerar</Button>
                   </>
                 )}
               </div>
@@ -271,7 +272,7 @@ export function BattleLobby({
 
       <div className="lobby-startbar">
         <div><span className={canStart ? "is-ready" : ""}>{canStart ? "Cartel completo" : `Falta ${missing}`}</span><small>{isAdmin ? "Revisa el formato antes de abrir los micros." : "El admin iniciará cuando se complete el cartel."}</small></div>
-        {isAdmin ? <button type="button" onClick={onStart} disabled={!canStart}>Iniciar batalla</button> : <span className="lobby-waiting">Esperando al admin</span>}
+        {isAdmin ? <Button type="button" size="lg" onClick={onStart} disabled={!canStart}>Iniciar batalla</Button> : <span className="lobby-waiting">Esperando al admin</span>}
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ScoreRubric } from "@freestyle/shared";
+import { Button } from "./ui";
 
 interface RubricPanelProps {
   participantName: string | undefined;
@@ -84,18 +85,16 @@ export function RubricPanel({ participantName, onSubmit, submitted, externalScor
       </div>
 
       {!hideSubmit && (
-        <button
+        <Button
+          variant={submitted ? "secondary" : "primary"}
+          size="lg"
           onClick={() => onSubmit(scores)}
           disabled={!participantName || submitted}
-          className="w-full mt-3 py-3 font-battle font-black italic uppercase tracking-wider text-sm transition-all"
-          style={{
-            background: submitted ? "rgba(255,255,255,0.05)" : "#e30613",
-            color: submitted ? "rgba(255,255,255,0.3)" : "white",
-            cursor: submitted ? "default" : "pointer",
-          }}
+          fullWidth
+          className="mt-3 font-battle italic uppercase tracking-wider"
         >
           {submitted ? "Puntuación enviada" : submitLabel || "Enviar Puntuación"}
-        </button>
+        </Button>
       )}
     </div>
   );

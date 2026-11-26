@@ -46,7 +46,7 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 | TEC-11 | Fase 2 (torneo) — T10: reglas antes de crear, inscripción manual guiada, titulares/suplentes, mover/quitar y confirmar | Implementado; 251 pruebas del servidor, lint/typecheck/build y recorrido HTTP/navegador sobre base descartable |
 | TEC-12 | Fase 2 (torneo) — T10b: autoinscripción por enlace, estado individual, reglas vigentes y cierre al confirmar | Implementado; 256 pruebas del servidor. El organizador recupera el torneo en la misma sesión tras recargar |
 | TEC-13 | Fase 2 (torneo) — T11: sorteo separado del inicio, reorden manual y auditoría visible | En implementación; cerrar según decisiones registradas y validar antes de marcar como entregado |
-| TEC-14 | Sistema de diseño UI: auditoría, componentes base y migración inicial | UI-01 documentado; UI-02 en curso; primera migración de Inicio e inscripción | [Plan de trabajo §10.1](../PLAN_DE_TRABAJO.md); [guía de componentes UI](GUIA_COMPONENTES_UI.md) |
+| TEC-14 | Sistema de diseño UI: auditoría, componentes base y migración inicial | UI-01 documentado; UI-02 implementado inicialmente; UI-03 migró controles del torneo y batalla, con páginas restantes pendientes | [Plan de trabajo §10.1](../PLAN_DE_TRABAJO.md); [guía de componentes UI](GUIA_COMPONENTES_UI.md) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 
