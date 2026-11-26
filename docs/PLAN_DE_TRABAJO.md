@@ -73,6 +73,8 @@
 **Revisión manual del 26 de noviembre de 2026:** implementados los seis ajustes del lobby: copia sin desplazamiento, formato en modal, host opcional, MC presenciales sin dispositivo, tarjetas de personas/roles e invitación superior unificada. `Dialog` es una primitiva compartida, reutilizada también en la cartelera. Reglas y límites de verificación en [especificación §13](producto/specs/batalla-individual.md). Falta recorrido visual y persistencia con PostgreSQL disponible.
 
 ### 5.1 Decisiones resueltas
+
+- Seguimiento del 26/11: tarjetas de personas compactadas a 140 px. Confirmado método de votación individual por juez, separado del formato; un único voto final por juez al terminar todas las rondas, igual peso y decisión por mayoría. Pendiente concretar la relación entre puntos y voto final antes de implementar. Detalle en [especificación §13](producto/specs/batalla-individual.md).
 - Los nombres de presets (A9) y el resumen de reglas (C7) quedaron definidos e implementados en la entrega de batalla individual.
 
 ### 5.2 Entregables de producto

@@ -125,3 +125,11 @@ Reglas asociadas:
 - «Personas y roles» presenta tarjetas con emoji, nombre y roles; al pulsarlas se elige un rol con botones cuadrados. El permiso de organizador sigue siendo independiente de MC/Juez/Público/Host.
 
 Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recuperación, ediciones obsoletas y fallos de escritura usando repositorios simulados; typecheck, lint y build. La comprobación visual y la persistencia contra PostgreSQL real quedan pendientes de un entorno disponible.
+
+### Ajuste posterior de tarjetas y votación individual
+
+- Tarjetas de personas compactas de 140 px, distribuidas en filas sin expandirse cuando solo hay una. Nombres largos pueden partirse en varias líneas.
+- **Confirmado por el usuario:** cada juez debe poder configurar su método de votación (rúbrica, patrón o voto libre), separado del formato de la batalla. Cinco jueces pueden usar métodos diferentes.
+- **Confirmado por el usuario:** cada juez aporta un único voto final (MC1, MC2 o réplica), todos pesan lo mismo y el resultado se decide por mayoría. Ese voto se emite una vez al terminar todas las rondas de la batalla, no al cerrar cada ronda.
+- **Pendiente de definir:** si los puntos de rúbrica/patrón determinan automáticamente el voto final, o si sirven como ayuda y el juez elige su voto final. Concretar también elección/cambio del método y casos sin mayoría antes de implementar el nuevo cálculo.
+- **Estado técnico:** la votación individual aún no está implementada. El cálculo y el selector global existentes se mantienen mientras se termina de definir esta revisión.
