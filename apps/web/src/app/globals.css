@@ -6,14 +6,25 @@
 
 :root {
   --font-battle: "Barlow Condensed", "Impact", sans-serif;
-  --red: #e30613;
+  --font-body: "Barlow", system-ui, sans-serif;
+  --color-canvas: #050509;
+  --color-surface: #0f0f23;
+  --color-surface-raised: #1a1a2e;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-signal: #e30613;
+  --color-signal-channels: 227 6 19;
+  --color-signal-hover-channels: 255 59 74;
+  --color-focus: #8cc8ff;
+  --radius-control: 0.25rem;
+  --radius-panel: 0.375rem;
+  --red: var(--color-signal);
   --red-dim: rgba(227, 6, 19, 0.12);
 }
 
 body {
-  background: #050509;
+  background: var(--color-canvas);
   color: #ffffff;
-  font-family: 'Barlow', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Scrollbar */

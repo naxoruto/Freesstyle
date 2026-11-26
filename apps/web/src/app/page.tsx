@@ -7,6 +7,7 @@ import { BATTLE_PRESETS, matchPreset, type BattlePresetId, type BattleModeConfig
 import { createBattle } from "@/lib/api";
 import HeroSection from "@/components/HeroSection";
 import { BattleModeSelector } from "@/components/BattleModeSelector";
+import { Button, Panel, TextField } from "@/components/ui";
 
 type Step = "menu" | "choose" | "create" | "join";
 
@@ -64,83 +65,80 @@ export default function HomePage() {
 
       {step === "choose" && (
         <div className="max-w-lg mx-auto w-full px-4 py-12 animate-slide-up">
-          <button onClick={() => setStep("menu")} className="text-gray-500 hover:text-white transition mb-8 flex items-center gap-1"><span>←</span> Volver</button>
+          <Button variant="ghost" size="sm" onClick={() => setStep("menu")} className="mb-8"><span aria-hidden="true">←</span> Volver</Button>
           <h2 className="text-3xl font-battle text-white mb-2">Crear batalla</h2>
           <p className="text-gray-400 mb-8">Elige el tipo de experiencia</p>
           <div className="space-y-3">
-            <button onClick={() => setStep("create")} className="w-full text-left p-5 rounded-2xl border-2 border-red-500/40 bg-red-500/5 hover:bg-red-500/10 transition">
+            <Button variant="option" fullWidth onClick={() => setStep("create")}>
               <span className="block font-battle text-xl font-black uppercase">1vs1</span>
               <span className="block text-sm text-gray-500 mt-1">Batalla individual entre dos MC</span>
-            </button>
-            <button onClick={() => router.push("/tournament")} className="w-full text-left p-5 rounded-2xl border-2 border-gray-800 hover:border-gray-600 transition">
+            </Button>
+            <Button variant="option" fullWidth onClick={() => router.push("/tournament")}>
               <span className="block font-battle text-xl font-black uppercase">Torneo</span>
               <span className="block text-sm text-gray-500 mt-1">Eliminatoria entre varios MC</span>
-            </button>
-            <button onClick={() => router.push("/tournament")} className="w-full text-left p-5 rounded-2xl border-2 border-gray-800 hover:border-gray-600 transition">
+            </Button>
+            <Button variant="option" fullWidth onClick={() => router.push("/tournament")}>
               <span className="block font-battle text-xl font-black uppercase">Rey de la pista</span>
               <span className="block text-sm text-gray-500 mt-1">El ganador se mantiene contra la fila</span>
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {step === "create" && (
         <div className="max-w-lg mx-auto w-full px-4 py-12 animate-slide-up">
-          <button onClick={() => setStep("choose")} className="text-gray-500 hover:text-white transition mb-8 flex items-center gap-1"><span>←</span> Volver</button>
+          <Button variant="ghost" size="sm" onClick={() => setStep("choose")} className="mb-8"><span aria-hidden="true">←</span> Volver</Button>
           <h2 className="text-3xl font-battle text-white mb-8">Nueva batalla 1vs1</h2>
 
           <div className="mb-6">
-            <label className="block text-sm text-gray-400 mb-2">Tu AKA o nombre visible</label>
-            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico, Dtoke, Aczino..." className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" autoFocus />
+            <TextField label="Tu AKA o nombre visible" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico, Dtoke, Aczino..." size="lg" autoFocus />
           </div>
 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-gray-400">Formato</p>
-              <button type="button" onClick={() => setCustomOpen(open => !open)} className="text-xs text-red-400 hover:text-red-300 transition">{customOpen ? "Cerrar" : "Cambiar formato"}</button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCustomOpen(open => !open)}>{customOpen ? "Cerrar" : "Cambiar formato"}</Button>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {PRESET_IDS.map((id) => {
                 const preset = BATTLE_PRESETS[id];
                 return (
-                  <button key={id} type="button" onClick={() => handlePresetSelect(id)} aria-pressed={matchedPreset === id} className={`p-3 rounded-xl border-2 text-left transition ${matchedPreset === id ? "border-red-500 bg-red-500/10" : "border-gray-800 hover:border-gray-600"}`}>
+                  <Button key={id} type="button" variant="option" size="sm" aria-pressed={matchedPreset === id} onClick={() => handlePresetSelect(id)} className="h-full">
                     <span className="block font-bold text-white text-sm">{preset.name}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
 
           {customOpen && (
-            <div className="mb-6 p-4 rounded-xl border border-gray-800 bg-black/40">
+            <Panel className="mb-6">
               <BattleModeSelector value={config} onChange={handleConfigChange} />
-            </div>
+            </Panel>
           )}
 
-          <div className="mb-8 p-4 rounded-xl border border-gray-800 bg-black/40">
+          <Panel className="mb-8">
             <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">{matchedPreset ? "Resumen" : "Formato personalizado"}</p>
             <p className="text-sm text-white">{matchedPreset ? BATTLE_PRESETS[matchedPreset].summary : "Ajustaste las reglas a tu medida."}</p>
-          </div>
+          </Panel>
 
-          <button onClick={handleCreate} disabled={loading || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">
+          <Button onClick={handleCreate} disabled={loading || !alias.trim()} fullWidth size="lg">
             {loading ? (<span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span> Creando sala...</span>) : "🎤 Crear Sala de Batalla"}
-          </button>
+          </Button>
         </div>
       )}
 
       {step === "join" && (
         <div className="max-w-lg mx-auto w-full px-4 py-12 animate-slide-up">
-          <button onClick={() => setStep("menu")} className="text-gray-500 hover:text-white transition mb-8 flex items-center gap-1"><span>←</span> Volver</button>
+          <Button variant="ghost" size="sm" onClick={() => setStep("menu")} className="mb-8"><span aria-hidden="true">←</span> Volver</Button>
           <h2 className="text-3xl font-battle text-white mb-8">Unirse a Batalla</h2>
           <div className="mb-8">
-            <label className="block text-sm text-gray-400 mb-2">Código de sala</label>
-            <input type="text" value={battleId} onChange={(e) => setBattleId(e.target.value.toLowerCase())} placeholder="Pega el código aquí" className="w-full px-4 py-5 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none font-mono tracking-[0.3em] text-center text-2xl" maxLength={8} autoFocus />
+            <TextField label="Código de sala" type="text" value={battleId} onChange={(e) => setBattleId(e.target.value.toLowerCase())} placeholder="Pega el código aquí" size="lg" controlClassName="text-center font-mono text-2xl tracking-[0.3em]" maxLength={8} autoFocus />
           </div>
           <div className="mb-8">
-            <label className="block text-sm text-gray-400 mb-2">Tu alias</label>
-            <input type="text" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico" className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg" />
+            <TextField label="Tu alias" type="text" value={alias} onChange={(e) => setAlias(e.target.value)} maxLength={24} placeholder="Ej: MC Lírico" size="lg" />
           </div>
-          <button onClick={handleJoinBattle} disabled={!battleId.trim() || !alias.trim()} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition">🎧 Unirse a la Batalla</button>
+          <Button onClick={handleJoinBattle} disabled={!battleId.trim() || !alias.trim()} fullWidth size="lg">🎧 Unirse a la Batalla</Button>
         </div>
       )}
     </div>

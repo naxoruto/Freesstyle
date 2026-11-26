@@ -268,8 +268,8 @@
 | DX-03 | CI mínima | continuo | |
 | DX-04 | Limpiar `FIX Bug N` y logs residuales | 1–3 | |
 | UI-01 | Auditoría de componentes existentes y reglas de reutilización | 0 (planificación) | Catálogo inicial y procedimiento acordado; [guía UI](producto/GUIA_COMPONENTES_UI.md) |
-| UI-02 | Definir tokens visuales y componentes UI comunes | 1 (base), luego 2–4 | Botones, campos, paneles, avisos y estados con variantes accesibles |
-| UI-03 | Migrar páginas por etapas y dividir composiciones grandes | 1–4 | Reusar UI-02; WEB-01/02 quedan coordinados con esta migración |
+| UI-02 | Definir tokens visuales y componentes UI comunes | En curso; primera base implementada | Botones, campos, paneles y avisos; completar controles restantes y ejemplos |
+| UI-03 | Migrar páginas por etapas y dividir composiciones grandes | En curso; Inicio y páginas de inscripción migradas parcialmente | Reusar UI-02; WEB-01/02 quedan coordinados con esta migración |
 | UI-04 | Mantener catálogo y revisar reutilización al planear cada funcionalidad | continuo | Actualizar guía e inventario con cada cambio de interfaz |
 
 **Nota:** SEG-02/03/04 cambian comportamiento; se implementan cuando la decisión de producto correspondiente esté registrada (ver §12).

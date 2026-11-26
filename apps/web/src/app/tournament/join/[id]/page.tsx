@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { BattleModeConfig } from "@freestyle/shared";
+import { Alert, Button, ButtonLink, Panel, TextField } from "@/components/ui";
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -69,7 +70,7 @@ export default function TournamentJoinPage() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
-      <a href="/" className="text-sm text-white/50 hover:text-white">← Inicio</a>
+      <ButtonLink href="/" variant="ghost" size="sm">← Inicio</ButtonLink>
       <p className="mt-8 text-xs uppercase tracking-[0.3em] text-red-500">Inscripción al torneo</p>
       {loading && !registration && <p className="mt-6 text-white/60">Cargando torneo...</p>}
       {registration && (
@@ -78,7 +79,7 @@ export default function TournamentJoinPage() {
             <h1 className="font-battle text-4xl font-black uppercase italic">{registration.name}</h1>
             {registration.organizer && <p className="mt-2 text-white/60">Organiza: {registration.organizer}</p>}
           </div>
-          <section className="border border-white/10 p-5">
+          <Panel as="section">
             <h2 className="font-bold">Reglas de las batallas</h2>
             <ul className="mt-3 space-y-1 text-sm text-white/70">
               <li>Formato: {registration.modeConfig.format}</li>
@@ -93,25 +94,24 @@ export default function TournamentJoinPage() {
               <li>Puntajes para espectadores: {registration.modeConfig.showScoresToSpectators ? "visibles" : "ocultos"}</li>
             </ul>
             {registration.rulesUpdatedAt && <p className="mt-2 text-xs text-amber-300">Reglas actualizadas antes del inicio</p>}
-          </section>
+          </Panel>
           {registration.status !== "sin_inscripcion" ? (
-            <section className="border border-red-500/40 bg-red-950/10 p-5">
+            <Panel as="section" className="border-red-500/40 bg-red-950/10">
               <h2 className="font-bold">Inscripción de {registration.alias}</h2>
               <p className="mt-2 text-sm text-white/70">Estado: {registration.status === "titular" ? "titular" : "suplente"}{registration.registrationClosed ? " · lista confirmada" : " · provisional"}</p>
               <p className="mt-2 text-xs text-white/50">El organizador puede corregir la lista antes de iniciar el torneo.</p>
-            </section>
+            </Panel>
           ) : registration.registrationClosed || registration.tournamentStatus !== "setup" ? (
-            <p className="border border-white/10 p-5 text-sm">La inscripción ya está cerrada.</p>
+            <Alert variant="info">La inscripción ya está cerrada.</Alert>
           ) : (
-            <section className="border border-white/10 p-5">
-              <label htmlFor="tournament-alias" className="block text-sm font-bold">Tu nombre o AKA</label>
-              <input id="tournament-alias" value={alias} onChange={event => setAlias(event.target.value)} maxLength={40} className="mt-3 w-full border border-white/10 bg-black p-3" />
-              <button type="button" onClick={join} disabled={loading || !alias.trim()} className="mt-4 w-full bg-red-600 py-3 font-bold uppercase disabled:opacity-40">Inscribirme</button>
-            </section>
+            <Panel as="section">
+              <TextField id="tournament-alias" label="Tu nombre o AKA" value={alias} onChange={event => setAlias(event.target.value)} maxLength={40} />
+              <Button onClick={join} disabled={loading || !alias.trim()} fullWidth className="mt-4">Inscribirme</Button>
+            </Panel>
           )}
         </div>
       )}
-      {error && <p role="alert" className="mt-5 text-sm text-red-400">{error}</p>}
+      {error && <Alert variant="error" className="mt-5">{error}</Alert>}
     </main>
   );
 }

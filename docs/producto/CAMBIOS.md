@@ -26,7 +26,7 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 | PERF-03 | Estadísticas por rol y nivel general | Dirección registrada en notas previas | [Perfiles y niveles](brainstorming/04-perfiles-y-niveles.md); reconciliar con el nuevo alcance |
 | TOR-01 | Persistencia y recuperación de torneos | Implementado (núcleo) | Modelo `Tournament`, persistencia por torneo y recuperación en arranque con su `adminToken`; falta la capa web de operación |
 | DEMO-01 | Demo completa y aislada | Pendiente técnico | Revisar alcance de la demo existente antes de sustituirla |
-| VIS-01 | Pulido móvil, espaciado e identidad visual | En definición técnica; auditoría y sistema de diseño planificados | [Guía de componentes UI](GUIA_COMPONENTES_UI.md); implementar UI-02/03 por etapas |
+| VIS-01 | Pulido móvil, espaciado e identidad visual | Sistema de diseño en implementación inicial; migración pendiente | [Guía de componentes UI](GUIA_COMPONENTES_UI.md); continuar UI-02/03 por etapas |
 | JUEGOS-01 | Evolución de juegos diarios | Backlog especializado | [Plan de juegos](GAMES_PLAN.md); no adelantarse a la prioridad actual |
 
 ## Trabajo de esta conversación ya entregado
@@ -46,7 +46,7 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 | TEC-11 | Fase 2 (torneo) — T10: reglas antes de crear, inscripción manual guiada, titulares/suplentes, mover/quitar y confirmar | Implementado; 251 pruebas del servidor, lint/typecheck/build y recorrido HTTP/navegador sobre base descartable |
 | TEC-12 | Fase 2 (torneo) — T10b: autoinscripción por enlace, estado individual, reglas vigentes y cierre al confirmar | Implementado; 256 pruebas del servidor. El organizador recupera el torneo en la misma sesión tras recargar |
 | TEC-13 | Fase 2 (torneo) — T11: sorteo separado del inicio, reorden manual y auditoría visible | En implementación; cerrar según decisiones registradas y validar antes de marcar como entregado |
-| TEC-14 | Sistema de diseño UI: auditoría del catálogo, regla de reutilización y plan de modularización | Plan documentado; UI-01 registrado, UI-02/03 pendientes de implementación | [Plan de trabajo §10.1](../PLAN_DE_TRABAJO.md); [guía de componentes UI](GUIA_COMPONENTES_UI.md) |
+| TEC-14 | Sistema de diseño UI: auditoría, componentes base y migración inicial | UI-01 documentado; UI-02 en curso; primera migración de Inicio e inscripción | [Plan de trabajo §10.1](../PLAN_DE_TRABAJO.md); [guía de componentes UI](GUIA_COMPONENTES_UI.md) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 
@@ -79,6 +79,6 @@ La recuperación de batallas no implica recuperar el torneo al que pertenecen. T
 | DEC-019 | Experiencia transversal: modo pantalla, estados vacíos, presencia en vivo, avisos sonoros, compartir cartel, accesibilidad y landing | Confirmado el 25 de noviembre de 2026; detalle en el track técnico |
 | DEC-020 | Plan de trabajo consolidado en [Plan de trabajo](../PLAN_DE_TRABAJO.md); es el plan único y no compite con este registro | Confirmado el 25 de noviembre de 2026 |
 | DEC-021 | Torneo: recorrido guiado «crear → inscribir y confirmar → sortear e iniciar»; reglas fijadas antes de compartir y editables hasta iniciar; el organizador puede mover o quitar inscritos; quien se inscribe ve su estado y reglas vigentes; la inscripción pública se cierra al confirmar titulares | Confirmado el 25 de noviembre de 2026; detalle en [especificación de torneo](specs/torneo.md). Pendiente de implementar |
-| DEC-022 | La interfaz web debe usar un sistema de diseño y una biblioteca compartida para controles comunes; antes de crear UI nueva se revisa el catálogo para reutilizar o extender componentes. Las excepciones de identidad visual se conservan cuando son intencionales y quedan documentadas | Confirmado el 25 de noviembre de 2026; plan en [§10.1](../PLAN_DE_TRABAJO.md) y [guía UI](GUIA_COMPONENTES_UI.md); implementación pendiente |
+| DEC-022 | La interfaz web debe usar un sistema de diseño y una biblioteca compartida para controles comunes; antes de crear UI nueva se revisa el catálogo para reutilizar o extender componentes. Las excepciones de identidad visual se conservan cuando son intencionales y quedan documentadas | Confirmado el 25 de noviembre de 2026; plan en [§10.1](../PLAN_DE_TRABAJO.md) y [guía UI](GUIA_COMPONENTES_UI.md); implementación inicial en curso |
 
 Al aprobar una decisión nueva, registrarla aquí y desarrollar sus reglas en el documento de producto correspondiente. No abrir otro plan global que compita con este registro; el [Plan de trabajo](../PLAN_DE_TRABAJO.md) lo complementa y no lo sustituye.

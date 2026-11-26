@@ -1,6 +1,6 @@
 # Guía de componentes UI
 
-> **Estado:** inventario inicial y proceso aprobados el 25 de noviembre de 2026. El sistema visual y la biblioteca base están planificados; su implementación y migración siguen pendientes.
+> **Estado:** inventario inicial y proceso aprobados el 25 de noviembre de 2026. Implementación inicial de la biblioteca UI en curso; la migración del resto de páginas sigue pendiente.
 >
 > **Plan:** [Plan de trabajo, §10.1](../PLAN_DE_TRABAJO.md).
 
@@ -14,7 +14,7 @@ La biblioteca no sustituye los componentes de dominio ni elimina la identidad de
 
 La revisión de `apps/web/src` encontró:
 
-- No hay un componente transversal de botón, campo, panel, aviso ni estado vacío. Los controles se crean en cada página con Tailwind, clases CSS locales o estilos en línea.
+- La auditoría inicial encontró que no había un componente transversal de botón, campo, panel, aviso ni estado vacío. UI-02 ya incorporó una primera base (`Button`, `TextField`, `TextArea`, `Panel`, `Alert`); aún quedan controles y páginas por migrar.
 - Los botones principales presentan tratamientos distintos: Inicio/entrada usan esquinas redondeadas; Torneos suele usar bordes rectos y estilos definidos en cada control; lobby, póster, demo e inventario tienen clases propias.
 - Los campos repiten clases visuales sin componente común y con diferencias de espaciado, foco y borde.
 - `globals.css` supera las mil líneas y reúne tokens globales, animaciones y estilos específicos de Hero, catálogo, inventario, lobby, póster y demo. Tailwind se usa en paralelo.
@@ -84,4 +84,7 @@ Actualizar esta tabla al crear, fusionar, renombrar o retirar componentes compar
 | `RubricPanel`, `ScoreBoard`, `Timer`, `WordDisplay` | Dominio | `components/`; batalla | Existentes |
 | `BattlePosterDialog` | Dominio | `components/`; lobby | Existente |
 | `HeroSection`, `OneVsOneDemo` | Experiencia | `components/`; inicio/demo | Existentes, con identidad propia |
-| `Button`, `TextField`, `Textarea`, `Select`, `Panel`, `Alert`, `EmptyState` | UI base | Por definir durante UI-02 | Planificados, aún no implementados |
+| `Button`, `ButtonLink` | UI base | `components/ui/Button.tsx`; Inicio y páginas de inscripción | Implementación inicial; variantes principal, secundario, ghost, peligro y opción |
+| `TextField`, `TextArea` | UI base | `components/ui/Field.tsx`; Inicio y páginas de inscripción | Implementación inicial; etiquetas y ayuda accesibles |
+| `Panel`, `Alert` | UI base | `components/ui/Panel.tsx`, `components/ui/Alert.tsx`; inicio e inscripción de torneo/batalla | Implementación inicial |
+| `Select`, `SegmentedControl`, `EmptyState`, `PageHeader`, `Dialog` | UI base | Pendiente de usos y diseño en siguientes etapas | Planificados; aún no implementados |

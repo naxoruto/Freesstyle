@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Toaster, showToast } from "@/lib/utils";
+import { Alert, Button, ButtonLink, Panel, TextField } from "@/components/ui";
 
 const API_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -71,51 +72,41 @@ export default function JoinBattlePage({ params }: { params: { id: string } }) {
 
       {state.status === "error" && (
         <div className="max-w-md mx-auto w-full px-4 py-12 text-center animate-slide-up">
-          <div className="text-4xl mb-4">⚠️</div>
+          <div className="text-4xl mb-4" aria-hidden="true">⚠️</div>
           <h2 className="text-2xl font-battle text-white mb-3">Invitación no válida</h2>
-          <p className="text-gray-400 mb-8">{state.message}</p>
-          <a
-            href="/"
-            className="inline-block px-8 py-3 font-battle font-black italic uppercase tracking-wider transition-all"
-            style={{ background: "#e30613", color: "white" }}
-          >
+          <Alert variant="error" className="mb-8">{state.message}</Alert>
+          <ButtonLink href="/" size="lg">
             Volver al inicio
-          </a>
+          </ButtonLink>
         </div>
       )}
 
       {state.status === "ready" && (
         <div className="max-w-lg mx-auto w-full px-4 py-12 animate-slide-up">
-          <a href="/" className="text-gray-500 hover:text-white transition mb-8 flex items-center gap-1">
-            <span>←</span> Volver
-          </a>
+          <ButtonLink href="/" variant="ghost" size="sm" className="mb-8"><span aria-hidden="true">←</span> Volver</ButtonLink>
 
           <h2 className="text-3xl font-battle text-white mb-2">Unirse a la batalla</h2>
           <p className="text-gray-400 mb-8">
             Escribe tu alias para entrar. El admin de la sala te asignará un rol.
           </p>
 
-          <div className="mb-8">
-            <label className="block text-sm text-gray-400 mb-2">Tu alias</label>
-            <input
+          <Panel className="mb-8">
+            <TextField
+              label="Tu alias"
               type="text"
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleJoin(); }}
               maxLength={24}
               placeholder="Ej: MC Lírico, Dtoke, Aczino..."
-              className="w-full px-4 py-4 bg-arena-800 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:border-red-500 focus:outline-none text-lg"
+              size="lg"
               autoFocus
             />
-          </div>
+          </Panel>
 
-          <button
-            onClick={handleJoin}
-            disabled={joining || !alias.trim()}
-            className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-gray-700 rounded-xl font-bold text-white text-lg transition"
-          >
+          <Button onClick={handleJoin} disabled={joining || !alias.trim()} fullWidth size="lg">
             {joining ? "Entrando..." : "Entrar a la batalla"}
-          </button>
+          </Button>
         </div>
       )}
     </div>
