@@ -116,11 +116,11 @@
 
 **Objetivo:** torneo recuperable y claro: identidad del evento, sorteo revisable, cuadro en vivo y retorno desde cada batalla.
 
-**Avance (25 de noviembre de 2026):** T1–T8 (servidor), T9 (formulario web) y T10 (inscripción guiada del organizador) entregados; T10b y T11–T13 pendientes. TOR-01 cubre el núcleo de persistencia, no la página de torneo recuperable. Ver [plan de implementación](producto/planes/torneo.md).
+**Avance (25 de noviembre de 2026):** T1–T8 (servidor), T9 (formulario web), T10 (inscripción guiada del organizador) y T10b (enlace público) entregados; T11–T13 pendientes. TOR-01 cubre el núcleo de persistencia. Ver [plan de implementación](producto/planes/torneo.md).
 
 ### 6.1 Decisiones y límites de esta entrega
-- La [especificación de torneo](producto/specs/torneo.md) define nombre obligatorio, logo y organizador opcionales, inscripción manual y por enlace, suplentes por orden de inscripción, sorteo ajustable por el organizador y ausencia confirmada por este. La autoinscripción por enlace sigue pendiente de implementación (T10b).
-- Antes de T10b, concretar cómo se presenta el nombre obligatorio del invitado y cómo se vincula una cuenta opcional a su inscripción.
+- La [especificación de torneo](producto/specs/torneo.md) define nombre obligatorio, logo y organizador opcionales, inscripción manual y por enlace, suplentes por orden de inscripción, sorteo ajustable por el organizador y ausencia confirmada por este. La autoinscripción por enlace está implementada (T10b).
+- T10b solicita el nombre obligatorio del invitado; la vinculación opcional con una cuenta se abordará con perfiles y cuentas.
 - Sin suplentes disponibles, el tratamiento de una ausencia requiere una decisión del organizador; no se supone un pase automático.
 - Varias salas simultáneas quedan fuera de la primera entrega; definir su operación antes de incorporarlas.
 

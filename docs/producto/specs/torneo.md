@@ -1,6 +1,6 @@
 # Especificación — Torneo
 
-> **Estado:** especificación de producto; recorrido de inscripción confirmado el 25 de noviembre de 2026 (Fase 2 del [Plan de trabajo](../../PLAN_DE_TRABAJO.md)). La implementación web sigue pendiente según el plan de torneo.
+> **Estado:** especificación de producto; recorrido de inscripción confirmado el 25 de noviembre de 2026 (Fase 2 del [Plan de trabajo](../../PLAN_DE_TRABAJO.md)). T10/T10b están implementados; el resto del recorrido web sigue pendiente según el plan de torneo.
 >
 > **Origen:** decisiones de producto confirmadas el 25 de noviembre de 2026 (CAMBIOS `DEC-012`…`DEC-014`, `DEC-016`, `DEC-021`).
 

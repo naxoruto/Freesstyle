@@ -53,6 +53,7 @@ app.use("/api/battles", (req, res, next) => {
 });
 app.use("/api/tournaments", (req, res, next) => {
   if (req.method === "POST" && req.path === "/") { limitRequests(creationLimiter)(req, res, next); return; }
+  if (req.method === "POST" && req.path.endsWith("/join")) { limitRequests(creationLimiter)(req, res, next); return; }
   next();
 });
 app.use("/api/games/freestyler/today", (req, res, next) => {
@@ -304,6 +305,25 @@ app.put("/api/tournaments/:id/rules", (req, res) => {
   const tournament = tournamentManager.updateRules(req.params.id, req.body?.adminToken, req.body?.modeConfig);
   if (!tournament) { res.status(400).json({ error: "No se pudieron actualizar las reglas" }); return; }
   res.json(tournament);
+});
+
+app.post("/api/tournaments/:id/join", async (req, res) => {
+  if (typeof req.body?.registrationId !== "string") { res.status(400).json({ error: "Identificador de inscripción requerido" }); return; }
+  try {
+    const participant = await tournamentManager.joinTournament(req.params.id, req.body?.alias, req.body.registrationId);
+    if (!participant) { res.status(400).json({ error: "La inscripción está cerrada o el nombre no es válido" }); return; }
+    res.status(201).json({ participantId: participant.userId, registration: tournamentManager.getRegistration(req.params.id, participant.userId) });
+  } catch (error) {
+    console.error("No se pudo guardar la inscripción", error);
+    res.status(503).json({ error: "No se pudo guardar la inscripción; inténtalo de nuevo" });
+  }
+});
+
+app.get("/api/tournaments/:id/registration", (req, res) => {
+  const participantId = typeof req.query.participantId === "string" ? req.query.participantId : undefined;
+  const registration = tournamentManager.getRegistration(req.params.id, participantId);
+  if (!registration) { res.status(404).json({ error: "Torneo no encontrado" }); return; }
+  res.json(registration);
 });
 
 app.post("/api/tournaments/:id/participants/order", (req, res) => {

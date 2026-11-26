@@ -75,7 +75,7 @@ export class BattleRoomManager {
       ...mode,
       showScoresToSpectators: true,
     };
-    if (battleMode.timerMode === "countdown" && ![60, 120].includes(battleMode.timePerTurn)) battleMode.timePerTurn = 60;
+    if (battleMode.timerMode === "countdown" && ![30, 45, 60, 90, 120].includes(battleMode.timePerTurn)) battleMode.timePerTurn = 60;
     if (battleMode.timerMode === "manual") battleMode.turnStructure = "one_way";
     const battle: Battle = {
       id,
@@ -901,7 +901,7 @@ export class BattleRoomManager {
     if (!battle || battle.status !== "lobby" || !this.isAdmin(socketId, battle)) return null;
     if (mode.rounds < 1 || mode.rounds > 5) return null;
     if (mode.timerMode === "manual" && (mode.entriesPerParticipant < 2 || mode.entriesPerParticipant > 6)) return null;
-    if (mode.timerMode === "countdown" && ![60, 120].includes(mode.timePerTurn)) return null;
+    if (mode.timerMode === "countdown" && ![30, 45, 60, 90, 120].includes(mode.timePerTurn)) return null;
     battle.mode = {
       ...getDefaultModeConfig(mode.mode),
       ...mode,

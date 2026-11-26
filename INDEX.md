@@ -12,7 +12,7 @@ Este es el punto de entrada para personas y asistentes de IA. Leerlo antes de el
 
 ## Estado y prioridad actual
 
-Las batallas activas se reconstruyen pausadas al arrancar y requieren reanudación explícita del organizador. El núcleo de torneos también se recupera al arrancar; su operación web sigue en desarrollo. La entrega T10 verificó 251 pruebas del servidor, además de lint, tipos y compilaciones; esa evidencia corresponde a ese estado concreto.
+Las batallas activas se reconstruyen pausadas al arrancar y requieren reanudación explícita del organizador. El núcleo de torneos también se recupera al arrancar; su operación web sigue en desarrollo. T10/T10b cubren inscripción guiada y por enlace; el sorteo revisable, cuadro en vivo y repesca web siguen pendientes.
 
 La prioridad del usuario es ahora mejorar batalla individual, torneos y Rey de la pista, y diseñar un perfil con registro mediante Google o correo y foto. Primero se afinan y documentan las decisiones. No implementar las propuestas abiertas como si estuvieran aprobadas.
 

@@ -7,7 +7,7 @@ export class TournamentPersistence {
 
   private enqueue<T>(id: string, operation: () => Promise<T>): Promise<T> {
     const previous = this.writes.get(id) ?? Promise.resolve();
-    const current = previous.then(operation);
+    const current = previous.catch(() => undefined).then(operation);
     this.writes.set(id, current);
     const cleanup = () => {
       if (this.writes.get(id) === current) this.writes.delete(id);

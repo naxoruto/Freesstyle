@@ -11,6 +11,54 @@ vi.mock("./battlePersistence", () => ({
 }));
 
 describe("TournamentRoomManager", () => {
+  it("allows public enrollment until confirmation and reports the provisional place", async () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const created = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    const ids: string[] = [];
+    for (const alias of ["A", "B", "C", "D", "E"]) {
+      const participant = await manager.joinTournament(created.tournament.id, alias);
+      expect(participant).not.toBeNull();
+      ids.push(participant!.userId);
+    }
+    expect(created.tournament.participants).toHaveLength(4);
+    expect(created.tournament.suplentes).toHaveLength(1);
+    expect(manager.getRegistration(created.tournament.id, ids[4])?.status).toBe("suplente");
+    expect(manager.getRegistration(created.tournament.id, ids[0])?.status).toBe("titular");
+    manager.updateRules(created.tournament.id, created.adminToken, getDefaultModeConfig("libre"));
+    expect(manager.getRegistration(created.tournament.id, ids[0])?.modeConfig.mode).toBe("libre");
+    expect(manager.getRegistration(created.tournament.id, ids[0])?.rulesUpdatedAt).toBeTruthy();
+    expect(await manager.joinTournament(created.tournament.id, " ")).toBeNull();
+    expect(await manager.joinTournament(created.tournament.id, "x".repeat(41))).toBeNull();
+    expect(manager.confirmParticipants(created.tournament.id, created.adminToken)).not.toBeNull();
+    expect(await manager.joinTournament(created.tournament.id, "F")).toBeNull();
+    expect(manager.getRegistration(created.tournament.id, ids[4])?.registrationClosed).toBe(true);
+    manager.startTournament(created.tournament.id, created.adminToken, getDefaultModeConfig("clasico"));
+    expect(await manager.joinTournament(created.tournament.id, "F")).toBeNull();
+  });
+
+  it("does not duplicate a public registration retried with the same identifier", async () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const created = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    const registrationId = "a1b2c3d4-e5f6-4abc-8def-0123456789ab";
+    const first = await manager.joinTournament(created.tournament.id, "A", registrationId);
+    const retry = await manager.joinTournament(created.tournament.id, "A", registrationId);
+    expect(retry?.userId).toBe(first?.userId);
+    expect(created.tournament.participants).toHaveLength(1);
+    expect(await manager.joinTournament(created.tournament.id, "B", registrationId)).toBeNull();
+  });
+
+  it("rolls back a failed public enrollment and allows a retry", async () => {
+    const manager = new TournamentRoomManager(new BattleRoomManager());
+    const created = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4 })!;
+    const persistence = (manager as unknown as { persistence: { update: (tournament: unknown) => Promise<void> } }).persistence;
+    const update = vi.spyOn(persistence, "update").mockRejectedValueOnce(new Error("database unavailable"));
+    const registrationId = "a1b2c3d4-e5f6-4abc-8def-0123456789ab";
+    await expect(manager.joinTournament(created.tournament.id, "A", registrationId)).rejects.toThrow("database unavailable");
+    expect(created.tournament.participants).toHaveLength(0);
+    expect(await manager.joinTournament(created.tournament.id, "A", registrationId)).toMatchObject({ userId: registrationId });
+    expect(created.tournament.participants).toHaveLength(1);
+    update.mockRestore();
+  });
   it("creates a tournament with all participants in one operation", () => {
     const manager = new TournamentRoomManager(new BattleRoomManager());
     const result = manager.createTournamentWithParticipants("Copa", "manual", "single_elimination", ["A", "B", "C", "D"]);
@@ -90,6 +138,19 @@ describe("TournamentRoomManager", () => {
     manager.startTournament(tournament.id, adminToken, clasico);
     expect(manager.updateRules(tournament.id, adminToken, libre)).toBeNull();
     expect(tournament.phases[0].modeConfig.mode).toBe("clasico");
+  });
+
+  it("rechaza reglas incompletas y aplica el tiempo anunciado a la sala", () => {
+    const battles = new BattleRoomManager();
+    const manager = new TournamentRoomManager(battles);
+    const rules = { ...getDefaultModeConfig("clasico"), timePerTurn: 45 };
+    const created = manager.createTournament("Copa", "manual", "single_elimination", { capacity: 4, modeConfig: rules })!;
+    expect(manager.updateRules(created.tournament.id, created.adminToken, { ...rules, rounds: undefined } as unknown as typeof rules)).toBeNull();
+    for (const alias of ["A", "B", "C", "D"]) manager.addParticipant(created.tournament.id, created.adminToken, alias);
+    manager.confirmParticipants(created.tournament.id, created.adminToken);
+    manager.startTournament(created.tournament.id, created.adminToken, rules);
+    expect(created.tournament.phases[0].modeConfig.timePerTurn).toBe(45);
+    expect(battles.createBattle(rules).mode.timePerTurn).toBe(45);
   });
 
   it("deja una auditoría de las correcciones de inscripción y reglas", () => {

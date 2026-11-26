@@ -24,22 +24,24 @@
 | T8 · Recuperación tras reinicio | ✅ Implementado | `6838fd8` |
 | T9 · Formulario web | ✅ Implementado | `546bbcb` |
 | T10 · Inscripción guiada y confirmación de titulares | ✅ Implementado | Esta entrega |
-| T10b · Autoinscripción por enlace (API + página) | ⏳ Pendiente; no estaba en el plan original | — |
+| T10b · Autoinscripción por enlace (API + página) | ✅ Implementado | Esta entrega |
 | T11 · Sorteo y auditoría (web) | ⏳ Pendiente | — |
 | T12 · Cuadro en vivo (web) | ⏳ Pendiente | — |
 | T13 · Repesca (web) | ⏳ Pendiente | — |
 
-**Evidencia:** al cerrar T10, 251 pruebas del servidor en verde, lint y typecheck limpios, compilaciones de web y servidor correctas; recorrido HTTP y de navegador con base descartable. La inscripción manual y la confirmación están disponibles; la autoinscripción por enlace y T11–T13 siguen pendientes.
+**Evidencia:** al cerrar T10, 251 pruebas del servidor en verde, lint y typecheck limpios, compilaciones de web y servidor correctas; recorrido HTTP y de navegador con base descartable. T10b agrega el enlace público, la vista individual de inscripción y el cierre efectivo al confirmar. T11–T13 siguen pendientes.
 
-### Hallazgo abierto: la inscripción por enlace no existe todavía
+### Hallazgo resuelto: inscripción por enlace
 
-El plan asumía que la autoinscripción por enlace/código ya estaba soportada. En realidad solo existe el alta manual (`addParticipant` con token de admin). Falta:
+El plan asumía que la autoinscripción por enlace/código ya estaba soportada. T10b incorpora:
 
-- `POST /api/tournaments/:id/join` sin token de admin (valida torneo en `setup`, cupo de titulares y pasa el excedente a suplentes).
-- Una página pública de inscripción (equivalente a `unirse_batalla`), que muestre el nombre y el organizador del torneo.
-- Presentar la inscripción con nombre de invitado o cuenta, según DEC-004 y DEC-021, y mostrar el estado provisional y las reglas vigentes.
+- `POST /api/tournaments/:id/join` sin token de admin; valida estado y cierre, y pasa el excedente a suplentes.
+- Página pública de inscripción que muestra nombre, organizador y reglas vigentes, con nombre de invitado obligatorio.
+- Consulta individual del estado provisional o confirmado; el identificador de la inscripción se guarda en la sesión del navegador.
 
-Hasta T10b, el formulario de T9 permite dejar el campo de participantes vacío, pero ese torneo no puede llenarse mediante un enlace público. T10 incorpora la inscripción guiada y los controles del organizador; el enlace de autoinscripción solo se comparte cuando T10b funcione.
+La vinculación con cuentas queda para la fase de perfil y cuentas (Fase 4). El organizador comparte el enlace desde el paso guiado y conserva el control del torneo al recargar la misma sesión.
+
+**Límite de la inscripción invitada:** el reintento desde la misma sesión usa el mismo identificador y no duplica la plaza; el servidor limita la frecuencia de altas. Sin una identidad verificada, una persona todavía puede usar distintos navegadores o nombres para solicitar varias plazas. El organizador puede quitar esas inscripciones antes de iniciar.
 
 ## Global Constraints
 
@@ -158,24 +160,24 @@ T9 (form) → T10 (inscripción UI) → T10b (autoinscripción) → T11 (sorteo 
 
 **Files:** `apps/web/src/app/tournament/page.tsx`, `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`
 
-**Interfaces:** etapa de inscripción guiada tras crear; reglas de batalla definidas antes de compartir y editables hasta iniciar; agregar a mano, mover y quitar inscritos; confirmar titulares y cerrar inscripción pública (DEC-021). El enlace de invitación funciona cuando T10b esté implementada.
+**Interfaces:** etapa de inscripción guiada tras crear; reglas de batalla definidas antes de compartir y editables hasta iniciar; agregar a mano, mover y quitar inscritos; confirmar titulares y cerrar inscripción pública (DEC-021). El enlace de invitación funciona con T10b.
 
 - [x] **Paso 1 — Implementar**: configuración de reglas antes de crear, alta manual, listas separadas de titulares y suplentes, controles de mover/quitar, auditoría básica y confirmación que cierra la inscripción pública.
 - [x] **Paso 2 — Verificar**: pruebas del servidor, lint/typecheck/build y recorrido HTTP y de navegador con base descartable.
 - [x] **Paso 3 — Commit**: `feat(torneo): inscripción guiada y confirmación de titulares`.
 
-> Nota: el enlace público de inscripción depende de T10b.
+> El enlace público de inscripción se entregó en T10b.
 
-## T10b — Autoinscripción por enlace ⏳ (añadida el 25 de noviembre de 2026)
+## T10b — Autoinscripción por enlace ✅ (añadida el 25 de noviembre de 2026)
 
-**Files:** `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`, `apps/web/src/app/tournament/join/page.tsx` (nuevo)
+**Files:** `apps/server/src/index.ts`, `apps/server/src/rooms/tournamentRoom.ts`, `apps/web/src/app/tournament/join/[id]/page.tsx` (nuevo)
 
 **Interfaces:** `POST /api/tournaments/:id/join` sin token de admin; página pública que muestra nombre/organizador y reglas vigentes, confirma la inscripción y muestra el estado provisional del inscrito. Tras confirmar titulares, no admite nuevas inscripciones públicas (DEC-021).
 
-- [ ] **Paso 1 — Test que falla**: inscribir por enlace respeta `setup`, capacidad y suplentes; rechaza torneos con inscripción cerrada o ya iniciados; la consulta muestra las reglas vigentes y el estado del inscrito.
-- [ ] **Paso 2 — Implementar** endpoint + página.
-- [ ] **Paso 3 — Ejecutar** → PASS y typecheck.
-- [ ] **Paso 4 — Commit**: `feat: autoinscripción de torneo por enlace`.
+- [x] **Paso 1 — Test que falla**: inscribir por enlace respeta `setup`, capacidad y suplentes; rechaza inscripciones cerradas; la consulta muestra las reglas vigentes y el estado del inscrito.
+- [x] **Paso 2 — Implementar** endpoint + página.
+- [x] **Paso 3 — Ejecutar** → 256 pruebas del servidor, lint, typecheck y builds; recorrido HTTP de inscripción pública con base descartable.
+- [x] **Paso 4 — Commit**: `feat(torneo): autoinscripción por enlace`.
 
 ## T11 — Sorteo y revisión con auditoría (web) ⏳
 

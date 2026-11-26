@@ -22,7 +22,7 @@ function makeTournament(id: string): Tournament {
 
 describe("TournamentPersistence", () => {
   const persistence = new TournamentPersistence();
-  const ids = ["t-persist-1", "t-persist-2"];
+  const ids = ["t-persist-1", "t-persist-2", "t-persist-3"];
 
   afterAll(async () => {
     await prisma.tournament.deleteMany({ where: { id: { in: ids } } });
@@ -42,5 +42,12 @@ describe("TournamentPersistence", () => {
     const active = await persistence.loadActive();
     const found = active.find((row) => row.tournament.id === ids[1]);
     expect(found?.tournament.name).toBe("Actualizado");
+  });
+
+  it("continúa la cola después de una escritura fallida", async () => {
+    await expect(persistence.update(makeTournament(ids[2]))).rejects.toThrow();
+    await expect(persistence.create(makeTournament(ids[2]), "token-3")).resolves.toBeUndefined();
+    const active = await persistence.loadActive();
+    expect(active.some((row) => row.tournament.id === ids[2])).toBe(true);
   });
 });

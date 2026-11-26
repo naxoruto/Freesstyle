@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDefaultConfig, normalizeConfig, validateConfig, type BattleModeConfig, type Tournament, type TournamentType } from "@freestyle/shared";
 import { BattleModeSelector } from "../../components/BattleModeSelector";
@@ -26,6 +26,22 @@ export default function TournamentPage() {
   const [participantAlias, setParticipantAlias] = useState("");
   const [modeConfig, setModeConfig] = useState<BattleModeConfig>(() => createDefaultConfig("clasico"));
   const [editingRules, setEditingRules] = useState(false);
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    const token = sessionStorage.getItem(`tournament_admin_${id}`);
+    if (!token) return;
+    fetch(`${API_URL}/api/tournaments/${id}`)
+      .then(response => { if (!response.ok) throw new Error("No se pudo recuperar el torneo"); return response.json(); })
+      .then((saved: Tournament) => {
+        setAdminToken(token);
+        setTournament(saved);
+        setModeConfig(saved.modeConfig ?? createDefaultConfig("clasico"));
+        setStep(saved.status === "setup" ? "setup" : "active");
+      })
+      .catch(() => setError("No se pudo recuperar el torneo"));
+  }, []);
 
   const changeRules = (partial: Partial<BattleModeConfig>) => {
     setModeConfig(normalizeConfig(partial, partial.mode ?? "clasico"));
@@ -56,6 +72,8 @@ export default function TournamentPage() {
       if (!createResponse.ok) throw new Error("No se pudo crear el torneo");
       const created = await createResponse.json();
       setAdminToken(created.adminToken);
+      sessionStorage.setItem(`tournament_admin_${created.tournament.id}`, created.adminToken);
+      router.replace(`/tournament?id=${created.tournament.id}`);
 
       setTournament(created.tournament);
       setStep("setup");
@@ -257,7 +275,7 @@ export default function TournamentPage() {
           </div>
           <div className="border border-white/5 p-5 text-sm leading-7 text-white/40">
             <p>Cuadros de 4, 8 o 16 participantes. La repesca soporta 4, 8 y 16.</p>
-            <p>Después de crear, podrás completar y confirmar la lista de titulares. El enlace público de inscripción estará disponible en una próxima entrega.</p>
+            <p>Después de crear, podrás compartir el enlace, agregar personas y confirmar titulares.</p>
             <p>Cada enfrentamiento crea una sala de batalla normal.</p>
           </div>
         </div>
@@ -270,7 +288,11 @@ export default function TournamentPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-red-400">{tournament.registrationClosed ? "Inscripción confirmada · paso 2 de 2" : "Inscripción · paso 1 de 2"}</p>
               <h2 className="mt-2 font-battle text-2xl font-black uppercase">{tournament.name}</h2>
               <p className="mt-2 text-sm text-white/50">Identificador del torneo: <span className="font-mono text-white">{tournament.id}</span></p>
-              <p className="mt-1 text-sm text-white/50">El enlace público de inscripción estará disponible cuando se habilite la autoinscripción.</p>
+              {!tournament.registrationClosed && <div className="mt-4">
+                <label htmlFor="tournament-invite" className="block text-sm font-bold mb-2">Enlace de inscripción</label>
+                <input id="tournament-invite" readOnly value={typeof window === "undefined" ? "" : `${window.location.origin}/tournament/join/${tournament.id}`} onFocus={event => event.currentTarget.select()} className="w-full border border-white/10 bg-black p-3 text-sm text-white/70" />
+                <p className="mt-2 text-xs text-white/50">Comparte el enlace después de revisar las reglas. La inscripción pública se cerrará al confirmar titulares.</p>
+              </div>}
             </div>
             <div className="border-t border-white/10 pt-4">
               <div className="flex items-center justify-between gap-3">
