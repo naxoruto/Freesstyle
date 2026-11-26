@@ -12,7 +12,7 @@ Este es el punto de entrada para personas y asistentes de IA. Leerlo antes de el
 
 ## Estado y prioridad actual
 
-Las batallas activas se reconstruyen pausadas al arrancar y requieren reanudación explícita del organizador. El núcleo de torneos también se recupera al arrancar; su operación web sigue en desarrollo. T10/T10b cubren inscripción guiada y por enlace; el sorteo revisable, cuadro en vivo y repesca web siguen pendientes.
+Las batallas activas se reconstruyen pausadas al arrancar y requieren reanudación explícita del organizador. El núcleo de torneos también se recupera al arrancar; T10/T10b cubren inscripción guiada y por enlace. T11 (sorteo revisable) está en implementación; el cuadro en vivo y la repesca web siguen pendientes.
 
 La prioridad del usuario es ahora mejorar batalla individual, torneos y Rey de la pista, y diseñar un perfil con registro mediante Google o correo y foto. Primero se afinan y documentan las decisiones. No implementar las propuestas abiertas como si estuvieran aprobadas.
 
@@ -42,6 +42,7 @@ Las pruebas están junto al código, en archivos `*.test.ts`. Las pruebas de int
 | Diseño de juegos diarios | [Plan de juegos](docs/producto/GAMES_PLAN.md) — backlog especializado, no prioridad actual |
 | Política de fuentes del catálogo | [Fuentes](docs/datos/DATA_SOURCES.md) |
 | Plan de trabajo consolidado | [Plan de trabajo](docs/PLAN_DE_TRABAJO.md) — producto + técnica, jerarquizado con dependencias |
+| Sistema de diseño UI | [Guía de componentes UI](docs/producto/GUIA_COMPONENTES_UI.md) — inventario, catálogo compartido y regla de reutilización |
 | Organización y limpieza | [Criterios de organización](docs/ORGANIZACION.md) |
 | Planes y fotografías históricas | [Archivo](docs/archivo/) — consultar como antecedentes |
 

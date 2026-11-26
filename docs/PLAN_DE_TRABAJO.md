@@ -116,7 +116,7 @@
 
 **Objetivo:** torneo recuperable y claro: identidad del evento, sorteo revisable, cuadro en vivo y retorno desde cada batalla.
 
-**Avance (25 de noviembre de 2026):** T1–T8 (servidor), T9 (formulario web), T10 (inscripción guiada del organizador) y T10b (enlace público) entregados; T11–T13 pendientes. TOR-01 cubre el núcleo de persistencia. Ver [plan de implementación](producto/planes/torneo.md).
+**Avance (25 de noviembre de 2026):** T1–T8 (servidor), T9 (formulario web), T10 (inscripción guiada) y T10b (enlace público) entregados; T11 está en implementación y T12–T13 siguen pendientes. TOR-01 cubre el núcleo de persistencia. Ver [plan de implementación](producto/planes/torneo.md).
 
 ### 6.1 Decisiones y límites de esta entrega
 - La [especificación de torneo](producto/specs/torneo.md) define nombre obligatorio, logo y organizador opcionales, inscripción manual y por enlace, suplentes por orden de inscripción, sorteo ajustable por el organizador y ausencia confirmada por este. La autoinscripción por enlace está implementada (T10b).
@@ -147,6 +147,7 @@
 ### 6.3 Habilitadores técnicos
 - **TOR-01** persistencia y recuperación del torneo (modelo, credenciales, relación con batallas, resultados idempotentes).
 - **WEB-02** split de `tournament/page.tsx`.
+- **UI-01** inventario y contrato del sistema visual compartido (este plan + [guía de componentes UI](producto/GUIA_COMPONENTES_UI.md)); prerrequisito para extender o dividir componentes de interfaz.
 - **SEG-04** expiración/rotación de invitaciones (para inscripción por enlace).
 
 ### 6.4 Criterios de aceptación
@@ -266,15 +267,40 @@
 | DX-02 | Logging estructurado (pino) | continuo | |
 | DX-03 | CI mínima | continuo | |
 | DX-04 | Limpiar `FIX Bug N` y logs residuales | 1–3 | |
+| UI-01 | Auditoría de componentes existentes y reglas de reutilización | 0 (planificación) | Catálogo inicial y procedimiento acordado; [guía UI](producto/GUIA_COMPONENTES_UI.md) |
+| UI-02 | Definir tokens visuales y componentes UI comunes | 1 (base), luego 2–4 | Botones, campos, paneles, avisos y estados con variantes accesibles |
+| UI-03 | Migrar páginas por etapas y dividir composiciones grandes | 1–4 | Reusar UI-02; WEB-01/02 quedan coordinados con esta migración |
+| UI-04 | Mantener catálogo y revisar reutilización al planear cada funcionalidad | continuo | Actualizar guía e inventario con cada cambio de interfaz |
 
 **Nota:** SEG-02/03/04 cambian comportamiento; se implementan cuando la decisión de producto correspondiente esté registrada (ver §12).
+
+---
+
+### 10.1 Sistema visual y reutilización de UI
+
+**Objetivo:** que los controles comunes se comporten y se vean de forma coherente en toda la web, y que las nuevas funcionalidades consulten primero el catálogo de componentes antes de añadir una implementación paralela.
+
+El inventario inicial y el procedimiento de mantenimiento viven en [Guía de componentes UI](producto/GUIA_COMPONENTES_UI.md). La auditoría encontró componentes de dominio reutilizables, pero no una biblioteca compartida de controles básicos. La interfaz mezcla utilidades Tailwind, clases locales y estilos de página en `globals.css`; el trabajo debe consolidar primero los patrones compartidos y preservar tratamientos visuales específicos de cada producto donde sean intencionales.
+
+Orden de ejecución:
+
+1. **UI-01 — Auditoría (documentada):** registrar rutas, componentes, estilos comunes y oportunidades de extracción; distinguir controles transversales de composiciones de dominio.
+2. **UI-02 — Fundamentos:** acordar tokens de color, tipografía, espaciado, bordes, foco y movimiento; crear componentes base accesibles con variantes explícitas (por ejemplo, botón principal, secundario, texto, peligro e icono; controles de formulario; paneles; avisos; estados vacíos).
+3. **UI-03 — Migración por etapas:** aplicar las piezas base primero a flujos centrales y separar páginas grandes por secciones con límites de responsabilidad; no cambiar reglas de negocio al hacer refactor visual.
+4. **UI-04 — Adopción continua:** antes de crear una pieza de UI, consultar la guía, reutilizar o extender un componente existente cuando encaje y registrar en la guía cualquier componente nuevo o excepción visual.
+5. **Verificación:** comprobar consistencia de variantes, estados deshabilitados/carga, foco por teclado, diseño móvil, accesibilidad y ausencia de regresiones funcionales en cada etapa.
+
+**Límite:** reutilizar no significa forzar todos los diseños en una única apariencia ni convertir cada fragmento JSX en componente. Catálogo, póster, demo y sala pueden conservar identidad propia; sus botones y campos sí deben usar variantes comunes cuando no exista una razón documentada para apartarse.
+
+**Criterios de aceptación:** existe un catálogo vigente; los botones y controles comunes comparten variantes y estados; cada página migrada consume ese catálogo; los componentes de dominio siguen siendo composiciones reutilizables; las nuevas funcionalidades incluyen revisión de reutilización antes de añadir UI duplicada.
 
 ---
 
 ## 11. Mapa de dependencias
 
 ```
-Fase 0 (LIM + SEG-01 + SEG-05)  ──►  SRV-01/03  ──►  SRV-02  ──►  WEB-03  ──►  WEB-01
+Fase 0 (LIM + SEG-01 + SEG-05)  ──►  SRV-01/03  ──►  SRV-02  ──►  WEB-03
+UI-01 (inventario/contrato) ──► UI-02 (tokens/primitivas) ──► UI-03 + WEB-01/02
                                         │
 Fase 1 (Batalla)  ──►  SEG-02, SEG-03  ─┘
         │
@@ -290,7 +316,7 @@ Fase 4 (Perfil)  ──►  auth, cuentas, foto  (aprovecha SEG-03)
         ▼
 Fase 5 (Niveles)  ──►  XP, stats
 
-DX-01..04 y WEB-04: intercalados desde Fase 0
+DX-01..04, UI-04 y WEB-04: intercalados desde Fase 0
 ```
 
 **Regla de avance:** el orden de fases marca la prioridad de producto, no exige terminar cada refactor antes de empezar la siguiente fase. T12/WEB-01 de batalla sigue pendiente mientras el torneo está en curso. Cada tarea que cambia comportamiento requiere sus decisiones concretas registradas antes de implementarse; los refactors (SRV/WEB) se intercalan según las dependencias reales.

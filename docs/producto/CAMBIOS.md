@@ -19,14 +19,14 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 | ORG-01 | Índice y orientación para IA | Implementado | [INDEX](../../INDEX.md), [AGENTS](../../AGENTS.md) |
 | ORG-02 | Reunir documentación y separar antecedentes | Implementado | [Organización](../ORGANIZACION.md) |
 | UX-01 | Mejorar batalla individual | Flujo inicial, roles, exhibición, selector y estabilidad de modalidad confirmados | [Decisiones de batalla](brainstorming/01-batalla-individual.md); preparar especificación tras revisar las demás experiencias |
-| UX-02 | Mejorar torneos | Backend, formulario e inscripción guiada T10/T10b implementados; pendientes T11–T13 | [Especificación de torneo](specs/torneo.md); [plan](planes/torneo.md) |
+| UX-02 | Mejorar torneos | Backend e inscripción T10/T10b implementados; T11 en implementación; pendientes T12–T13 | [Especificación de torneo](specs/torneo.md); [plan](planes/torneo.md) |
 | UX-03 | Mejorar Rey de la pista | En definición | [Notas previas](brainstorming/03-rey-de-pista.md); confirmar reglas de sesión abierta |
 | PERF-01 | Perfil y registro con Google o correo | En definición; solicitado por el usuario | [Estructura y perfil](brainstorming/00-estructura-y-perfil.md); invitados con nombre o cuenta para guardar perfil e historial, confirmado |
 | PERF-02 | Foto y datos personales del perfil | En definición | Determinar campos, visibilidad y edición |
 | PERF-03 | Estadísticas por rol y nivel general | Dirección registrada en notas previas | [Perfiles y niveles](brainstorming/04-perfiles-y-niveles.md); reconciliar con el nuevo alcance |
 | TOR-01 | Persistencia y recuperación de torneos | Implementado (núcleo) | Modelo `Tournament`, persistencia por torneo y recuperación en arranque con su `adminToken`; falta la capa web de operación |
 | DEMO-01 | Demo completa y aislada | Pendiente técnico | Revisar alcance de la demo existente antes de sustituirla |
-| VIS-01 | Pulido móvil, espaciado e identidad visual | Propuesta / parcialmente pendiente | Derivar del diseño acordado; revisar assets de cartelera |
+| VIS-01 | Pulido móvil, espaciado e identidad visual | En definición técnica; auditoría y sistema de diseño planificados | [Guía de componentes UI](GUIA_COMPONENTES_UI.md); implementar UI-02/03 por etapas |
 | JUEGOS-01 | Evolución de juegos diarios | Backlog especializado | [Plan de juegos](GAMES_PLAN.md); no adelantarse a la prioridad actual |
 
 ## Trabajo de esta conversación ya entregado
@@ -45,6 +45,8 @@ La batalla individual ya tiene su recorrido de producto entregado; queda T12 (re
 | TEC-10 | Fase 2 (torneo) — backend T1–T8 y formulario web T9 | Implementado; 246 pruebas verdes y typecheck limpio al cierre de T9; [plan](planes/torneo.md). En ese momento faltaban T10–T13 y T10b |
 | TEC-11 | Fase 2 (torneo) — T10: reglas antes de crear, inscripción manual guiada, titulares/suplentes, mover/quitar y confirmar | Implementado; 251 pruebas del servidor, lint/typecheck/build y recorrido HTTP/navegador sobre base descartable |
 | TEC-12 | Fase 2 (torneo) — T10b: autoinscripción por enlace, estado individual, reglas vigentes y cierre al confirmar | Implementado; 256 pruebas del servidor. El organizador recupera el torneo en la misma sesión tras recargar |
+| TEC-13 | Fase 2 (torneo) — T11: sorteo separado del inicio, reorden manual y auditoría visible | En implementación; cerrar según decisiones registradas y validar antes de marcar como entregado |
+| TEC-14 | Sistema de diseño UI: auditoría del catálogo, regla de reutilización y plan de modularización | Plan documentado; UI-01 registrado, UI-02/03 pendientes de implementación | [Plan de trabajo §10.1](../PLAN_DE_TRABAJO.md); [guía de componentes UI](GUIA_COMPONENTES_UI.md) |
 
 La recuperación de batallas no implica recuperar el torneo al que pertenecen. Tampoco reconstruye votos históricos que solo existían en memoria o fueron sobrescritos antes de las migraciones.
 
@@ -77,5 +79,6 @@ La recuperación de batallas no implica recuperar el torneo al que pertenecen. T
 | DEC-019 | Experiencia transversal: modo pantalla, estados vacíos, presencia en vivo, avisos sonoros, compartir cartel, accesibilidad y landing | Confirmado el 25 de noviembre de 2026; detalle en el track técnico |
 | DEC-020 | Plan de trabajo consolidado en [Plan de trabajo](../PLAN_DE_TRABAJO.md); es el plan único y no compite con este registro | Confirmado el 25 de noviembre de 2026 |
 | DEC-021 | Torneo: recorrido guiado «crear → inscribir y confirmar → sortear e iniciar»; reglas fijadas antes de compartir y editables hasta iniciar; el organizador puede mover o quitar inscritos; quien se inscribe ve su estado y reglas vigentes; la inscripción pública se cierra al confirmar titulares | Confirmado el 25 de noviembre de 2026; detalle en [especificación de torneo](specs/torneo.md). Pendiente de implementar |
+| DEC-022 | La interfaz web debe usar un sistema de diseño y una biblioteca compartida para controles comunes; antes de crear UI nueva se revisa el catálogo para reutilizar o extender componentes. Las excepciones de identidad visual se conservan cuando son intencionales y quedan documentadas | Confirmado el 25 de noviembre de 2026; plan en [§10.1](../PLAN_DE_TRABAJO.md) y [guía UI](GUIA_COMPONENTES_UI.md); implementación pendiente |
 
 Al aprobar una decisión nueva, registrarla aquí y desarrollar sus reglas en el documento de producto correspondiente. No abrir otro plan global que compita con este registro; el [Plan de trabajo](../PLAN_DE_TRABAJO.md) lo complementa y no lo sustituye.
