@@ -79,7 +79,7 @@
 
 ### 5.2 Entregables de producto
 
-Votación clásica FMS (antes descrita como rúbrica): tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa. Escalas de 0 a 4 en pasos de 0,5. Suma directa de patrones + Escena + Flow, sin multiplicadores; máximo de 24 puntos por MC y ronda con cuatro patrones. Confirmado: sumar todas las rondas y emitir el voto de cada juez al mayor total; empate exacto significa voto de réplica. En réplicas todos usan obligatoriamente voto libre. Pendientes preparación, casos sin mayoría y posibles réplicas sucesivas; especificación en §13. La nueva experiencia no está implementada.
+Votación clásica FMS (antes descrita como rúbrica): tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa. Escalas de 0 a 4 en pasos de 0,5. Suma directa de patrones + Escena + Flow, sin multiplicadores; máximo de 24 puntos por MC y ronda con cuatro patrones. Confirmado: sumar todas las rondas y emitir el voto de cada juez al mayor total; empate exacto significa voto de réplica. En réplicas todos usan obligatoriamente voto libre: pueden pedir otra solo si quedan disponibles según el límite; al agotarlas eligen MC1/MC2. Pendientes preparación, casos sin mayoría y empate FMS cuando no se permiten réplicas; especificación en §13. La nueva experiencia no está implementada.
 
 | ID | Entregable | Alcance de producto |
 |---|---|---|
