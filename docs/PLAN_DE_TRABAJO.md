@@ -79,7 +79,7 @@
 
 ### 5.2 Entregables de producto
 
-Votación clásica FMS (antes descrita como rúbrica) en definición: tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa. Nombre y escalas de patrones, Escena y Flow confirmados: de 0 a 4 en pasos de 0,5. Pendientes suma, pesos y conversión a veredicto; especificación en §13. La nueva tabla no está implementada.
+Votación clásica FMS (antes descrita como rúbrica) en definición: tabla por ronda con una fila por MC, casillas según sus entradas y agregados Escena/Flow para la ronda completa. Nombre y escalas confirmados: de 0 a 4 en pasos de 0,5. Suma directa de patrones + Escena + Flow, sin multiplicadores; máximo de 24 puntos por MC y ronda con cuatro patrones. Pendientes acumulación entre rondas y conversión a veredicto; especificación en §13. La nueva tabla no está implementada.
 
 | ID | Entregable | Alcance de producto |
 |---|---|---|
