@@ -157,12 +157,13 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 ### Votación por rondas (antes llamada «por patrón»)
 
 - **Confirmado el 27/11/2026:** cada juez asigna una nota de 0 a 10 a cada MC por la ronda completa. Evalúa el conjunto de la actuación de esa ronda, sin calificar cada patrón ni usar la tabla detallada de FMS.
+- **Escala confirmada:** solo enteros de 0 a 10 inclusive, en pasos de 1, para ambas subcategorías. No admite medios puntos ni otros decimales. La escala de la Votación clásica FMS conserva sus pasos de 0,5.
 - Ejemplo del usuario: en la primera ronda, A recibe 8 y B recibe 7; A gana esa ronda.
 - Se mantiene la regla común de aportar un único voto final por juez al terminar la batalla.
 - **Confirmado por el usuario:** ofrecer dos subcategorías a elegir, una que define el voto final por cantidad de rondas ganadas y otra que lo define por suma total de las notas. Se conservan ambas alternativas.
 - **Nombres propuestos:** «Rondas ganadas» (favorece al MC que gana más rondas) y «Puntaje acumulado» (favorece al MC con mayor suma de notas de todas las rondas). El usuario sugirió nombres como «voto completo»/«puntaje completo»; la denominación final aún puede ajustarse.
 - **Desempate final confirmado:** en ambas subcategorías se aplica la misma regla de FMS. Si el resultado final de ese juez empata tras completar todas las rondas, su voto es réplica cuando quede alguna permitida; si no, debe elegir MC1/MC2 mediante voto libre. Se aplica al total de rondas ganadas o de puntos, según la subcategoría elegida.
-- **Pendiente:** empates dentro de una ronda para contabilizar rondas ganadas, pasos/decimales de la escala de 0 a 10 y condiciones para elegir o cambiar la subcategoría.
+- **Pendiente:** empates dentro de una ronda para contabilizar rondas ganadas y condiciones para elegir o cambiar la subcategoría.
 
 ### Voto libre: evaluación de la batalla completa
 
