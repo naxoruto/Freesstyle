@@ -107,6 +107,8 @@ Votación clásica FMS (antes descrita como rúbrica): tabla por ronda con una f
 | Q4 | Quitar entrada por query params | ✅ |
 
 ### 5.3 Habilitadores técnicos (se ejecutan en esta fase)
+
+Antes de implementar la votación individual, revisar la [propuesta de vista de juez](producto/propuestas/vista-juez.html). Incluye FMS, por rondas y voto libre; es una maqueta con datos ficticios, todavía no aprobada. La propuesta conserva contexto de ronda/turno/reloj y cambia solo el área de puntuación; el desarrollo reutilizará las primitivas UI existentes.
 - **WEB-03** capa de cliente compartida → luego **WEB-01** split de `battle/[id]/page.tsx`.
 - **SEG-02** y **SEG-03** (flujo de entrada por invitación + token seguro).
 - **SRV-02** extracción de handlers de socket (los nuevos eventos de batalla entran ordenados).

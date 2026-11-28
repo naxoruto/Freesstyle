@@ -1,0 +1,165 @@
+<style>
+  #judge-view-study .judge-stage { min-height: 610px; }
+  #judge-view-study .judge-ui {
+    --j-bg: light-dark(#f6f7fa, #080b10);
+    --j-panel: light-dark(#ffffff, #10151c);
+    --j-text: light-dark(#15202c, #edf1f6);
+    --j-muted: light-dark(#536170, #9caaba);
+    --j-line: light-dark(#d5dce4, #2c3541);
+    --j-red: light-dark(#b91725, #ff6469);
+    color: var(--j-text); background: var(--j-bg); padding: 22px;
+    font: 14px/1.5 system-ui, sans-serif; border: 1px solid var(--j-line); border-radius: 6px;
+  }
+  #judge-view-study .judge-ui * { box-sizing: border-box; }
+  #judge-view-study .j-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; }
+  #judge-view-study .j-meta { color: var(--j-muted); font-size: 12px; margin: 0; }
+  #judge-view-study .j-title { font-size: 24px; font-weight: 800; margin: 2px 0 0; text-transform: uppercase; letter-spacing: -.5px; }
+  #judge-view-study .j-method { margin: 0; padding-top: 14px; color: var(--j-muted); }
+  #judge-view-study .j-live { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 18px 0; margin-top: 14px; border-top: 1px solid var(--j-line); border-bottom: 1px solid var(--j-line); }
+  #judge-view-study .j-clock { font: 700 32px/1.1 ui-monospace, monospace; }
+  #judge-view-study .j-section { margin: 22px 0 10px; font-size: 17px; font-weight: 700; }
+  #judge-view-study .j-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  #judge-view-study .j-table th { color: var(--j-muted); font-size: 12px; font-weight: 500; text-align: center; }
+  #judge-view-study .j-table td, #judge-view-study .j-table th { padding: 8px 3px; border-bottom: 1px solid var(--j-line); }
+  #judge-view-study .j-table th:first-child { width: 75px; text-align: left; color: var(--j-text); }
+  #judge-view-study .j-field { width: 100%; min-width: 0; min-height: 44px; padding: 7px 2px; border: 1px solid var(--j-line); border-radius: 4px; color: var(--j-text); background: var(--j-panel); text-align: center; font: inherit; }
+  #judge-view-study .j-field:focus-visible, #judge-view-study .j-button:focus-visible { outline: 3px solid var(--j-red); outline-offset: 2px; }
+  #judge-view-study .j-button { font: inherit; min-height: 44px; padding: 9px 14px; border: 1px solid var(--j-line); border-radius: 4px; background: var(--j-panel); color: var(--j-text); }
+  #judge-view-study .j-button[aria-pressed="true"] { border-color: var(--j-red); background: var(--j-red); color: var(--j-bg); }
+  #judge-view-study .j-button:disabled { opacity: .5; }
+  #judge-view-study .j-result { margin: 14px 0; font-variant-numeric: tabular-nums; }
+  #judge-view-study .j-bottom { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; padding-top: 16px; margin-top: 18px; border-top: 1px solid var(--j-line); }
+  #judge-view-study .j-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
+  #judge-view-study .j-actions .j-button { flex: 1; min-width: 110px; min-height: 90px; }
+  #judge-view-study .j-previous { padding: 14px 0; color: var(--j-muted); }
+  #judge-view-study .j-previous summary { cursor: inherit; }
+  #judge-view-study .j-caption { color: var(--j-muted); font-size: 12px; margin-bottom: 12px; }
+  #judge-view-study .j-cell-label { display: none; }
+  @media (max-width: 520px) {
+    #judge-view-study .judge-ui { padding: 16px; }
+    #judge-view-study .judge-stage { min-height: 805px; }
+    #judge-view-study .j-fms thead { display: none; }
+    #judge-view-study .j-fms tbody { display: grid; gap: 12px; }
+    #judge-view-study .j-fms tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px 10px; }
+    #judge-view-study .j-fms th:first-child { grid-column: 1 / -1; width: auto; padding-bottom: 2px; border: 0; }
+    #judge-view-study .j-fms td { border: 0; }
+    #judge-view-study .j-cell-label { display: block; color: var(--j-muted); font-size: 12px; padding-bottom: 4px; }
+  }
+</style>
+<div id="judge-view-study">
+  <div class="viz-carousel" aria-label="Propuestas de pantalla para cada método de juez" data-previous-label="Anterior" data-next-label="Siguiente">
+    <section class="judge-stage viz-dotted-background" data-variant="Clásica FMS" aria-label="Vista del juez de clásica FMS">
+      <div class="judge-ui">
+        <div class="j-caption">Propuesta · datos de ejemplo</div>
+        <header class="j-head">
+          <div><p class="j-meta">FREESTYLE ARENA · JUEZ</p><h2 class="j-title">MC A vs MC B</h2></div>
+          <span class="j-meta">Tu método está bloqueado</span>
+        </header>
+        <p class="j-method">Votación clásica FMS · Patrón, Escena y Flow</p>
+        <div class="j-live"><div><strong>Ronda 2 de 3</strong><p class="j-meta">MC A al micrófono · Freestyle libre</p></div><span class="j-clock" aria-label="42 segundos restantes">00:42</span></div>
+        <h3 class="j-section">Tu tabla · ronda actual</h3>
+        <table class="j-table j-fms" aria-label="Puntuación de la ronda 2 por patrones, escena y flow">
+          <thead><tr><th scope="col">MC</th><th scope="col">Patrón 1</th><th scope="col">Patrón 2</th><th scope="col">Patrón 3</th><th scope="col">Patrón 4</th><th scope="col">Escena</th><th scope="col">Flow</th></tr></thead>
+          <tbody id="judge-fms-rows"></tbody>
+        </table>
+        <p class="j-result" id="judge-fms-partial" aria-live="polite"></p>
+        <details class="j-previous"><summary>Ver ronda 1</summary><p>MC A: 17 puntos · MC B: 18 puntos</p></details>
+        <footer class="j-bottom"><span class="j-meta">Tu voto se calculará al terminar todas las rondas.</span><span class="j-meta">0–4 · pasos de 0,5</span></footer>
+      </div>
+    </section>
+    <section class="judge-stage viz-dotted-background" data-variant="Por rondas" aria-label="Vista del juez de votación por rondas" hidden>
+      <div class="judge-ui">
+        <div class="j-caption">Propuesta · datos de ejemplo</div>
+        <header class="j-head"><div><p class="j-meta">FREESTYLE ARENA · JUEZ</p><h2 class="j-title">MC A vs MC B</h2></div><span class="j-meta">Tu método está bloqueado</span></header>
+        <p class="j-method">Por rondas · Rondas ganadas</p>
+        <div class="j-live"><div><strong>Ronda 2 de 3</strong><p class="j-meta">MC A al micrófono · Freestyle libre</p></div><span class="j-clock" aria-label="42 segundos restantes">00:42</span></div>
+        <h3 class="j-section">Una nota por MC y ronda</h3>
+        <table class="j-table" aria-label="Notas globales por ronda">
+          <thead><tr><th scope="col">Ronda</th><th scope="col">MC A</th><th scope="col">MC B</th><th scope="col">Ganador</th></tr></thead>
+          <tbody id="judge-round-rows"></tbody>
+        </table>
+        <p class="j-result" id="judge-round-partial" aria-live="polite"></p>
+        <footer class="j-bottom"><span class="j-meta">Un único voto final al cerrar la batalla.</span><span class="j-meta">0–10 · solo enteros</span></footer>
+      </div>
+    </section>
+    <section class="judge-stage viz-dotted-background" data-variant="Voto libre" aria-label="Vista del juez de voto libre al cierre" hidden>
+      <div class="judge-ui">
+        <div class="j-caption">Propuesta · datos de ejemplo</div>
+        <header class="j-head"><div><p class="j-meta">FREESTYLE ARENA · JUEZ</p><h2 class="j-title">MC A vs MC B</h2></div><span class="j-meta">Tu método está bloqueado</span></header>
+        <p class="j-method">Voto libre · Evalúas la batalla completa</p>
+        <div class="j-live"><div><strong>Rondas completadas: 3 de 3</strong><p class="j-meta">Esperando tu veredicto</p></div><span aria-hidden="true">⚖️</span></div>
+        <h3 class="j-section">¿Quién ganó la batalla?</h3>
+        <div class="j-actions" role="group" aria-label="Elegir ganador de la batalla completa">
+          <button class="j-button" type="button" data-winner="MC A" aria-pressed="false">MC A</button>
+          <button class="j-button" type="button" data-winner="MC B" aria-pressed="false">MC B</button>
+        </div>
+        <p class="j-result" id="judge-free-selection" aria-live="polite">Sin voto seleccionado</p>
+        <footer class="j-bottom"><span class="j-meta">Un voto sobre todas las rondas.</span><button class="j-button" id="judge-free-confirm" type="button" disabled>Confirmar voto</button></footer>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('judge-view-study');
+  const fmsRows = root.querySelector('#judge-fms-rows');
+  const roundRows = root.querySelector('#judge-round-rows');
+  const labels = ['Patrón 1', 'Patrón 2', 'Patrón 3', 'Patrón 4', 'Escena', 'Flow'];
+  const names = ['MC A', 'MC B'];
+  const initialFms = [[3, 3.5, '', '', '', ''], [3, 3, '', '', '', '']];
+  names.forEach((name, mc) => {
+    const row = document.createElement('tr');
+    const title = document.createElement('th'); title.scope = 'row'; title.textContent = name; row.append(title);
+    labels.forEach((label, cell) => {
+      const td = document.createElement('td');
+      const mobileLabel = document.createElement('span'); mobileLabel.className = 'j-cell-label'; mobileLabel.textContent = label;
+      const input = document.createElement('select'); input.className = 'j-field'; input.dataset.mc = mc;
+      input.setAttribute('aria-label', `${name}, ${label}, ronda 2`);
+      input.add(new Option('—', ''));
+      for (let value = 0; value <= 4; value += .5) input.add(new Option(String(value).replace('.', ','), String(value)));
+      input.value = String(initialFms[mc][cell]);
+      td.append(mobileLabel, input); row.append(td);
+    });
+    fmsRows.append(row);
+  });
+  function updateFms() {
+    const sums = names.map((_, mc) => [...fmsRows.querySelectorAll(`[data-mc="${mc}"]`)].reduce((sum, input) => sum + Number(input.value), 0));
+    root.querySelector('#judge-fms-partial').textContent = `Parcial de esta ronda · MC A: ${String(sums[0]).replace('.', ',')} · MC B: ${String(sums[1]).replace('.', ',')}`;
+  }
+  fmsRows.addEventListener('change', updateFms); updateFms();
+  [[8, 7], ['', ''], ['', '']].forEach((values, round) => {
+    const row = document.createElement('tr');
+    const title = document.createElement('th'); title.scope = 'row'; title.textContent = String(round + 1); row.append(title);
+    values.forEach((value, mc) => {
+      const td = document.createElement('td');
+      const input = document.createElement('select'); input.className = 'j-field'; input.setAttribute('aria-label', `${names[mc]}, nota de ronda ${round + 1}`);
+      input.add(new Option('—', '')); for (let score = 0; score <= 10; score++) input.add(new Option(String(score), String(score)));
+      input.value = String(value); td.append(input); row.append(td);
+    });
+    const result = document.createElement('td'); result.className = 'j-round-result'; row.append(result); roundRows.append(row);
+  });
+  function updateRounds() {
+    const wins = [0, 0];
+    [...roundRows.children].forEach(row => {
+      const fields = [...row.querySelectorAll('select')];
+      const complete = fields.every(input => input.value !== '');
+      const a = Number(fields[0].value), b = Number(fields[1].value);
+      row.querySelector('.j-round-result').textContent = !complete ? '—' : a === b ? 'Empate' : a > b ? 'MC A' : 'MC B';
+      if (complete && a !== b) wins[a > b ? 0 : 1]++;
+    });
+    root.querySelector('#judge-round-partial').textContent = `Rondas ganadas hasta ahora · MC A: ${wins[0]} · MC B: ${wins[1]}`;
+  }
+  roundRows.addEventListener('change', updateRounds); updateRounds();
+  let selected = '';
+  const confirm = root.querySelector('#judge-free-confirm');
+  root.querySelectorAll('[data-winner]').forEach(button => button.addEventListener('click', () => {
+    selected = button.dataset.winner;
+    root.querySelectorAll('[data-winner]').forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+    root.querySelector('#judge-free-selection').textContent = `Seleccionado: ${selected}`; confirm.disabled = false;
+  }));
+  confirm.addEventListener('click', () => {
+    root.querySelector('#judge-free-selection').textContent = `Voto de ejemplo confirmado: ${selected}`;
+    confirm.disabled = true;
+  });
+})();
+</script>
