@@ -136,7 +136,8 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Aclaración confirmada el 27/11/2026:** si no se permiten más réplicas, no se puede emitir un voto de réplica. La nueva implementación deberá reflejar la restricción en la interfaz y validar el límite en el servidor.
 - **Mayoría absoluta confirmada el 27/11/2026:** un MC gana con más de la mitad de los votos de los jueces: 1 de 1, 2 de 3 o 3 de 5. Si ninguno la alcanza y queda alguna réplica permitida, el resultado es réplica. Incluye los repartos 2/2/1 y 2/1/2 con cinco jueces. Cuando no quedan réplicas, todos los votos deben elegir MC1/MC2, aplicando también la excepción de empate FMS por voto libre.
 - **Preparación confirmada el 27/11/2026:** antes de competir, cada juez elige su método (y subcategoría si corresponde), revisa su tabla o vista de votación y pulsa «Estoy listo». El organizador solo puede activar el «3, 2, 1» cuando todos los jueces estén listos. La última confirmación de un juez no inicia la cuenta atrás: hace falta la acción del organizador. El arranque inmediato actual aún no se ha cambiado en código.
-- **Pendiente de definir:** condiciones para cambiar el método/subcategoría después de elegirlos, y su relación con la confirmación de preparación.
+- **Bloqueo confirmado por el usuario:** una vez iniciada la batalla, cada juez conserva el método y la subcategoría elegidos hasta terminar. No se permiten cambios voluntarios durante la batalla. Se mantienen las transiciones obligatorias a voto libre ya acordadas para las réplicas y para resolver empates de tablas cuando no quedan réplicas permitidas.
+- **Pendiente de definir:** efecto de cambiar el método/subcategoría o el formato antes de empezar sobre las confirmaciones «Estoy listo».
 - **Estado técnico:** la votación individual aún no está implementada. El cálculo y el selector global existentes se mantienen mientras se termina de definir esta revisión.
 
 ### Votación clásica FMS: ejemplo del usuario y estructura confirmada
@@ -152,7 +153,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente común:** condiciones de cambio de métodos y subcategorías. La preparación, la tabla y el cálculo nuevos siguen sin implementarse.
+- **Pendiente común:** actualización de las confirmaciones de preparación ante cambios previos al inicio. La preparación, la tabla y el cálculo nuevos siguen sin implementarse.
 
 ### Votación por rondas (antes llamada «por patrón»)
 
@@ -164,7 +165,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Nombres propuestos:** «Rondas ganadas» (favorece al MC que gana más rondas) y «Puntaje acumulado» (favorece al MC con mayor suma de notas de todas las rondas). El usuario sugirió nombres como «voto completo»/«puntaje completo»; la denominación final aún puede ajustarse.
 - **Desempate final confirmado:** en ambas subcategorías se aplica la misma regla de FMS. Si el resultado final de ese juez empata tras completar todas las rondas, su voto es réplica cuando quede alguna permitida; si no, debe elegir MC1/MC2 mediante voto libre. Se aplica al total de rondas ganadas o de puntos, según la subcategoría elegida.
 - **Ronda empatada, confirmado:** en «Rondas ganadas», si los MC reciben la misma nota en una ronda (por ejemplo, 8–8), esa ronda no suma una victoria a ninguno. La comparación final se hace tras completar todas las rondas; si empatan en victorias se aplica el desempate final ya definido.
-- **Pendiente:** condiciones para elegir o cambiar la subcategoría.
+- La subcategoría también queda bloqueada durante la batalla, según la regla común confirmada.
 
 ### Voto libre: evaluación de la batalla completa
 
