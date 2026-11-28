@@ -255,6 +255,10 @@ Cada tarea es independiente en su ciclo de test; se commitea y pushea al termina
 
 **Restricciones comunes:** FMS 0–4 en pasos de 0,5; por rondas 0–10 enteros; mayoría absoluta; réplicas solo mientras estén permitidas; todo cambio crítico confirmado en BD antes de publicar. Consultar `docs/ENTORNO_LOCAL.md`: las pruebas de persistencia requieren PostgreSQL descartable. Respaldar y comprobar restauración antes de migrar una base existente; no ejecutar seeds, resets ni migraciones automáticas desde el lanzador. No copiar el HTML de maqueta a producción.
 
+### Dependencia de producto añadida el 28/11 — configuración por ronda
+
+Antes de ejecutar los bloques JV, reconciliar sus contratos con el [rediseño por ronda](../brainstorming/01-batalla-individual.md#intercambio-patrones-y-contenido--ampliación-del-2811): intercambio, patrones y contenido independientes por ronda, con las restricciones confirmadas de 4x4 y 16x16. Los tiempos por intervención, la unidad de patrón en los intercambios largos y su relación con las casillas FMS siguen por precisar. Contemplar Random Mode, Hard Mode y la parte a capella de Deluxe en reloj/conceptos y presentación, preservando salas previas. Con imagen es futuro. Los ejemplos de contratos que siguen no incorporan todavía este rediseño completo; no resolver esas dudas mediante supuestos de implementación.
+
 ### JV-01 — Cálculo puro y contratos compartidos
 
 **Archivos:** crear `packages/shared/src/judgeVoting.ts`, `apps/server/src/scoring/judgeVoting.ts` y `apps/server/src/scoring/judgeVoting.test.ts`; exportar contratos desde `packages/shared/src/index.ts`. Mantener `scoring.ts` para históricos y voto de sala.

@@ -6,9 +6,30 @@
 
 El alcance solicitado incluye las reglas de batalla de 1vs1 y torneo. El usuario pide una interfaz ordenada, menos técnica y con más explicaciones. Quedan por definir los pasos, las opciones disponibles y sus preselecciones concretas, salvo voto secreto y publicación automática del ganador, ya confirmados en la especificación. La elección del método de cada juez se mantiene aparte.
 
-**Configuración por ronda, confirmada:** el organizador elige la cantidad de rondas y configura de forma independiente el formato y la cantidad de entradas de cada una. No imponer un único formato o número de entradas a todas las rondas. Falta precisar qué opciones incluye «formato» (estructura de intercambio, contenido o ambos), los límites y las preselecciones; no dar por aprobados nuevos tipos de ronda. El contrato y las tablas de puntuación deberán contemplar las diferencias entre rondas cuando se prepare la implementación.
+**Configuración por ronda, confirmada:** el organizador elige la cantidad de rondas y configura de forma independiente el formato y la cantidad de entradas de cada una. No imponer un único formato o número de entradas a todas las rondas. Se confirma que «formato» abarca tanto intercambio como contenido, separados en el configurador. Las opciones y restricciones se detallan a continuación; las preselecciones concretas siguen abiertas. El contrato y las tablas de puntuación deberán contemplar las diferencias entre rondas cuando se prepare la implementación.
 
 El recorrido de creación del torneo conserva la inscripción guiada y la confirmación de titulares ya acordadas; este cambio no autoriza saltarlas. Compartir las piezas de configuración conforme al catálogo UI.
+
+### Intercambio, patrones y contenido — ampliación del 28/11
+
+**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas:
+
+| Elección | Opciones y reglas confirmadas |
+|---|---|
+| Intercambio | 4x4, 8x8, 12x12 (30 segundos) y 16x16 (1 minuto). Estos tiempos son los indicados por el usuario; precisar su alcance por intervención antes de calcular la duración total. |
+| Cantidad de patrones | 1, 2, 3, 4 o 5, con restricciones según intercambio. En 4x4, solo 3, 4 o 5; en 16x16, obligatoriamente 1 y con ida y vuelta en orden A → B → B → A. No asumir que ese «1» elimina la vuelta. |
+| Contenido | Libre, Con concepto/temática, Random Mode, Hard Mode y Deluxe. Con imagen queda para el futuro. |
+
+Contenido definido por el usuario:
+
+- **Libre:** solo rapean.
+- **Con concepto/temática:** un concepto en cada patrón.
+- **Random Mode:** una palabra cada 10 segundos.
+- **Hard Mode:** palabras cada 5 segundos.
+- **Deluxe:** 4x4; los primeros dos patrones de cada competidor son a capella. No confundirlos con solo dos patrones entre ambos. Se mantiene la restricción de al menos tres patrones para 4x4.
+- **Con imagen:** funcionalidad futura; no habilitarla como si estuviera disponible.
+
+**Pendiente de precisar, una cuestión a la vez:** si el minuto de 16x16 corresponde a cada una de las cuatro intervenciones y el alcance de los 30 segundos en 12x12; unidad exacta de «patrón» y su relación con intervenciones y casillas FMS en los intercambios largos; compatibilidad de contenidos con intercambios y mecanismo de avance; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 

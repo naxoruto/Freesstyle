@@ -152,7 +152,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - Cada ronda presenta una tabla con una fila por MC. «Gallo» en la imagen de referencia corresponde al nombre del MC.
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
-- Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
+- Easy Mode, Hard Mode, Temática, Personajes y Sangre eran referencias de la imagen; esa imagen no autorizó crear automáticamente todas esas modalidades. Posteriormente, el 28/11, el usuario definió contenidos específicos, incluidos Hard Mode y Con concepto/temática, en el [rediseño de configuración por ronda](../brainstorming/01-batalla-individual.md#intercambio-patrones-y-contenido--ampliación-del-2811). Ese rediseño está pendiente de completar y reconciliar con los contratos de evaluación; no interpretar la lista de la imagen como el nuevo catálogo.
 - **Estado de esta revisión:** reglas principales de métodos, resultados, réplicas y preparación confirmadas. La nueva preparación, las tablas y el cálculo por juez están documentados y pendientes de implementación; el código actual sigue usando los métodos globales anteriores.
 
 ### Votación por rondas (antes llamada «por patrón»)
