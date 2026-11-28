@@ -287,6 +287,8 @@ El usuario aprobó la [vista de juez](producto/propuestas/vista-juez.html) el 27
 
 ### 10.1 Sistema visual y reutilización de UI
 
+**Configuración de batallas (28/11; en definición):** rediseñar el configurador compartido de 1vs1 y torneo con explicaciones sencillas. Recorrido confirmado: quien crea avanza con «Siguiente» y opciones preseleccionadas, llega al lobby y puede editar antes del inicio. Falta acordar los pasos, las opciones y las preselecciones restantes; no implementar el diseño abierto como si estuviera aprobado. Conservar la inscripción del torneo y el método individual de cada juez. Reutilizar o extender el configurador y las primitivas del catálogo. Detalle en [brainstorming de batalla](producto/brainstorming/01-batalla-individual.md#configuración-guiada--decisión-del-28-de-noviembre-de-2026).
+
 **Objetivo:** que los controles comunes se comporten y se vean de forma coherente en toda la web, y que las nuevas funcionalidades consulten primero el catálogo de componentes antes de añadir una implementación paralela.
 
 El inventario inicial y el procedimiento de mantenimiento viven en [Guía de componentes UI](producto/GUIA_COMPONENTES_UI.md). La auditoría encontró componentes de dominio reutilizables, pero no una biblioteca compartida de controles básicos. La interfaz mezcla utilidades Tailwind, clases locales y estilos de página en `globals.css`; el trabajo debe consolidar primero los patrones compartidos y preservar tratamientos visuales específicos de cada producto donde sean intencionales.

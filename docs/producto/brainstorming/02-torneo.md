@@ -1,5 +1,9 @@
 # 2. Torneo
 
+## Configuración compartida de batallas — 28 de noviembre de 2026
+
+**Confirmado; pendiente de diseño completo e implementación.** El rediseño de configuración de batallas alcanza tanto torneo como 1vs1: quien crea avanza con «Siguiente», con opciones preseleccionadas, y puede editar después en la preparación previa al inicio. Detalle del recorrido y cuestiones abiertas en [configuración guiada](01-batalla-individual.md#configuración-guiada--decisión-del-28-de-noviembre-de-2026). Conservar la inscripción y confirmación de titulares del torneo; las notas anteriores de este archivo no sustituyen las decisiones vigentes de la especificación de torneo.
+
 ## Decisiones y temas abiertos del 23 de noviembre de 2026
 
 Estado: brainstorming; todavía no implementado. Esta sección prevalece sobre las propuestas anteriores.

@@ -1,5 +1,13 @@
 # 1. Batalla individual
 
+## Configuración guiada — decisión del 28 de noviembre de 2026
+
+**Confirmado; pendiente de diseño completo e implementación.** Quien crea la batalla (administrador u organizador) configura mediante pasos con «Siguiente» y opciones preseleccionadas. Al terminar llega al lobby, donde puede volver a cambiar la configuración antes de iniciar. Este recorrido sustituye, para el nuevo diseño, la recomendación histórica de configurar solamente después de crear la sala.
+
+El alcance solicitado incluye las reglas de batalla de 1vs1 y torneo. El usuario pide una interfaz ordenada, menos técnica y con más explicaciones. Quedan por definir los pasos, las opciones disponibles y sus preselecciones concretas, salvo voto secreto y publicación automática del ganador, ya confirmados en la especificación. La elección del método de cada juez se mantiene aparte.
+
+El recorrido de creación del torneo conserva la inscripción guiada y la confirmación de titulares ya acordadas; este cambio no autoriza saltarlas. Compartir las piezas de configuración conforme al catálogo UI.
+
 ## Decisiones del 23 de noviembre de 2026
 
 Estado: cambios de producto confirmados, pendientes de especificación final e implementación. Esta sección prevalece sobre las recomendaciones anteriores de este documento.
