@@ -159,7 +159,9 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Confirmado el 27/11/2026:** cada juez asigna una nota de 0 a 10 a cada MC por la ronda completa. Evalúa el conjunto de la actuación de esa ronda, sin calificar cada patrón ni usar la tabla detallada de FMS.
 - Ejemplo del usuario: en la primera ronda, A recibe 8 y B recibe 7; A gana esa ronda.
 - Se mantiene la regla común de aportar un único voto final por juez al terminar la batalla.
-- **Pendiente:** determinar si ese voto final depende de la cantidad de rondas ganadas o de la suma de sus notas; resolver empates y precisar si la escala admite decimales. No asumir una fórmula a partir del ejemplo de una sola ronda.
+- **Confirmado por el usuario:** ofrecer dos subcategorías a elegir, una que define el voto final por cantidad de rondas ganadas y otra que lo define por suma total de las notas. Se conservan ambas alternativas.
+- **Nombres propuestos:** «Rondas ganadas» (favorece al MC que gana más rondas) y «Puntaje acumulado» (favorece al MC con mayor suma de notas de todas las rondas). El usuario sugirió nombres como «voto completo»/«puntaje completo»; la denominación final aún puede ajustarse.
+- **Pendiente:** empates dentro de una ronda, empate final de cada subcategoría, pasos/decimales de la escala de 0 a 10 y condiciones para elegir o cambiar la subcategoría. La regla de empate FMS no se da por extendida a estos métodos hasta confirmarla.
 
 ### Voto libre: evaluación de la batalla completa
 
