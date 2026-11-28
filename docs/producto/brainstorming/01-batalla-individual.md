@@ -12,13 +12,13 @@ El recorrido de creación del torneo conserva la inscripción guiada y la confir
 
 ### Intercambio, patrones y contenido — ampliación del 28/11
 
-**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas. El usuario había confirmado cantidad de patrones antes del formato (intercambio y contenido), pero después plantea adelantar la elección de formato. El orden se reabre para aclarar qué elección debe ir primero; no dar por aprobado un nuevo orden todavía.
+**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas. El orden definitivo aprobado es Contenido → Intercambio → Cantidad de patrones, dentro de cada ronda. Sustituye la indicación anterior de elegir primero la cantidad de patrones.
 
 | Elección | Opciones y reglas confirmadas |
 |---|---|
-| Cantidad de patrones | 1, 2, 3, 4 o 5, con restricciones según intercambio. En 4x4, solo 3, 4 o 5; en 16x16, obligatoriamente 1 y con ida y vuelta en orden A → B → B → A. No asumir que ese «1» elimina la vuelta. |
-| Intercambio | 4x4, 8x8, 12x12 (30 segundos por intervención, alternando A → B → A → B…) y 16x16 (1 minuto por intervención). Se confirma que 16x16 recorre A → B → B → A, con un minuto en cada intervención: cuatro minutos de rap en total (dos por MC), sin contar pausas. En 12x12 no se impone la inversión B → A de la vuelta del 16x16; se mantiene la alternancia entre MC. |
 | Contenido | Libre, Con concepto/temática, Random Mode, Hard Mode y Deluxe. Con imagen queda para el futuro. |
+| Intercambio | 4x4, 8x8, 12x12 (30 segundos por intervención, alternando A → B → A → B…) y 16x16 (1 minuto por intervención). Se confirma que 16x16 recorre A → B → B → A, con un minuto en cada intervención: cuatro minutos de rap en total (dos por MC), sin contar pausas. En 12x12 no se impone la inversión B → A de la vuelta del 16x16; se mantiene la alternancia entre MC. |
+| Cantidad de patrones | 1, 2, 3, 4 o 5, con restricciones según intercambio. En 4x4, solo 3, 4 o 5; en 16x16, obligatoriamente 1 y con ida y vuelta en orden A → B → B → A. No asumir que ese «1» elimina la vuelta. |
 
 **Cómo se cuenta, confirmado:** en 4x4, 8x8 y 12x12, N patrones significa N intervenciones de cada MC, alternadas. Tres patrones producen A → B → A → B → A → B: tres intervenciones por MC y seis en total. Se conserva la excepción del 16x16: selector fijo en 1 con cuatro intervenciones A → B → B → A. Se confirma mostrar los formatos incompatibles con la cantidad seleccionada: visibles, deshabilitados y con una explicación del requisito. Ejemplos: «4x4 requiere al menos 3 patrones» y «16x16 requiere 1 patrón e incluye ida y vuelta». No sustituir esta regla por ocultarlos ni cambiar automáticamente la cantidad para habilitarlos.
 
@@ -31,9 +31,9 @@ Contenido definido por el usuario:
 - **Deluxe:** 4x4; los primeros dos patrones de cada competidor son a capella. No confundirlos con solo dos patrones entre ambos. Se mantiene la restricción de al menos tres patrones para 4x4.
 - **Con imagen:** funcionalidad futura; no habilitarla como si estuviera disponible.
 
-**Propuesta de orden, pendiente de aprobación:** elegir la cantidad de rondas y, dentro de cada ronda, Contenido → Intercambio → Cantidad de patrones. El contenido permite explicar las restricciones (por ejemplo, Deluxe requiere 4x4) y el intercambio determina las cantidades válidas. Esta propuesta no sustituye todavía el orden anterior como regla implementable.
+**Orden aprobado:** elegir la cantidad de rondas y, dentro de cada ronda, Contenido → Intercambio → Cantidad de patrones. El contenido permite explicar las restricciones (por ejemplo, Deluxe requiere 4x4) y el intercambio determina las cantidades válidas (16x16 requiere 1 e incluye ida y vuelta). Mantener opciones incompatibles visibles, deshabilitadas y explicadas. El diseño completo y su implementación siguen pendientes.
 
-**Pendiente de precisar, una cuestión a la vez:** orden definitivo de selección; correspondencia entre el patrón configurado, las intervenciones y las casillas FMS del 16x16; combinaciones restantes de contenido/intercambio y mecanismo de avance de conceptos y palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
+**Pendiente de precisar, una cuestión a la vez:** correspondencia entre el patrón configurado, las intervenciones y las casillas FMS del 16x16; combinaciones restantes de contenido/intercambio y mecanismo de avance de conceptos y palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 
