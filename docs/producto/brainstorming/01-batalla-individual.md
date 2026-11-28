@@ -25,7 +25,7 @@ El recorrido de creación del torneo conserva la inscripción guiada y la confir
 Contenido definido por el usuario:
 
 - **Libre:** solo rapean.
-- **Con concepto/temática:** la petición inicial indica un concepto en cada patrón. Se aclara para 16x16 que hay un solo concepto durante todo el minuto de intervención, aunque FMS lo evalúe en seis casillas. El concepto permanece durante ese minuto; falta definir si los MC comparten el mismo o reciben uno diferente, y precisar la frecuencia en los demás intercambios.
+- **Con concepto/temática:** la petición inicial indica un concepto en cada patrón. Se aclara para 16x16 que hay un solo concepto durante todo el minuto de intervención, aunque FMS lo evalúe en seis casillas. El concepto permanece durante ese minuto y ambos MC comparten el mismo, según la confirmación del usuario. Falta precisar si se conserva también en la vuelta B → A o cambia al comenzar esa vuelta, y la frecuencia en los demás intercambios.
 - **Random Mode:** una palabra cada 10 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16; el usuario corrige la restricción inicial a los dos intercambios largos.
 - **Hard Mode:** palabras cada 5 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16, conforme a la misma corrección.
 - **Deluxe:** 4x4; las primeras dos intervenciones de cada MC son a capella y todas las restantes continúan en 4x4 libre con base, según la confirmación del usuario. Son dos intervenciones a capella por MC, no dos entre ambos. Se mantiene la restricción de al menos tres intervenciones por MC para 4x4 y el límite configurado de hasta cinco.
@@ -44,7 +44,7 @@ Contenido definido por el usuario:
 
 N corresponde a las intervenciones configuradas por MC en 4x4, 8x8 y 12x12. El 16x16 mantiene su excepción ya acordada. A las casillas se suman Escena y Flow una vez por MC para toda la ronda.
 
-**Pendiente de precisar, una cuestión a la vez:** reparto de conceptos entre MC y frecuencia de cambio en los demás intercambios; combinaciones restantes de contenido/intercambio y mecanismo de avance de palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
+**Pendiente de precisar, una cuestión a la vez:** persistencia o cambio del concepto compartido al comenzar la vuelta del 16x16 y frecuencia de cambio en los demás intercambios; combinaciones restantes de contenido/intercambio y mecanismo de avance de palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 
