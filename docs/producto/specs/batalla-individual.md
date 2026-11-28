@@ -196,6 +196,8 @@ Dos configuraciones independientes de la batalla, solicitadas por el usuario y p
 
 **Anuncio del host, confirmado:** en modo «Solo host», después de recibir el veredicto, el host lo anuncia y pulsa «Veredicto anunciado». Esa acción habilita el resumen del ganador y los votos individuales en las pantallas de las demás personas. Antes de esa acción no se publica ese resumen. La política de votación en vivo conserva el acceso a notas/votos que ya se haya autorizado; el anuncio del resultado es una configuración independiente.
 
-Pendientes concretos: acceso entre jueces; comportamiento de la opción solo host cuando falta o se desconecta el host; valores iniciales de las opciones. La entrega del veredicto y la visibilidad de votos deben combinarse según esas decisiones, sin asumir que una opción cambia automáticamente la otra.
+**Reemplazo del host, confirmado:** si el host se desconecta antes de anunciar el resultado, el organizador puede recibir el veredicto, asumir el anuncio y pulsar «Veredicto anunciado». Se conserva el mismo resumen para los demás y la misma política de privacidad; la desconexión no publica automáticamente el resultado.
+
+Pendientes concretos: acceso entre jueces; selección del modo solo host cuando no hay host asignado desde la configuración inicial; valores iniciales de las opciones. La entrega del veredicto y la visibilidad de votos deben combinarse según esas decisiones, sin asumir que una opción cambia automáticamente la otra.
 
 La implementación actual fuerza `showScoresToSpectators: true` y difunde estados/resultados completos a la sala. Para cumplir la nueva configuración habrá que generar vistas autorizadas en el servidor para cada destinatario y aplicar el mismo filtro a eventos de estado, resultados, reconexión y consultas HTTP. Ocultar componentes de la web no implementa el voto privado. No dar por cambiada la visibilidad real hasta completar y verificar esa integración.
