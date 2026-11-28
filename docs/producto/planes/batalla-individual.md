@@ -391,9 +391,12 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Independencia aprobada:** cada juez ve solo sus propias notas hasta confirmar su voto final; ocultar notas y votos de otros jueces incluso en modo en vivo. Tras confirmar, aplicar la política de publicación sin abrir las tablas privadas. Probar la restricción también cuando comparte otros roles.
 
-**Punto de revisión de producto:** valores iniciales de votación en vivo/privada y entrega manual/para todos. Registrar la elección en la especificación antes de implementar sus valores predeterminados.
+**Valor inicial aprobado:** nuevas batallas en «Voto secreto» (privado); el organizador puede elegir votación en vivo durante la configuración previa al inicio. Mantener independiente el selector de entrega del veredicto.
+
+**Punto de revisión de producto:** valor inicial de entrega manual/para todos. Registrar la elección en la especificación antes de implementar ese valor predeterminado.
 
 - [ ] Añadir políticas persistidas y versionadas al snapshot de JV-02, diferenciadas del método individual de cada juez. No reutilizar el booleano global forzado como única regla de privacidad.
+- [ ] Probar que una batalla nueva empieza con voto secreto y que seleccionar en vivo antes de iniciar cambia esa política sin alterar la forma de entrega del veredicto. La adopción del valor inicial no reconfigura silenciosamente salas históricas activas.
 - [ ] Crear una función de proyección de estado/resultados que reciba identidad y roles autenticados del destinatario. Probar público, ambos MC, juez, organizador y host, incluyendo personas con múltiples roles. La exclusión de MC en el modo en vivo debe respetarse.
 - [ ] Probar dos jueces antes y después de confirmar: ninguno recibe notas/votos ajenos antes de su voto final, aunque el público sí los vea en vivo. Un juez con rol adicional no puede eludir la restricción. En modo privado no se revelan tablas ajenas después de confirmar.
 - [ ] Aplicar las proyecciones a `battle:state`, resultados/veredictos, entrada/reconexión, consultas HTTP e históricos consultables. Mantener las notas editables privadas de su autor salvo lo expresamente aprobado en la política.
