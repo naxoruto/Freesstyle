@@ -257,7 +257,7 @@ Cada tarea es independiente en su ciclo de test; se commitea y pushea al termina
 
 ### Dependencia de producto añadida el 28/11 — configuración por ronda
 
-Antes de ejecutar los bloques JV, reconciliar sus contratos con el [rediseño por ronda](../brainstorming/01-batalla-individual.md#intercambio-patrones-y-contenido--ampliación-del-2811): intercambio, patrones y contenido independientes por ronda, con las restricciones confirmadas de 4x4 y 16x16. Los tiempos por intervención, la unidad de patrón en los intercambios largos y su relación con las casillas FMS siguen por precisar. Contemplar Random Mode, Hard Mode y la parte a capella de Deluxe en reloj/conceptos y presentación, preservando salas previas. Con imagen es futuro. Los ejemplos de contratos que siguen no incorporan todavía este rediseño completo; no resolver esas dudas mediante supuestos de implementación.
+Antes de ejecutar los bloques JV, reconciliar sus contratos con el [rediseño por ronda](../brainstorming/01-batalla-individual.md#intercambio-patrones-y-contenido--ampliación-del-2811): intercambio, patrones y contenido independientes por ronda, con las restricciones confirmadas de 4x4 y 16x16. Se confirma un minuto por intervención de 16x16 en orden A → B → B → A (cuatro minutos de rap). El alcance de los 30 segundos de 12x12, la unidad de patrón en los intercambios largos y su relación con las casillas FMS siguen por precisar. Contemplar Random Mode, Hard Mode y la parte a capella de Deluxe en reloj/conceptos y presentación, preservando salas previas. Con imagen es futuro. Los ejemplos de contratos que siguen no incorporan todavía este rediseño completo; no resolver esas dudas mediante supuestos de implementación.
 
 ### JV-01 — Cálculo puro y contratos compartidos
 
