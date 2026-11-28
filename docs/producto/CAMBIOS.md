@@ -58,6 +58,8 @@ El 26 de noviembre de 2026 se añadió `Iniciar Freestyle.cmd` para iniciar web 
 
 ## Registro de decisiones nuevas
 
+Aclaración del 27/11/2026: cuando no se permiten más réplicas, tampoco se permite emitir ese voto. Se registra la restricción para interfaz y validación del servidor; la votación individual nueva sigue pendiente de implementación. La respuesta no confirma todavía cómo resolver un reparto 2/2/1 cuando sí quedan réplicas disponibles.
+
 Se confirma para la Votación clásica FMS la suma de todas las rondas por juez: su voto final va al MC con mayor total; empate exacto produce un voto de réplica. En las réplicas, todos los jueces usan obligatoriamente voto libre, independientemente del método original. Pueden pedir otra réplica solo si quedan disponibles según el límite configurado; al agotarlas deben elegir MC1/MC2. Faltan resolver la combinación sin mayoría y el empate automático FMS si no se permiten réplicas. Estas reglas están documentadas y pendientes de implementación.
 
 El usuario denomina «Votación clásica FMS» a la nueva tabla descrita como rúbrica, y confirma puntuación de patrones, Escena y Flow de 0 a 4 en pasos de 0,5. Escena y Flow se califican una vez por MC para toda la ronda. Se confirma suma directa de patrones + Escena + Flow, sin multiplicadores (máximo de 24 puntos por MC y ronda con cuatro patrones). Se confirma sumar todas las rondas por juez: el mayor total determina su voto y un empate exacto produce voto de réplica. Es una decisión de producto registrada, todavía sin cambio del selector ni del cálculo en la aplicación; detalle en [especificación §13](specs/batalla-individual.md).
