@@ -393,10 +393,11 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Valor inicial aprobado:** nuevas batallas en «Voto secreto» (privado); el organizador puede elegir votación en vivo durante la configuración previa al inicio. Mantener independiente el selector de entrega del veredicto.
 
-**Punto de revisión de producto:** valor inicial de entrega manual/para todos. Registrar la elección en la especificación antes de implementar ese valor predeterminado.
+**Entrega predeterminada aprobada:** mostrar automáticamente el ganador a todos cuando se resuelve el resultado final, con consulta de votos individuales. El organizador puede elegir anuncio manual del host/organizador antes de empezar. Mantener independientes esta opción y el voto secreto/en vivo.
 
 - [ ] Añadir políticas persistidas y versionadas al snapshot de JV-02, diferenciadas del método individual de cada juez. No reutilizar el booleano global forzado como única regla de privacidad.
 - [ ] Probar que una batalla nueva empieza con voto secreto y que seleccionar en vivo antes de iniciar cambia esa política sin alterar la forma de entrega del veredicto. La adopción del valor inicial no reconfigura silenciosamente salas históricas activas.
+- [ ] Probar que la entrega inicial es automática para todos y que el anuncio manual sigue disponible. Con voto secreto, el resumen final permite consultar ganador y votos individuales, sin revelar notas ni tablas; la opción de entrega no altera la privacidad.
 - [ ] Crear una función de proyección de estado/resultados que reciba identidad y roles autenticados del destinatario. Probar público, ambos MC, juez, organizador y host, incluyendo personas con múltiples roles. La exclusión de MC en el modo en vivo debe respetarse.
 - [ ] Probar dos jueces antes y después de confirmar: ninguno recibe notas/votos ajenos antes de su voto final, aunque el público sí los vea en vivo. Un juez con rol adicional no puede eludir la restricción. En modo privado no se revelan tablas ajenas después de confirmar.
 - [ ] Aplicar las proyecciones a `battle:state`, resultados/veredictos, entrada/reconexión, consultas HTTP e históricos consultables. Mantener las notas editables privadas de su autor salvo lo expresamente aprobado en la política.
