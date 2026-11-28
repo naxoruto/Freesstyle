@@ -12,7 +12,7 @@ El recorrido de creación del torneo conserva la inscripción guiada y la confir
 
 ### Intercambio, patrones y contenido — ampliación del 28/11
 
-**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas. El usuario confirma el orden de configuración: primero la cantidad de patrones y después el formato de esos patrones (intercambio y contenido).
+**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas. El usuario había confirmado cantidad de patrones antes del formato (intercambio y contenido), pero después plantea adelantar la elección de formato. El orden se reabre para aclarar qué elección debe ir primero; no dar por aprobado un nuevo orden todavía.
 
 | Elección | Opciones y reglas confirmadas |
 |---|---|
@@ -26,12 +26,14 @@ Contenido definido por el usuario:
 
 - **Libre:** solo rapean.
 - **Con concepto/temática:** un concepto en cada patrón.
-- **Random Mode:** una palabra cada 10 segundos.
-- **Hard Mode:** palabras cada 5 segundos.
+- **Random Mode:** una palabra cada 10 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16; el usuario corrige la restricción inicial a los dos intercambios largos.
+- **Hard Mode:** palabras cada 5 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16, conforme a la misma corrección.
 - **Deluxe:** 4x4; los primeros dos patrones de cada competidor son a capella. No confundirlos con solo dos patrones entre ambos. Se mantiene la restricción de al menos tres patrones para 4x4.
 - **Con imagen:** funcionalidad futura; no habilitarla como si estuviera disponible.
 
-**Pendiente de precisar, una cuestión a la vez:** correspondencia entre el patrón configurado, las intervenciones y las casillas FMS del 16x16; compatibilidad de contenidos con intercambios y mecanismo de avance; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
+**Propuesta de orden, pendiente de aprobación:** elegir la cantidad de rondas y, dentro de cada ronda, Contenido → Intercambio → Cantidad de patrones. El contenido permite explicar las restricciones (por ejemplo, Deluxe requiere 4x4) y el intercambio determina las cantidades válidas. Esta propuesta no sustituye todavía el orden anterior como regla implementable.
+
+**Pendiente de precisar, una cuestión a la vez:** orden definitivo de selección; correspondencia entre el patrón configurado, las intervenciones y las casillas FMS del 16x16; combinaciones restantes de contenido/intercambio y mecanismo de avance de conceptos y palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 
