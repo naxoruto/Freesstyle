@@ -251,7 +251,7 @@ Cada tarea es independiente en su ciclo de test; se commitea y pushea al termina
 
 **Arquitectura prevista:** extraer cálculo puro y validaciones a módulos pequeños; orquestar las acciones de jueces mediante la cola por sala existente. Añadir un estado versionado y persistido de preparación/planillas/veredictos; mantener una ruta explícita para salas antiguas sin ese estado. La UI consume el método del juez autenticado y reutiliza el catálogo compartido.
 
-**Estado:** diseño y reglas principales aprobados; todos los bloques de implementación están pendientes. No reiniciar tareas históricas T1–T11. Confirmada la edición de rondas anteriores hasta emitir el voto final; concretar la acción de cierre de planillas en JV-04 antes de conectar esos eventos.
+**Estado:** diseño y reglas principales aprobados; todos los bloques de implementación están pendientes. No reiniciar tareas históricas T1–T11. Confirmadas la edición de rondas anteriores hasta el voto final y la acción «Confirmar planilla». La ampliación de visibilidad/entrega de veredicto requiere las precisiones indicadas en JV-07 antes de conectar su difusión.
 
 **Restricciones comunes:** FMS 0–4 en pasos de 0,5; por rondas 0–10 enteros; mayoría absoluta; réplicas solo mientras estén permitidas; todo cambio crítico confirmado en BD antes de publicar. Consultar `docs/ENTORNO_LOCAL.md`: las pruebas de persistencia requieren PostgreSQL descartable. Respaldar y comprobar restauración antes de migrar una base existente; no ejecutar seeds, resets ni migraciones automáticas desde el lanzador. No copiar el HTML de maqueta a producción.
 
@@ -338,7 +338,7 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Edición aprobada:** el juez puede corregir notas de rondas anteriores durante la batalla hasta emitir su voto final. No bloquear una ronda solo porque cambió el turno/ronda actual. Cubrir que el total se recalcula al modificar una nota anterior y que no se cuenta un borrador como voto final.
 
-**Punto de revisión de producto antes de conectar notas:** confirmar la acción que cierra la planilla y dispara el cálculo automático al finalizar la batalla. Propuesta concreta: botón «Confirmar planilla». Registrar esa decisión en la especificación antes de implementar el cierre; la edición ya está aprobada.
+**Cierre aprobado:** al finalizar, «Confirmar planilla» cierra las notas completas y activa el cálculo automático del voto. Guardar un borrador no equivale a votar. Si el cálculo devuelve `needs_free_vote`, solicitar la elección MC1/MC2 antes de agregar el voto definitivo de ese juez al comité. Cubrir doble confirmación, planilla incompleta y fallo de almacenamiento sin publicar un veredicto.
 
 **Interfaz de evaluación:** un juez de FMS acumula tablas por ronda; `round_wins` acumula victorias; `round_total` suma notas; `free` recibe una elección al cierre. Los cálculos puros de JV-01 generan el veredicto de los métodos con notas; el juez no puede reemplazarlo manualmente salvo `needs_free_vote`.
 
@@ -375,4 +375,19 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 - [ ] Ejecutar pruebas de scoring, sala, validación, persistencia y recuperación, typecheck y builds. Añadir resultados reales al plan; no registrar los casos pendientes como comprobados.
 - [ ] Revisar cambios por secretos, solicitar revisión de código, resolver bloqueos, commitear y subir a la rama configurada.
 
-**Orden:** JV-01 → JV-02 → JV-03 → revisión de edición de notas → JV-04 → JV-05 → JV-06. El diseño aprobado habilita preparar estos bloques; no equivale a afirmar que ya estén implementados.
+### JV-07 — Visibilidad autorizada y entrega del veredicto
+
+**Archivos:** crear `apps/server/src/rooms/battleViews.ts` y `battleViews.test.ts`; modificar contratos compartidos, serialización/persistencia y puntos de emisión en `apps/server/src/index.ts`; añadir controles a la configuración de batalla y consumo de vistas autorizadas en la web.
+
+**Producto confirmado:** dos ajustes independientes: votación en vivo/privada y veredicto solo al host/en pantallas de todos. En vivo permite al público ver votos de jueces, excluyendo a los MC que compiten. En ambos modos de entrega debe existir consulta del desglose por juez.
+
+**Punto de revisión de producto:** concretar si se difunden notas provisionales o solo veredictos confirmados; momento/destinatarios del desglose y anuncio del host; ausencia del host; valores iniciales. Registrar cada respuesta en la especificación antes de implementar la correspondiente difusión.
+
+- [ ] Añadir políticas persistidas y versionadas al snapshot de JV-02, diferenciadas del método individual de cada juez. No reutilizar el booleano global forzado como única regla de privacidad.
+- [ ] Crear una función de proyección de estado/resultados que reciba identidad y roles autenticados del destinatario. Probar público, ambos MC, juez, organizador y host, incluyendo personas con múltiples roles. La exclusión de MC en el modo en vivo debe respetarse.
+- [ ] Aplicar las proyecciones a `battle:state`, resultados/veredictos, entrada/reconexión, consultas HTTP e históricos consultables. Mantener las notas editables privadas de su autor salvo lo expresamente aprobado en la política.
+- [ ] En modo solo host, entregar a ese destinatario el veredicto y aplicar al resto la vista aprobada para el periodo previo al anuncio. Probar que los payloads restringidos no contienen el ganador ni datos ocultos mediante otro evento o endpoint.
+- [ ] Reutilizar los controles UI existentes para ambos selectores y para consultar el desglose. No presentar el voto privado como un simple filtro visual de datos ya enviados al navegador.
+- [ ] Ejecutar pruebas unitarias de proyección sin BD y pruebas de reconexión/persistencia en base descartable; verificar las dos políticas en sesiones independientes de público, MC y host. Commit `feat(battle): enforce vote visibility and verdict delivery`.
+
+**Orden actualizado:** JV-01 → JV-02 → JV-03 → JV-04 → definiciones de visibilidad → JV-07 → JV-05 → JV-06. La integración completa de votos y veredictos requiere JV-07 para respetar las nuevas opciones. El diseño y el plan no equivalen a una implementación terminada.

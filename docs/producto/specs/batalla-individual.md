@@ -182,5 +182,16 @@ El usuario aprueba con «Me gusta» la [maqueta de las tres vistas](../propuesta
 - Por rondas: tabla de notas por ronda y MC, con resultado de cada ronda y resumen según la subcategoría. La maqueta muestra «Rondas ganadas»; implementar también «Puntaje acumulado» con las reglas confirmadas.
 - Voto libre: durante la batalla se conserva el contexto; la selección del ganador aparece al cierre. La maqueta muestra el cierre y una confirmación explícita del voto.
 - Edición confirmada por el usuario: el juez puede volver a rondas anteriores y corregir sus notas mientras la batalla sigue en curso, hasta emitir su voto final. Se aplica a las planillas de FMS y votación por rondas; una ronda terminada no bloquea automáticamente sus notas. Tras emitirse el voto final, las notas quedan cerradas para ese veredicto.
-- Detalle operativo todavía por concretar: la acción que cierra la planilla al finalizar la batalla y dispara el cálculo automático del voto. Propuesta: «Confirmar planilla», sin elección manual del ganador salvo las excepciones de empate ya confirmadas. Todavía no está aprobada esa acción específica.
+- Cierre confirmado: al terminar la batalla, el juez pulsa «Confirmar planilla» para cerrar sus notas y activar el cálculo automático de su voto. Se conservan las excepciones de empate ya acordadas; si no hay réplica permitida, debe completar el veredicto mediante la elección libre MC1/MC2. Un borrador guardado no constituye un voto final.
 - Reutilización prevista en la aplicación: `Timer`, `WordDisplay`, `Button`, `Panel`, `Alert` y `Dialog`, adaptando el área de puntuación a las tablas confirmadas. No copiar el HTML de maqueta como un segundo sistema de componentes.
+
+### Visibilidad de votación y entrega del veredicto — 27/11/2026
+
+Dos configuraciones independientes de la batalla, solicitadas por el usuario y pendientes de implementación:
+
+1. **Votación en vivo / voto privado.** En vivo permite que el público vea en directo qué votó cada juez. Los MC que están compitiendo no tienen ese acceso. En privado no se muestra al público la votación en vivo. Falta precisar si «en vivo» incluye las notas provisionales editables o solo el veredicto individual confirmado, y el acceso entre jueces.
+2. **Veredicto solo al host / ganador en la pantalla de todos.** Cuando hay host, se puede entregar el veredicto solo a él para que lo anuncie; la aplicación funciona como herramienta. La alternativa muestra el ganador a todas las personas de la sala. El desglose de lo que votó cada juez debe poder consultarse en ambos casos.
+
+Pendientes concretos: destinatarios y momento de consulta del desglose privado o en modo solo host; acción de anuncio/publicación si la hubiera; comportamiento de la opción solo host cuando falta o se desconecta el host; valores iniciales de las opciones. La entrega del veredicto y la visibilidad de votos deben combinarse según esas decisiones, sin asumir que una opción cambia automáticamente la otra.
+
+La implementación actual fuerza `showScoresToSpectators: true` y difunde estados/resultados completos a la sala. Para cumplir la nueva configuración habrá que generar vistas autorizadas en el servidor para cada destinatario y aplicar el mismo filtro a eventos de estado, resultados, reconexión y consultas HTTP. Ocultar componentes de la web no implementa el voto privado. No dar por cambiada la visibilidad real hasta completar y verificar esa integración.
