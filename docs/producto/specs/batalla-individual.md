@@ -173,13 +173,13 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - Las reglas específicas ya confirmadas para las réplicas permanecen: todos usan voto libre y pueden pedir otra réplica únicamente si queda alguna permitida; al agotarlas deben elegir MC1/MC2.
 - Esta definición, la votación por rondas y la nueva tabla FMS siguen pendientes de implementación; el código aún contiene los métodos globales anteriores.
 
-### Propuesta visual de la vista de juez — 27/11/2026
+### Diseño visual aprobado de la vista de juez — 27/11/2026
 
-El usuario solicita diseñar cómo verá cada juez la batalla antes de implementar esta revisión. [Maqueta de las tres vistas](../propuestas/vista-juez.html), con datos de ejemplo e interacciones locales. Es una propuesta para revisar; no es una pantalla de la aplicación ni cambia sus reglas implementadas.
+El usuario aprueba con «Me gusta» la [maqueta de las tres vistas](../propuestas/vista-juez.html). Se adopta como base visual para implementar la experiencia del juez. La maqueta contiene datos de ejemplo e interacciones locales; la integración con la aplicación sigue pendiente.
 
-- Propuesta común: cabecera con los MC, método bloqueado, ronda, turno y reloj; área central específica del método.
-- Propuesta FMS: tabla de la ronda actual con sus patrones, Escena y Flow, parcial de esa ronda y acceso a la anterior. En pantallas estrechas se agrupan las casillas por MC.
-- Propuesta por rondas: tabla de notas por ronda y MC, con resultado de cada ronda y resumen según la subcategoría. La maqueta muestra «Rondas ganadas».
-- Propuesta de voto libre: durante la batalla se conserva el contexto; la selección del ganador aparece al cierre. La maqueta muestra el cierre y una confirmación explícita del voto como propuesta de interacción.
-- Pendiente de revisión: si FMS debe mostrar toda la planilla de rondas a la vez o centrarse en la ronda actual; disposición final para móvil y escritorio y comportamiento de edición/confirmación de notas. Ninguna de estas propuestas visuales se da por aprobada todavía.
+- Base común aprobada: cabecera con los MC, método bloqueado, ronda, turno y reloj; área central específica del método.
+- FMS aprobado: tabla de la ronda actual con sus patrones, Escena y Flow, parcial de esa ronda y acceso a las anteriores. En pantallas estrechas se agrupan las casillas por MC.
+- Por rondas: tabla de notas por ronda y MC, con resultado de cada ronda y resumen según la subcategoría. La maqueta muestra «Rondas ganadas»; implementar también «Puntaje acumulado» con las reglas confirmadas.
+- Voto libre: durante la batalla se conserva el contexto; la selección del ganador aparece al cierre. La maqueta muestra el cierre y una confirmación explícita del voto.
+- Detalle operativo por concretar antes de conectar la edición de notas: cuándo se cierra una planilla y si pueden modificarse notas de rondas anteriores mientras la batalla sigue en curso. La aprobación del aspecto visual no se interpreta como aprobación de estas reglas.
 - Reutilización prevista en la aplicación: `Timer`, `WordDisplay`, `Button`, `Panel`, `Alert` y `Dialog`, adaptando el área de puntuación a las tablas confirmadas. No copiar el HTML de maqueta como un segundo sistema de componentes.

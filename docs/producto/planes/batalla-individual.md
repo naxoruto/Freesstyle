@@ -14,7 +14,7 @@ Cambios solicitados e implementados: copia sin desplazamiento; formato en modal;
 
 **Tech Stack:** TypeScript, React 18, Next.js 14, Prisma/PostgreSQL, Socket.IO, vitest (server).
 
-**Spec:** [batalla-individual.md](../producto/specs/batalla-individual.md)
+**Spec:** [batalla-individual.md](../specs/batalla-individual.md)
 
 ## Global Constraints
 
@@ -244,3 +244,133 @@ T12 (WEB-03 + WEB-01)  [enabler, intercalado con T6]
 T1 → T2 → T3 (configuración y modo, backend) · T4 → T5 (seguridad) · T6 → T7 → T8 → T9 (UI) · T10 → T11 (exhibición y cierre) · T12 (refactor final).
 
 Cada tarea es independiente en su ciclo de test; se commitea y pushea al terminar.
+
+## Revisión de jueces — plan de implementación, 27/11/2026
+
+**Objetivo:** integrar los métodos individuales y la vista de juez aprobada, con preparación previa, persistencia y un único veredicto por juez al finalizar.
+
+**Arquitectura prevista:** extraer cálculo puro y validaciones a módulos pequeños; orquestar las acciones de jueces mediante la cola por sala existente. Añadir un estado versionado y persistido de preparación/planillas/veredictos; mantener una ruta explícita para salas antiguas sin ese estado. La UI consume el método del juez autenticado y reutiliza el catálogo compartido.
+
+**Estado:** diseño y reglas principales aprobados; todos los bloques de implementación están pendientes. No reiniciar tareas históricas T1–T11. Concretar el cierre/edición de planillas en JV-04 antes de conectar esos eventos.
+
+**Restricciones comunes:** FMS 0–4 en pasos de 0,5; por rondas 0–10 enteros; mayoría absoluta; réplicas solo mientras estén permitidas; todo cambio crítico confirmado en BD antes de publicar. Consultar `docs/ENTORNO_LOCAL.md`: las pruebas de persistencia requieren PostgreSQL descartable. Respaldar y comprobar restauración antes de migrar una base existente; no ejecutar seeds, resets ni migraciones automáticas desde el lanzador. No copiar el HTML de maqueta a producción.
+
+### JV-01 — Cálculo puro y contratos compartidos
+
+**Archivos:** crear `packages/shared/src/judgeVoting.ts`, `apps/server/src/scoring/judgeVoting.ts` y `apps/server/src/scoring/judgeVoting.test.ts`; exportar contratos desde `packages/shared/src/index.ts`. Mantener `scoring.ts` para históricos y voto de sala.
+
+**Interfaces a introducir:**
+
+```ts
+export type JudgeMethod = "fms_classic" | "round_wins" | "round_total" | "free";
+export type JudgeVerdict = "mc1" | "mc2" | "replica";
+export interface FmsRoundGrade {
+  patterns: (number | null)[];
+  scene: number | null;
+  flow: number | null;
+}
+export type AutomaticVerdict = JudgeVerdict | "needs_free_vote";
+// Exportadas desde el módulo de cálculo del servidor:
+export function sumFmsRound(grade: FmsRoundGrade): number | null;
+export function resolveTotals(mc1: number, mc2: number, canReplica: boolean): AutomaticVerdict;
+export function resolveRoundWins(rounds: { mc1: number; mc2: number }[], canReplica: boolean): AutomaticVerdict;
+export function resolveCommittee(votes: JudgeVerdict[], canReplica: boolean): JudgeVerdict;
+```
+
+- [ ] Escribir y ejecutar pruebas de las reglas: 4 patrones máximos → 24; 0 válido y celda vacía incompleta; rechazar negativos, >4 y pasos como 0,25; rechazar 7,5 en notas por ronda; empates internos no dan victorias.
+- [ ] Cubrir diferencias entre subcategorías y veredictos sin réplicas con estos casos:
+
+```ts
+expect(resolveRoundWins([{ mc1: 8, mc2: 7 }, { mc1: 8, mc2: 7 }, { mc1: 0, mc2: 10 }], true)).toBe("mc1");
+expect(resolveTotals(16, 24, true)).toBe("mc2");
+expect(resolveTotals(24, 24, false)).toBe("needs_free_vote");
+expect(resolveCommittee(["mc1", "mc1", "mc2", "mc2", "replica"], true)).toBe("replica");
+expect(resolveCommittee(["mc1", "mc1", "mc1", "mc2", "replica"], true)).toBe("mc1");
+```
+
+- [ ] Implementar sumas y validaciones sin dependencias de Socket.IO/Prisma. El voto de sala mantiene su propio cálculo; `resolveCommittee` valida 1/3/5 veredictos completos y rechaza `replica` cuando no está permitida. El desempate automático aplica:
+
+```ts
+if (mc1 > mc2) return "mc1";
+if (mc2 > mc1) return "mc2";
+return canReplica ? "replica" : "needs_free_vote";
+```
+
+- [ ] Ejecutar desde `apps/server`: `.\node_modules\.bin\vitest.cmd run src/scoring/judgeVoting.test.ts src/scoring/scoring.test.ts`; deben pasar ambas suites, sin BD.
+- [ ] Revisar el diff y commitear como `feat(scoring): add individual judge verdict rules`.
+
+### JV-02 — Persistencia versionada y recuperación
+
+**Archivos:** modificar `packages/shared/src/judgeVoting.ts`, `packages/shared/src/types.ts`, `apps/server/prisma/schema.prisma`, `apps/server/src/rooms/battlePersistence.ts`; añadir migración aditiva y pruebas en `apps/server/src/rooms/battlePersistence.test.ts`.
+
+**Contrato persistido:** añadir `judgeVoting` opcional a `Battle`, con un snapshot versionado. Una sala sin este snapshot conserva el recorrido anterior. El snapshot tendrá `version`, `formatRevision` y un registro por `judgeId` con `method`, `readyRevision`, planillas por ronda y veredicto por fase normal/réplica. `null` representa notas sin completar; no convertirlas en cero.
+
+- [ ] Añadir prueba de ida/vuelta que escriba una planilla con `0`, `0.5` y `null`, recupere el método y no intercambie los MC después de elegir el primer turno.
+- [ ] Crear migración que añada únicamente un campo JSON nullable a `LiveBattle` para el snapshot, sin reescribir votos/resultados históricos. Extender ambos serializadores (`serializeBattle` y `serializeBattleUpdate`) y `deserializeBattle`.
+- [ ] Crear operaciones durables mediante `enqueueBattleWrite` y transacción; copiar el snapshot antes de esperar. Un fallo conserva la última versión válida y no publica el cambio.
+- [ ] Añadir pruebas de rechazo de escritura, reconexión y reinicio para configuración, preparación, notas y veredictos. Recargar una batalla iniciada la conserva pausada; los MC presenciales no necesitan sesión digital.
+- [ ] En la base descartable, ejecutar migraciones y `.\node_modules\.bin\vitest.cmd run src/rooms/battlePersistence.test.ts src/rooms/battleRecovery.test.ts` desde `apps/server`. Esperar recuperación idéntica y ninguna pérdida de históricos.
+- [ ] Revisar migración y secretos; commit `feat(persistence): store versioned judge voting snapshots`.
+
+### JV-03 — Preparación, permisos y bloqueo al iniciar
+
+**Archivos:** modificar `packages/shared/src/types.ts`, `apps/server/src/security/socketPayload.ts`, `apps/server/src/rooms/battleRoom.ts`, `apps/server/src/index.ts`; ampliar `battleRoom.test.ts` y `socketPayload.test.ts`.
+
+**Eventos:** `judge:set_method` recibe `{ method: JudgeMethod }`; `judge:set_ready` recibe `{ formatRevision: number }`. El servidor identifica al juez mediante su sesión y no acepta un `judgeId` arbitrario en el payload. Cada operación entra por la cola de sala y persiste antes de emitir `battle:state`.
+
+- [ ] Escribir pruebas de método independiente para dos jueces, rechazo de un espectador, invalidación de preparación individual al cambiar método y global al modificar formato. Cubrir confirmación enviada para una revisión anterior:
+
+```ts
+// Contrato de preparación: solo corresponde a la revisión que el juez vio.
+const isReady = judge.readyRevision === snapshot.formatRevision;
+// Iniciar exige que todos los jueces estén conectados, tengan método y estén listos.
+```
+
+- [ ] Implementar elección por juez antes de comenzar, restablecer su `readyRevision` al cambiar método y aumentar `formatRevision` cuando cambie el formato. Altas de jueces comienzan sin método ni confirmación.
+- [ ] Hacer que `battle:start` valide todos los requisitos vigentes más la preparación en la misma acción serializada. No activar ningún temporizador antes de que el organizador inicie. Rechazar cambios voluntarios de método cuando la batalla ya comenzó.
+- [ ] Mantener Exhibición sin jueces y el voto de sala separados de este requisito de jueces. Desconectar a un juez durante preparación bloquea el inicio; no sustituirlo ni reducir la mesa silenciosamente.
+- [ ] Ejecutar `.\node_modules\.bin\vitest.cmd run src/rooms/battleRoom.test.ts src/security/socketPayload.test.ts`; esperar rechazo de confirmaciones obsoletas y de cambios de método durante la batalla.
+- [ ] Commit `feat(battle): require individual judge readiness before countdown`.
+
+### JV-04 — Notas, cierre de batalla y réplicas
+
+**Archivos:** modificar `apps/server/src/rooms/battleRoom.ts`, `apps/server/src/index.ts`, `apps/server/src/security/socketPayload.ts`, `packages/shared/src/judgeVoting.ts`; ampliar pruebas unitarias y de recuperación.
+
+**Punto de revisión de producto antes de conectar notas:** confirmar con el usuario cuándo se cierra una planilla y si puede corregir notas de rondas anteriores durante la batalla. Mostrar la propuesta concreta en la vista aprobada; registrar la decisión en la especificación antes de implementar esos permisos. La aprobación visual no resuelve esa regla.
+
+**Interfaz de evaluación:** un juez de FMS acumula tablas por ronda; `round_wins` acumula victorias; `round_total` suma notas; `free` recibe una elección al cierre. Los cálculos puros de JV-01 generan el veredicto de los métodos con notas; el juez no puede reemplazarlo manualmente salvo `needs_free_vote`.
+
+- [ ] Cubrir una mesa mixta FMS/por rondas/libre con un único voto de igual peso por juez y un único resultado después de todas las rondas. Las rondas intermedias no deciden ganador de batalla ni disparan réplicas.
+- [ ] Introducir los eventos de notas conforme al permiso de edición confirmado en el punto anterior; validar valores, número de patrones, rango de ronda, participante real de la sala y método del juez autenticado. No aceptar notas del método de otro juez.
+- [ ] Esperar planillas completas antes de resolver un voto automático. Persistir notas y veredictos, y calcular el resultado final con `resolveCommittee` en la cola existente.
+- [ ] En cada réplica forzar voto libre efectivo para todos; conservar el método original para trazabilidad. Usar la clave `(sala, réplica, juez)` para no mezclar resultados; rechazar un voto de otra réplica o un segundo voto final ya confirmado.
+- [ ] Cubrir el último cupo de réplica, voto de réplica fuera de límite, empate FMS sin cupo → voto libre obligatorio, mayoría 2/3 y 3/5 y fallo de persistencia antes de publicar.
+- [ ] Ejecutar las pruebas unitarias de JV-01/JV-03 y las de recuperación sobre base descartable. Commit `feat(battle): resolve mixed judge methods at battle close`.
+
+### JV-05 — Integrar las tres vistas aprobadas con componentes compartidos
+
+**Archivos nuevos de dominio:** `apps/web/src/components/judge/JudgeWorkspace.tsx`, `FmsJudgeSheet.tsx`, `RoundJudgeSheet.tsx`, `FreeJudgeBallot.tsx`. Modificar `apps/web/src/app/battle/[id]/page.tsx`, `apps/web/src/components/BattleLobby.tsx`, `BattleModeSelector.tsx` y `docs/producto/GUIA_COMPONENTES_UI.md`.
+
+**Contrato UI:** `JudgeWorkspace` recibe la batalla, el estado del juez autenticado y callbacks de notas/veredicto implementados en JV-03/JV-04. Los componentes no acceden directamente a Prisma ni crean sockets propios. Extraer el estado del juez en el orquestador y pasarlo por props; los controles de presentación no deciden permisos.
+
+- [ ] Revisar primero el catálogo. Reutilizar `Timer`, `WordDisplay`, `Button`, `TextField`, `Panel`, `Alert` y `Dialog`; crear solo las composiciones de juez que no existen.
+- [ ] Llevar el selector de método a la preparación individual; conservar en «Editar formato» tiempos, entradas, rondas y conceptos. Mostrar «Estoy listo» y el estado de cada juez al organizador.
+- [ ] Implementar FMS con tabla de la ronda actual y acceso a anteriores; diferenciar casilla sin nota de una nota cero y aceptar pasos de 0,5. En móvil, distribuir casillas por MC como en la maqueta.
+- [ ] Implementar ambas subcategorías por rondas con la misma tabla y distinto resumen; notas enteras de 0 a 10 y explicación visible de la subcategoría bloqueada.
+- [ ] Implementar voto libre al cierre con selección y confirmación. Durante la batalla mostrar contexto y espera; en réplicas añadir la opción de otra réplica solo si el servidor la autoriza. No mostrar elección manual de ganador donde corresponda cálculo automático.
+- [ ] Mostrar errores y estado confirmado por servidor; no anunciar «Guardado» o «Voto enviado» únicamente por emitir un evento. Conservar borradores al perder conexión y reconciliar con la versión persistida antes de habilitar edición.
+- [ ] Desde `apps/web`, ejecutar `.\node_modules\.bin\eslint.cmd . --max-warnings=0` y `.\node_modules\.bin\next.cmd build`; después del build, ejecutar `.\node_modules\.bin\tsc.cmd --noEmit`. No ejecutar build y typecheck en paralelo porque ambos usan `.next/types`.
+- [ ] Recorrer FMS, ambas subcategorías y libre en escritorio y móvil; comprobar foco, teclado, zoom, tablas, reloj visible, botones compactos y ausencia de saltos al copiar/abrir modales. Commit `feat(web): integrate individual judge workspace`.
+
+### JV-06 — Recorrido integrado y cierre de documentación
+
+**Archivos:** actualizar el registro de producto, este plan y el catálogo UI con evidencias reales; ampliar `apps/server/src/rooms/battleRecovery.test.ts` si el recorrido descubre casos no cubiertos.
+
+- [ ] Preparar una base descartable según `docs/ENTORNO_LOCAL.md`. Probar migración desde una copia de la estructura anterior y recuperación de una sala antigua sin snapshot; no usar la base real para registros de prueba.
+- [ ] Recorrer organizador + dos MC presenciales + tres jueces con métodos distintos. Elegir métodos, marcar listos, cambiar formato y confirmar que el inicio se bloquea hasta que todos reconfirmen.
+- [ ] Completar varias rondas, verificar un voto por juez al cierre y repetir un caso sin mayoría. Agotar las réplicas y comprobar que no se puede emitir otro voto de réplica.
+- [ ] Reiniciar el servidor durante preparación, una ronda y el cierre; comprobar notas/métodos persistidos, pausa recuperable, permisos y ausencia de veredictos duplicados.
+- [ ] Ejecutar pruebas de scoring, sala, validación, persistencia y recuperación, typecheck y builds. Añadir resultados reales al plan; no registrar los casos pendientes como comprobados.
+- [ ] Revisar cambios por secretos, solicitar revisión de código, resolver bloqueos, commitear y subir a la rama configurada.
+
+**Orden:** JV-01 → JV-02 → JV-03 → revisión de edición de notas → JV-04 → JV-05 → JV-06. El diseño aprobado habilita preparar estos bloques; no equivale a afirmar que ya estén implementados.
