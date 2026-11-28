@@ -389,10 +389,13 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Reemplazo aprobado:** si el host se desconecta antes del anuncio, el organizador puede recibir el veredicto y ejecutar «Veredicto anunciado». La publicación continúa siendo explícita y conserva el resumen/privacidad configurados.
 
-**Punto de revisión de producto:** acceso entre jueces; elección del modo solo host sin un host inicialmente asignado; valores iniciales. Registrar cada respuesta en la especificación antes de implementar la correspondiente difusión.
+**Independencia aprobada:** cada juez ve solo sus propias notas hasta confirmar su voto final; ocultar notas y votos de otros jueces incluso en modo en vivo. Tras confirmar, aplicar la política de publicación sin abrir las tablas privadas. Probar la restricción también cuando comparte otros roles.
+
+**Punto de revisión de producto:** elección del modo solo host sin un host inicialmente asignado; valores iniciales. Registrar cada respuesta en la especificación antes de implementar la correspondiente difusión.
 
 - [ ] Añadir políticas persistidas y versionadas al snapshot de JV-02, diferenciadas del método individual de cada juez. No reutilizar el booleano global forzado como única regla de privacidad.
 - [ ] Crear una función de proyección de estado/resultados que reciba identidad y roles autenticados del destinatario. Probar público, ambos MC, juez, organizador y host, incluyendo personas con múltiples roles. La exclusión de MC en el modo en vivo debe respetarse.
+- [ ] Probar dos jueces antes y después de confirmar: ninguno recibe notas/votos ajenos antes de su voto final, aunque el público sí los vea en vivo. Un juez con rol adicional no puede eludir la restricción. En modo privado no se revelan tablas ajenas después de confirmar.
 - [ ] Aplicar las proyecciones a `battle:state`, resultados/veredictos, entrada/reconexión, consultas HTTP e históricos consultables. Mantener las notas editables privadas de su autor salvo lo expresamente aprobado en la política.
 - [ ] En modo en vivo, probar que una nota modificada de una ronda anterior se actualiza para el público tras persistirse y que el voto final solo figura como confirmado después del cierre correspondiente. No confundir una nota pública provisional con un veredicto ya emitido.
 - [ ] En modo solo host, entregar a ese destinatario el veredicto y aplicar al resto la vista aprobada para el periodo previo al anuncio. Probar que los payloads restringidos no contienen el ganador ni datos ocultos mediante otro evento o endpoint.
