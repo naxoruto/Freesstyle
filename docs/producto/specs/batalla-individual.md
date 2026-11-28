@@ -135,8 +135,8 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Réplicas, confirmado por el usuario:** todos los jueces pasan obligatoriamente a voto libre durante las réplicas, cualquiera que fuese su método original. El veredicto de réplica se basa en la actuación de esa réplica; la tabla FMS original no determina ese voto. Pueden votar otra réplica solo si la configuración permite más y quedan réplicas disponibles. Si se alcanzó el límite, cada juez debe elegir MC1 o MC2; no se ofrece la opción de otra réplica.
 - **Aclaración confirmada el 27/11/2026:** si no se permiten más réplicas, no se puede emitir un voto de réplica. La nueva implementación deberá reflejar la restricción en la interfaz y validar el límite en el servidor.
 - **Mayoría absoluta confirmada el 27/11/2026:** un MC gana con más de la mitad de los votos de los jueces: 1 de 1, 2 de 3 o 3 de 5. Si ninguno la alcanza y queda alguna réplica permitida, el resultado es réplica. Incluye los repartos 2/2/1 y 2/1/2 con cinco jueces. Cuando no quedan réplicas, todos los votos deben elegir MC1/MC2, aplicando también la excepción de empate FMS por voto libre.
-- **Solicitado:** separar la preparación de jueces del «3, 2, 1»: necesitan ver y entender su tabla antes de empezar a competir. Actualmente «Iniciar batalla» activa la cuenta atrás inmediatamente. Falta definir si se espera una confirmación de cada juez, una acción adicional del organizador o un tiempo de preparación; ninguna de esas alternativas está aprobada todavía.
-- **Pendiente de definir:** elección/cambio del método, reglas concretas de cada tabla y casos sin mayoría antes de implementar el nuevo cálculo. Repasar rúbrica, patrón y voto libre uno por uno, con ejemplos del usuario.
+- **Preparación confirmada el 27/11/2026:** antes de competir, cada juez elige su método (y subcategoría si corresponde), revisa su tabla o vista de votación y pulsa «Estoy listo». El organizador solo puede activar el «3, 2, 1» cuando todos los jueces estén listos. La última confirmación de un juez no inicia la cuenta atrás: hace falta la acción del organizador. El arranque inmediato actual aún no se ha cambiado en código.
+- **Pendiente de definir:** condiciones para cambiar el método/subcategoría después de elegirlos, y su relación con la confirmación de preparación.
 - **Estado técnico:** la votación individual aún no está implementada. El cálculo y el selector global existentes se mantienen mientras se termina de definir esta revisión.
 
 ### Votación clásica FMS: ejemplo del usuario y estructura confirmada
@@ -152,7 +152,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente común:** preparación de jueces y elección/cambio de métodos. La tabla y el cálculo nuevos siguen sin implementarse.
+- **Pendiente común:** condiciones de cambio de métodos y subcategorías. La preparación, la tabla y el cálculo nuevos siguen sin implementarse.
 
 ### Votación por rondas (antes llamada «por patrón»)
 
