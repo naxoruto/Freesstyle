@@ -198,8 +198,10 @@ Dos configuraciones independientes de la batalla, solicitadas por el usuario y p
 
 **Reemplazo del host, confirmado:** si el host se desconecta antes de anunciar el resultado, el organizador puede recibir el veredicto, asumir el anuncio y pulsar «Veredicto anunciado». Se conserva el mismo resumen para los demás y la misma política de privacidad; la desconexión no publica automáticamente el resultado.
 
+**Sin host desde la configuración inicial, confirmado:** también se permite el anuncio manual. El organizador recibe el veredicto, lo anuncia y pulsa «Veredicto anunciado»; no es obligatorio asignar un host para utilizar esta opción. El resumen se publica con la misma acción explícita y las mismas restricciones de visibilidad.
+
 **Independencia de jueces, confirmada:** hasta confirmar su voto final, cada juez solo ve sus propias notas; no puede consultar notas ni votos de los demás jueces, incluso cuando el público tiene acceso en vivo. El objetivo expresado por el usuario es que no se influyan entre sí. Esta restricción se aplica también si el juez tiene otro rol en la sala. Una vez confirmado su voto, se sigue la política de publicación de la batalla; confirmar no hace públicas las tablas privadas.
 
-Pendientes concretos: selección del modo solo host cuando no hay host asignado desde la configuración inicial; valores iniciales de las opciones. La entrega del veredicto y la visibilidad de votos deben combinarse según esas decisiones, sin asumir que una opción cambia automáticamente la otra.
+Pendiente concreto: valores iniciales de las dos opciones de configuración. La entrega del veredicto y la visibilidad de votos deben combinarse de forma independiente.
 
 La implementación actual fuerza `showScoresToSpectators: true` y difunde estados/resultados completos a la sala. Para cumplir la nueva configuración habrá que generar vistas autorizadas en el servidor para cada destinatario y aplicar el mismo filtro a eventos de estado, resultados, reconexión y consultas HTTP. Ocultar componentes de la web no implementa el voto privado. No dar por cambiada la visibilidad real hasta completar y verificar esa integración.
