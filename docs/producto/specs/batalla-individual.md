@@ -137,7 +137,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - **Mayoría absoluta confirmada el 27/11/2026:** un MC gana con más de la mitad de los votos de los jueces: 1 de 1, 2 de 3 o 3 de 5. Si ninguno la alcanza y queda alguna réplica permitida, el resultado es réplica. Incluye los repartos 2/2/1 y 2/1/2 con cinco jueces. Cuando no quedan réplicas, todos los votos deben elegir MC1/MC2, aplicando también la excepción de empate FMS por voto libre.
 - **Preparación confirmada el 27/11/2026:** antes de competir, cada juez elige su método (y subcategoría si corresponde), revisa su tabla o vista de votación y pulsa «Estoy listo». El organizador solo puede activar el «3, 2, 1» cuando todos los jueces estén listos. La última confirmación de un juez no inicia la cuenta atrás: hace falta la acción del organizador. El arranque inmediato actual aún no se ha cambiado en código.
 - **Bloqueo confirmado por el usuario:** una vez iniciada la batalla, cada juez conserva el método y la subcategoría elegidos hasta terminar. No se permiten cambios voluntarios durante la batalla. Se mantienen las transiciones obligatorias a voto libre ya acordadas para las réplicas y para resolver empates de tablas cuando no quedan réplicas permitidas.
-- **Pendiente de definir:** efecto de cambiar el método/subcategoría o el formato antes de empezar sobre las confirmaciones «Estoy listo».
+- **Actualización de preparación confirmada:** antes de empezar, cambiar el método o la subcategoría de un juez anula su «Estoy listo», y ese juez debe revisar su vista y confirmar nuevamente. Si el organizador cambia el formato de la batalla, se anulan las confirmaciones de todos los jueces y todos deben volver a marcar «Estoy listo». El organizador solo podrá activar la cuenta atrás tras completarse nuevamente las confirmaciones requeridas.
 - **Estado técnico:** la votación individual aún no está implementada. El cálculo y el selector global existentes se mantienen mientras se termina de definir esta revisión.
 
 ### Votación clásica FMS: ejemplo del usuario y estructura confirmada
@@ -153,7 +153,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente común:** actualización de las confirmaciones de preparación ante cambios previos al inicio. La preparación, la tabla y el cálculo nuevos siguen sin implementarse.
+- **Estado de esta revisión:** reglas principales de métodos, resultados, réplicas y preparación confirmadas. La nueva preparación, las tablas y el cálculo por juez están documentados y pendientes de implementación; el código actual sigue usando los métodos globales anteriores.
 
 ### Votación por rondas (antes llamada «por patrón»)
 
