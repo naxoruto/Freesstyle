@@ -12,13 +12,15 @@ El recorrido de creación del torneo conserva la inscripción guiada y la confir
 
 ### Intercambio, patrones y contenido — ampliación del 28/11
 
-**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas:
+**Confirmado por el usuario, sin implementación todavía.** Cada ronda tiene tres elecciones diferenciadas. El usuario confirma el orden de configuración: primero la cantidad de patrones y después el formato de esos patrones (intercambio y contenido).
 
 | Elección | Opciones y reglas confirmadas |
 |---|---|
-| Intercambio | 4x4, 8x8, 12x12 (30 segundos por intervención, alternando A → B → A → B…) y 16x16 (1 minuto por intervención). Se confirma que 16x16 recorre A → B → B → A, con un minuto en cada intervención: cuatro minutos de rap en total (dos por MC), sin contar pausas. En 12x12 no se impone la inversión B → A de la vuelta del 16x16; se mantiene la alternancia entre MC. |
 | Cantidad de patrones | 1, 2, 3, 4 o 5, con restricciones según intercambio. En 4x4, solo 3, 4 o 5; en 16x16, obligatoriamente 1 y con ida y vuelta en orden A → B → B → A. No asumir que ese «1» elimina la vuelta. |
+| Intercambio | 4x4, 8x8, 12x12 (30 segundos por intervención, alternando A → B → A → B…) y 16x16 (1 minuto por intervención). Se confirma que 16x16 recorre A → B → B → A, con un minuto en cada intervención: cuatro minutos de rap en total (dos por MC), sin contar pausas. En 12x12 no se impone la inversión B → A de la vuelta del 16x16; se mantiene la alternancia entre MC. |
 | Contenido | Libre, Con concepto/temática, Random Mode, Hard Mode y Deluxe. Con imagen queda para el futuro. |
+
+**Cómo se cuenta, confirmado:** en 4x4, 8x8 y 12x12, N patrones significa N intervenciones de cada MC, alternadas. Tres patrones producen A → B → A → B → A → B: tres intervenciones por MC y seis en total. Se conserva la excepción del 16x16: selector fijo en 1 con cuatro intervenciones A → B → B → A. Queda por elegir cómo presentar los formatos incompatibles con la cantidad seleccionada, sin dar por aprobado un cambio automático del número.
 
 Contenido definido por el usuario:
 
@@ -29,7 +31,7 @@ Contenido definido por el usuario:
 - **Deluxe:** 4x4; los primeros dos patrones de cada competidor son a capella. No confundirlos con solo dos patrones entre ambos. Se mantiene la restricción de al menos tres patrones para 4x4.
 - **Con imagen:** funcionalidad futura; no habilitarla como si estuviera disponible.
 
-**Pendiente de precisar, una cuestión a la vez:** unidad exacta de «patrón» y su relación con intervenciones y casillas FMS en los intercambios largos; compatibilidad de contenidos con intercambios y mecanismo de avance; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
+**Pendiente de precisar, una cuestión a la vez:** correspondencia entre el patrón configurado, las intervenciones y las casillas FMS del 16x16; compatibilidad de contenidos con intercambios y mecanismo de avance; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 
