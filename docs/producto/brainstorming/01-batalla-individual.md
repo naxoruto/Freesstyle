@@ -6,6 +6,8 @@
 
 El alcance solicitado incluye las reglas de batalla de 1vs1 y torneo. El usuario pide una interfaz ordenada, menos técnica y con más explicaciones. Quedan por definir los pasos, las opciones disponibles y sus preselecciones concretas, salvo voto secreto y publicación automática del ganador, ya confirmados en la especificación. La elección del método de cada juez se mantiene aparte.
 
+**Configuración por ronda, confirmada:** el organizador elige la cantidad de rondas y configura de forma independiente el formato y la cantidad de entradas de cada una. No imponer un único formato o número de entradas a todas las rondas. Falta precisar qué opciones incluye «formato» (estructura de intercambio, contenido o ambos), los límites y las preselecciones; no dar por aprobados nuevos tipos de ronda. El contrato y las tablas de puntuación deberán contemplar las diferencias entre rondas cuando se prepare la implementación.
+
 El recorrido de creación del torneo conserva la inscripción guiada y la confirmación de titulares ya acordadas; este cambio no autoriza saltarlas. Compartir las piezas de configuración conforme al catálogo UI.
 
 ## Decisiones del 23 de noviembre de 2026
