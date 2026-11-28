@@ -129,7 +129,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 ### Ajuste posterior de tarjetas y votación individual
 
 - Tarjetas de personas compactas de 140 px, distribuidas en filas sin expandirse cuando solo hay una. Nombres largos pueden partirse en varias líneas.
-- **Confirmado por el usuario:** cada juez debe poder configurar su método de votación (rúbrica, patrón o voto libre), separado del formato de la batalla. Cinco jueces pueden usar métodos diferentes.
+- **Confirmado por el usuario:** cada juez debe poder configurar su método de votación (Votación clásica FMS, votación por rondas o voto libre), separado del formato de la batalla. Cinco jueces pueden usar métodos diferentes. La alternativa antes llamada «por patrón» se redefine como evaluación global por ronda; su nombre actual en código no refleja esta nueva definición.
 - **Confirmado por el usuario:** cada juez aporta un único voto final (MC1, MC2 o réplica), todos pesan lo mismo y el resultado se decide por mayoría. Ese voto se emite una vez al terminar todas las rondas de la batalla, no al cerrar cada ronda.
 - **Confirmado por el usuario:** los puntos de los métodos con tabla deben determinar automáticamente el voto final del juez. La acumulación y el empate exacto de la Votación clásica FMS se concretan abajo; los demás métodos se repasan por separado. En voto libre, el juez elige directamente su veredicto.
 - **Réplicas, confirmado por el usuario:** todos los jueces pasan obligatoriamente a voto libre durante las réplicas, cualquiera que fuese su método original. El veredicto de réplica se basa en la actuación de esa réplica; la tabla FMS original no determina ese voto. Pueden votar otra réplica solo si la configuración permite más y quedan réplicas disponibles. Si se alcanzó el límite, cada juez debe elegir MC1 o MC2; no se ofrece la opción de otra réplica.
@@ -152,4 +152,17 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente común:** preparación de jueces, elección/cambio de métodos y definición del método «por patrón» como alternativa a la Votación clásica FMS. La tabla y el cálculo nuevos siguen sin implementarse.
+- **Pendiente común:** preparación de jueces, elección/cambio de métodos y cálculo del veredicto final de la votación por rondas. La tabla y el cálculo nuevos siguen sin implementarse.
+
+### Votación por rondas (antes llamada «por patrón»)
+
+- **Confirmado el 27/11/2026:** cada juez asigna una nota de 0 a 10 a cada MC por la ronda completa. Evalúa el conjunto de la actuación de esa ronda, sin calificar cada patrón ni usar la tabla detallada de FMS.
+- Ejemplo del usuario: en la primera ronda, A recibe 8 y B recibe 7; A gana esa ronda.
+- Se mantiene la regla común de aportar un único voto final por juez al terminar la batalla.
+- **Pendiente:** determinar si ese voto final depende de la cantidad de rondas ganadas o de la suma de sus notas; resolver empates y precisar si la escala admite decimales. No asumir una fórmula a partir del ejemplo de una sola ronda.
+
+### Voto libre: evaluación de la batalla completa
+
+- **Confirmado el 27/11/2026:** el juez escucha toda la batalla y elige a un MC al finalizar, tenga dos, tres o cinco rondas. No asigna notas ni elige un ganador de cada ronda.
+- Las reglas específicas ya confirmadas para las réplicas permanecen: todos usan voto libre y pueden pedir otra réplica únicamente si queda alguna permitida; al agotarlas deben elegir MC1/MC2.
+- Esta definición, la votación por rondas y la nueva tabla FMS siguen pendientes de implementación; el código aún contiene los métodos globales anteriores.
