@@ -381,11 +381,14 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Producto confirmado:** dos ajustes independientes: votación en vivo/privada y veredicto solo al host/en pantallas de todos. En vivo permite al público ver votos de jueces, excluyendo a los MC que compiten. En ambos modos de entrega debe existir consulta del desglose por juez.
 
-**Punto de revisión de producto:** concretar si se difunden notas provisionales o solo veredictos confirmados; momento/destinatarios del desglose y anuncio del host; ausencia del host; valores iniciales. Registrar cada respuesta en la especificación antes de implementar la correspondiente difusión.
+**Alcance en vivo confirmado:** el público ve las notas ingresadas/corregidas durante la batalla y los votos finales confirmados de cada juez. Distinguir estados provisionales y definitivos y mantener la exclusión de MC que compiten.
+
+**Punto de revisión de producto:** momento/destinatarios del desglose privado y anuncio del host; acceso entre jueces; ausencia del host; valores iniciales. Registrar cada respuesta en la especificación antes de implementar la correspondiente difusión.
 
 - [ ] Añadir políticas persistidas y versionadas al snapshot de JV-02, diferenciadas del método individual de cada juez. No reutilizar el booleano global forzado como única regla de privacidad.
 - [ ] Crear una función de proyección de estado/resultados que reciba identidad y roles autenticados del destinatario. Probar público, ambos MC, juez, organizador y host, incluyendo personas con múltiples roles. La exclusión de MC en el modo en vivo debe respetarse.
 - [ ] Aplicar las proyecciones a `battle:state`, resultados/veredictos, entrada/reconexión, consultas HTTP e históricos consultables. Mantener las notas editables privadas de su autor salvo lo expresamente aprobado en la política.
+- [ ] En modo en vivo, probar que una nota modificada de una ronda anterior se actualiza para el público tras persistirse y que el voto final solo figura como confirmado después del cierre correspondiente. No confundir una nota pública provisional con un veredicto ya emitido.
 - [ ] En modo solo host, entregar a ese destinatario el veredicto y aplicar al resto la vista aprobada para el periodo previo al anuncio. Probar que los payloads restringidos no contienen el ganador ni datos ocultos mediante otro evento o endpoint.
 - [ ] Reutilizar los controles UI existentes para ambos selectores y para consultar el desglose. No presentar el voto privado como un simple filtro visual de datos ya enviados al navegador.
 - [ ] Ejecutar pruebas unitarias de proyección sin BD y pruebas de reconexión/persistencia en base descartable; verificar las dos políticas en sesiones independientes de público, MC y host. Commit `feat(battle): enforce vote visibility and verdict delivery`.
