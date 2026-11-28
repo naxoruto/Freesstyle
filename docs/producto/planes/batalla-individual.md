@@ -251,7 +251,7 @@ Cada tarea es independiente en su ciclo de test; se commitea y pushea al termina
 
 **Arquitectura prevista:** extraer cálculo puro y validaciones a módulos pequeños; orquestar las acciones de jueces mediante la cola por sala existente. Añadir un estado versionado y persistido de preparación/planillas/veredictos; mantener una ruta explícita para salas antiguas sin ese estado. La UI consume el método del juez autenticado y reutiliza el catálogo compartido.
 
-**Estado:** diseño y reglas principales aprobados; todos los bloques de implementación están pendientes. No reiniciar tareas históricas T1–T11. Concretar el cierre/edición de planillas en JV-04 antes de conectar esos eventos.
+**Estado:** diseño y reglas principales aprobados; todos los bloques de implementación están pendientes. No reiniciar tareas históricas T1–T11. Confirmada la edición de rondas anteriores hasta emitir el voto final; concretar la acción de cierre de planillas en JV-04 antes de conectar esos eventos.
 
 **Restricciones comunes:** FMS 0–4 en pasos de 0,5; por rondas 0–10 enteros; mayoría absoluta; réplicas solo mientras estén permitidas; todo cambio crítico confirmado en BD antes de publicar. Consultar `docs/ENTORNO_LOCAL.md`: las pruebas de persistencia requieren PostgreSQL descartable. Respaldar y comprobar restauración antes de migrar una base existente; no ejecutar seeds, resets ni migraciones automáticas desde el lanzador. No copiar el HTML de maqueta a producción.
 
@@ -336,7 +336,9 @@ const isReady = judge.readyRevision === snapshot.formatRevision;
 
 **Archivos:** modificar `apps/server/src/rooms/battleRoom.ts`, `apps/server/src/index.ts`, `apps/server/src/security/socketPayload.ts`, `packages/shared/src/judgeVoting.ts`; ampliar pruebas unitarias y de recuperación.
 
-**Punto de revisión de producto antes de conectar notas:** confirmar con el usuario cuándo se cierra una planilla y si puede corregir notas de rondas anteriores durante la batalla. Mostrar la propuesta concreta en la vista aprobada; registrar la decisión en la especificación antes de implementar esos permisos. La aprobación visual no resuelve esa regla.
+**Edición aprobada:** el juez puede corregir notas de rondas anteriores durante la batalla hasta emitir su voto final. No bloquear una ronda solo porque cambió el turno/ronda actual. Cubrir que el total se recalcula al modificar una nota anterior y que no se cuenta un borrador como voto final.
+
+**Punto de revisión de producto antes de conectar notas:** confirmar la acción que cierra la planilla y dispara el cálculo automático al finalizar la batalla. Propuesta concreta: botón «Confirmar planilla». Registrar esa decisión en la especificación antes de implementar el cierre; la edición ya está aprobada.
 
 **Interfaz de evaluación:** un juez de FMS acumula tablas por ronda; `round_wins` acumula victorias; `round_total` suma notas; `free` recibe una elección al cierre. Los cálculos puros de JV-01 generan el veredicto de los métodos con notas; el juez no puede reemplazarlo manualmente salvo `needs_free_vote`.
 

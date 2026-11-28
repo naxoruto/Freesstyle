@@ -108,7 +108,7 @@ Votación clásica FMS (antes descrita como rúbrica): tabla por ronda con una f
 
 ### 5.3 Habilitadores técnicos (se ejecutan en esta fase)
 
-El usuario aprobó la [vista de juez](producto/propuestas/vista-juez.html) el 27/11: incluye FMS centrada en la ronda actual con acceso a anteriores, por rondas y voto libre. Conserva contexto de ronda/turno/reloj y cambia el área de puntuación. La maqueta usa datos ficticios; la integración reutilizará las primitivas UI existentes. Los bloques JV del [plan especializado](producto/planes/batalla-individual.md) ordenan la implementación y distinguen el detalle operativo de edición de notas que aún requiere definición.
+El usuario aprobó la [vista de juez](producto/propuestas/vista-juez.html) el 27/11: incluye FMS centrada en la ronda actual con acceso a anteriores, por rondas y voto libre. Conserva contexto de ronda/turno/reloj y cambia el área de puntuación. La maqueta usa datos ficticios; la integración reutilizará las primitivas UI existentes. Los bloques JV del [plan especializado](producto/planes/batalla-individual.md) ordenan la implementación. Se confirma edición de notas de rondas anteriores hasta emitir el voto final; queda por concretar la acción que cierra la planilla y dispara el cálculo.
 - **WEB-03** capa de cliente compartida → luego **WEB-01** split de `battle/[id]/page.tsx`.
 - **SEG-02** y **SEG-03** (flujo de entrada por invitación + token seguro).
 - **SRV-02** extracción de handlers de socket (los nuevos eventos de batalla entran ordenados).
