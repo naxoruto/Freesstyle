@@ -28,7 +28,7 @@ Contenido definido por el usuario:
 - **Con concepto/temática:** un concepto en cada patrón.
 - **Random Mode:** una palabra cada 10 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16; el usuario corrige la restricción inicial a los dos intercambios largos.
 - **Hard Mode:** palabras cada 5 segundos. Disponible en 4x4, 8x8, 12x12 y 16x16, conforme a la misma corrección.
-- **Deluxe:** 4x4; los primeros dos patrones de cada competidor son a capella. No confundirlos con solo dos patrones entre ambos. Se mantiene la restricción de al menos tres patrones para 4x4.
+- **Deluxe:** 4x4; las primeras dos intervenciones de cada MC son a capella y todas las restantes continúan en 4x4 libre con base, según la confirmación del usuario. Son dos intervenciones a capella por MC, no dos entre ambos. Se mantiene la restricción de al menos tres intervenciones por MC para 4x4 y el límite configurado de hasta cinco.
 - **Con imagen:** funcionalidad futura; no habilitarla como si estuviera disponible.
 
 **Orden aprobado:** elegir la cantidad de rondas y, dentro de cada ronda, Contenido → Intercambio → Cantidad de patrones. El contenido permite explicar las restricciones (por ejemplo, Deluxe requiere 4x4) y el intercambio determina las cantidades válidas (16x16 requiere 1 e incluye ida y vuelta). Mantener opciones incompatibles visibles, deshabilitadas y explicadas. El diseño completo y su implementación siguen pendientes.
@@ -44,7 +44,7 @@ Contenido definido por el usuario:
 
 N corresponde a las intervenciones configuradas por MC en 4x4, 8x8 y 12x12. El 16x16 mantiene su excepción ya acordada. A las casillas se suman Escena y Flow una vez por MC para toda la ronda.
 
-**Pendiente de precisar, una cuestión a la vez:** combinaciones restantes de contenido/intercambio y mecanismo de avance de conceptos y palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones; contenido posterior a la parte a capella de Deluxe. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
+**Pendiente de precisar, una cuestión a la vez:** combinaciones restantes de contenido/intercambio y mecanismo de avance de conceptos y palabras; tratamiento de un formato ya seleccionado que se vuelve incompatible al cambiar la cantidad de patrones. No deducir respuestas por el nombre del formato. Las nuevas definiciones deberán incorporarse a contratos por ronda, reloj, conceptos y puntuación antes de implementar el rediseño.
 
 ## Decisiones del 23 de noviembre de 2026
 
