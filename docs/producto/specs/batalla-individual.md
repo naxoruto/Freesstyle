@@ -152,7 +152,7 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - La cantidad de casillas de patrones por fila responde a las entradas del MC: con cuatro entradas, cuatro casillas por MC. No fijar seis casillas a partir del ejemplo gráfico.
 - Escena y Flow son agregados por MC para la ronda completa, separados de las casillas de patrones. Esta es la estructura solicitada para la nueva rúbrica; la tabla actual de cinco criterios globales todavía no se ha sustituido en código.
 - Easy Mode, Hard Mode, Temática, Personajes y Sangre son referencias de la imagen, no una aprobación de crear automáticamente esas rondas o modalidades.
-- **Pendiente común:** preparación de jueces, elección/cambio de métodos y cálculo del veredicto final de la votación por rondas. La tabla y el cálculo nuevos siguen sin implementarse.
+- **Pendiente común:** preparación de jueces, elección/cambio de métodos y detalles de puntuación de la votación por rondas. La tabla y el cálculo nuevos siguen sin implementarse.
 
 ### Votación por rondas (antes llamada «por patrón»)
 
@@ -161,7 +161,8 @@ Comprobaciones de esta entrega: pruebas unitarias de permisos, puntuación, recu
 - Se mantiene la regla común de aportar un único voto final por juez al terminar la batalla.
 - **Confirmado por el usuario:** ofrecer dos subcategorías a elegir, una que define el voto final por cantidad de rondas ganadas y otra que lo define por suma total de las notas. Se conservan ambas alternativas.
 - **Nombres propuestos:** «Rondas ganadas» (favorece al MC que gana más rondas) y «Puntaje acumulado» (favorece al MC con mayor suma de notas de todas las rondas). El usuario sugirió nombres como «voto completo»/«puntaje completo»; la denominación final aún puede ajustarse.
-- **Pendiente:** empates dentro de una ronda, empate final de cada subcategoría, pasos/decimales de la escala de 0 a 10 y condiciones para elegir o cambiar la subcategoría. La regla de empate FMS no se da por extendida a estos métodos hasta confirmarla.
+- **Desempate final confirmado:** en ambas subcategorías se aplica la misma regla de FMS. Si el resultado final de ese juez empata tras completar todas las rondas, su voto es réplica cuando quede alguna permitida; si no, debe elegir MC1/MC2 mediante voto libre. Se aplica al total de rondas ganadas o de puntos, según la subcategoría elegida.
+- **Pendiente:** empates dentro de una ronda para contabilizar rondas ganadas, pasos/decimales de la escala de 0 a 10 y condiciones para elegir o cambiar la subcategoría.
 
 ### Voto libre: evaluación de la batalla completa
 
